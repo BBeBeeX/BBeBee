@@ -1,0 +1,27 @@
+{
+  "id": "@bbebee/plugin-audio-converter-ui-mobile",
+  "name": "@bbebee/plugin-audio-converter-ui-mobile",
+  "displayName": "Audio Converter UI (Mobile)",
+  "description": "Mobile React Native views for @bbebee/plugin-audio-converter (Audio Converter workbench).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-audio-converter"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "storage",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}

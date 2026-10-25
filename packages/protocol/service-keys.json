@@ -118,6 +118,7 @@
       "@bbebee/plugin-inspector"
     ],
     "js": [
+      "@bbebee/core-js-mobile",
       "@bbebee/core-js-quickjs-desktop"
     ],
     "library": [

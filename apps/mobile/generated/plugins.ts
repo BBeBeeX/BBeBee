@@ -39,6 +39,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-http-mobile","name":"@bbebee/core-http-mobile","displayName":"HTTP","description":"ctx.http for iOS and Android — the M1 slice over expo/fetch.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["http"]},"effect":"http"},
     builtin: true,
   },
+  "@bbebee/core-js-mobile": {
+    load: () => import('@bbebee/core-js-mobile'),
+    manifest: {"id":"@bbebee/core-js-mobile","name":"@bbebee/core-js-mobile","displayName":"Script sandbox","description":"ctx.js — a sandboxed pure-JS interpreter realm per source, for iOS and Android.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["js"]},"effect":"js"},
+    builtin: true,
+  },
   "@bbebee/core-media-session-mobile": {
     load: () => import('@bbebee/core-media-session-mobile'),
     manifest: {"id":"@bbebee/core-media-session-mobile","name":"@bbebee/core-media-session-mobile","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
@@ -234,6 +239,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/plugin-album-ui-mobile","name":"@bbebee/plugin-album-ui-mobile","displayName":"Album UI (Mobile)","description":"React Native views for @bbebee/plugin-album.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-album"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
+  "@bbebee/plugin-audio-converter-ui-mobile": {
+    load: () => import('@bbebee/plugin-audio-converter-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-audio-converter-ui-mobile","name":"@bbebee/plugin-audio-converter-ui-mobile","displayName":"Audio Converter UI (Mobile)","description":"Mobile React Native views for @bbebee/plugin-audio-converter (Audio Converter workbench).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-audio-converter"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
   "@bbebee/plugin-download-ui-mobile": {
     load: () => import('@bbebee/plugin-download-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-download-ui-mobile","name":"@bbebee/plugin-download-ui-mobile","displayName":"Download UI (Mobile)","description":"React Native views for plugin-download.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-download"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
@@ -259,6 +269,16 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/plugin-local-scanner-ui-mobile","name":"@bbebee/plugin-local-scanner-ui-mobile","displayName":"Local Scanner UI (Mobile)","description":"React Native views for plugin-local-scanner.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-local-scanner"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
+  "@bbebee/plugin-lyrics-ui-mobile": {
+    load: () => import('@bbebee/plugin-lyrics-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-lyrics-ui-mobile","name":"@bbebee/plugin-lyrics-ui-mobile","displayName":"Lyrics UI (Mobile)","description":"React Native views for @bbebee/plugin-lyrics (Lyrics Panel).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-lyrics"],"systemId":"layer-5","moduleId":"lyrics","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-manager-ui-mobile": {
+    load: () => import('@bbebee/plugin-manager-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-manager-ui-mobile","name":"@bbebee/plugin-manager-ui-mobile","displayName":"Plugin Manager UI (Mobile)","description":"React Native views for @bbebee/plugin-manager: the plugin list with enable/disable toggles (changes apply at next launch — no mobile lifecycle bridge).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-manager"],"systemId":"layer-5","moduleId":"plugins","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
   "@bbebee/plugin-now-playing-ui-mobile": {
     load: () => import('@bbebee/plugin-now-playing-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-now-playing-ui-mobile","name":"@bbebee/plugin-now-playing-ui-mobile","displayName":"Now Playing UI (Mobile)","description":"React Native views for @bbebee/plugin-now-playing.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-now-playing"],"systemId":"layer-5","moduleId":"playback","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
@@ -267,6 +287,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-queue-ui-mobile": {
     load: () => import('@bbebee/plugin-queue-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-queue-ui-mobile","name":"@bbebee/plugin-queue-ui-mobile","displayName":"Queue UI (Mobile)","description":"React Native views for @bbebee/plugin-queue.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-queue"],"systemId":"layer-5","moduleId":"playback","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-registry-ui-mobile": {
+    load: () => import('@bbebee/plugin-registry-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-registry-ui-mobile","name":"@bbebee/plugin-registry-ui-mobile","displayName":"Registry UI (Mobile)","description":"React Native views for @bbebee/plugin-registry (the Discover screen and the registry settings card).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-registry"],"systemId":"layer-5","moduleId":"registry","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
   "@bbebee/plugin-settings-ui-mobile": {
@@ -282,6 +307,16 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-sources-ui-mobile": {
     load: () => import('@bbebee/plugin-sources-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-sources-ui-mobile","name":"@bbebee/plugin-sources-ui-mobile","displayName":"Sources UI (Mobile)","description":"React Native views for plugin-sources.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-sources"],"systemId":"layer-5","moduleId":"sources","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-theme-ui-mobile": {
+    load: () => import('@bbebee/plugin-theme-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-theme-ui-mobile","name":"@bbebee/plugin-theme-ui-mobile","displayName":"Theme UI (Mobile)","description":"React Native views for @bbebee/plugin-theme (theme management settings card and the mobile palette driver).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-theme"],"systemId":"layer-5","moduleId":"theme","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-visualizer-ui-mobile": {
+    load: () => import('@bbebee/plugin-visualizer-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-visualizer-ui-mobile","name":"@bbebee/plugin-visualizer-ui-mobile","displayName":"Visualizer UI (Mobile)","description":"Mobile React Native views for @bbebee/plugin-visualizer (Audio Visualizer).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-visualizer"],"systemId":"layer-5","moduleId":"dsp","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
 }

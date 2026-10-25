@@ -66,6 +66,7 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/plugin-inspector"
   ],
   "js": [
+    "@bbebee/core-js-mobile",
     "@bbebee/core-js-quickjs-desktop"
   ],
   "library": [

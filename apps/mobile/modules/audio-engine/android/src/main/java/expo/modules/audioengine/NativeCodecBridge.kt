@@ -11,6 +11,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -172,6 +173,28 @@ object NativeCodecBridge {
      * state the JS progress poller reads — and deletes the staged files once
      * the job settles, so cancellation and failure clean up without the JS
      * side knowing about the staging.
+     *
+     * The desktop-only options (`bitDepth`, `vbr`/`vbrQuality`,
+     * `volumeGainDb`, the fades) are accepted here for the native layer to
+     * rule on. ⚠️ The pinned engine surface (`BBeBeeAudioEngine.nativeTranscode`
+     * v1.1.0 — paths, format, bitrate, rate, channels, trim) has no receiver
+     * for them, and a job started with them would silently ignore exactly the
+     * options the caller asked for. So the ones present are named in the start
+     * answer's `unsupported` list — the engine layer's own ruling, which the
+     * JS side turns into one warning instead of a guessed drop list. The
+     * desktop ffmpeg equivalents the engine must adopt to honour them:
+     *
+     * | option          | ffmpeg arg (as `core-codec-desktop` builds it)                  |
+     * |-----------------|------------------------------------------------------------------|
+     * | `bitDepth`      | flac: `-sample_fmt s32`/`s16`; wav: `pcm_s24le/32le/16le`; aiff: `pcm_s24be/16be` |
+     * | `vbr`+`vbrQuality` | mp3: `-q:a <0..9>`; vorbis: `-q:a <0..10>` (else falls back to `-b:a`) |
+     * | `volumeGainDb`  | `-af volume=<db>dB`                                             |
+     * | `fadeInSeconds` | `-af afade=t=in:ss=0:d=<sec>`                                    |
+     * | `fadeOutSeconds`| `-af afade=t=out:st=<end-fade>:d=<sec>`                          |
+     *
+     * When the engine grows a receiver for these (a filters/args export), map
+     * through that table, delete the `unsupported` block, and the JS side
+     * needs no change — the warning disappears with the report.
      */
     fun transcode(
         context: Context?,
@@ -184,6 +207,12 @@ object NativeCodecBridge {
         channels: Int,
         startSec: Double,
         endSec: Double,
+        bitDepth: Int? = null,
+        vbr: Boolean? = null,
+        vbrQuality: Double? = null,
+        volumeGainDb: Double? = null,
+        fadeInSeconds: Double? = null,
+        fadeOutSeconds: Double? = null,
     ): String {
         if (context == null) {
             return errorAnswer(jobId, "no Android context available")
@@ -211,6 +240,22 @@ object NativeCodecBridge {
         )
         val parsed = JSONObject(answer)
         if (parsed.optBoolean("ok", false)) {
+            // The ruling on the extended options, from the layer that owns the
+            // engine surface — see the KDoc table for the mapping the engine
+            // must adopt before these stop being "unsupported".
+            val unsupported = buildList {
+                if (bitDepth != null) add("bitDepth")
+                if (vbr == true && vbrQuality != null) {
+                    add("vbr")
+                    add("vbrQuality")
+                }
+                if (volumeGainDb != null) add("volumeGainDb")
+                if (fadeInSeconds != null) add("fadeInSeconds")
+                if (fadeOutSeconds != null) add("fadeOutSeconds")
+            }
+            if (unsupported.isNotEmpty()) {
+                parsed.put("unsupported", JSONArray(unsupported))
+            }
             val settledJobId = parsed.optString("jobId", jobId)
             Thread {
                 awaitJobSettled(settledJobId)
@@ -226,7 +271,7 @@ object NativeCodecBridge {
             // copy would outlive the attempt without this.
             input.second?.invoke()
         }
-        return answer
+        return parsed.toString()
     }
 
     private fun awaitJobSettled(jobId: String) {

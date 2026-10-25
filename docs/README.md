@@ -15,8 +15,8 @@ built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste,
 
 > **Status.** M0 – M4 are built — M3 (offline downloads) and M4 (the DSP chain) shipped; see each
 > milestone's "Where it stands" / "Shipped" notes in [Roadmap & Risks](./roadmap/roadmap.md) for
-> open items — notably `core-js-quickjs-mobile` (mobile has
-> no QuickJS sandbox yet) and the `@css:`/`@xpath:` rule engines. See the roadmap's
+> open items — the `@css:`/`@xpath:` rule engines remain stubbed (mobile's script sandbox,
+> `core-js-mobile`, is a pure-JS interpreter since Hermes has no WebAssembly for QuickJS). See the roadmap's
 > "Where it stands" section for the precise list. Every version number and API fact was verified
 > against `pnpm-lock.yaml` at the time of writing (see
 > [workflow/build-pipelines.md](./workflow/build-pipelines.md) for the pinned matrix).
@@ -65,7 +65,7 @@ The architecture documentation is organized into 9 topic directories:
 | | [audio/dsp.md](./audio/dsp.md) | `ctx.dsp` effect chain assembly and built-in processors (EQ, compressor, reverb) |
 | **Sources** | [sources/spec.md](./sources/spec.md) | audio model, source JSON document schema, and derived capabilities |
 | | [sources/rule-engines.md](./sources/rule-engines.md) | Six rule engines (`@json`, `@css`, `@xpath`, `@js`, regex, template) & combinators |
-| | [sources/runtime.md](./sources/runtime.md) | Resolution lifecycle, cookie/session persistence, streams, and QuickJS sandbox |
+| | [sources/runtime.md](./sources/runtime.md) | Resolution lifecycle, cookie/session persistence, streams, and the source sandbox (QuickJS on desktop, pure-JS on mobile) |
 | | [sources/authoring.md](./sources/authoring.md) | Dual-file authoring workflow, source compiler, diagnostics, and local media |
 | | [sources/parameters.md](./sources/parameters.md) | Source configuration, loginUi parameters, credentials store, and connection testing |
 | | [sources/registry.md](./sources/registry.md) | The B_Be_Bee-registry content registry: index format, update checks, and install flows |

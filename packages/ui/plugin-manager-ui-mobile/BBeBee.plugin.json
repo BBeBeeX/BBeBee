@@ -1,0 +1,27 @@
+{
+  "id": "@bbebee/plugin-manager-ui-mobile",
+  "name": "@bbebee/plugin-manager-ui-mobile",
+  "displayName": "Plugin Manager UI (Mobile)",
+  "description": "React Native views for @bbebee/plugin-manager: the plugin list with enable/disable toggles (changes apply at next launch — no mobile lifecycle bridge).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-manager"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "plugins",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}

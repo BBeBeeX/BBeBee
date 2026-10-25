@@ -32,7 +32,11 @@ export const bundled: PluginRegistry = {
 }
 ```
 
-Configuration decides which of these are actually instantiated and with what settings. The loader
+Configuration decides which of these are actually instantiated and with what settings. The enable/disable
+toggles the plugin manager persists under its own store namespace (`@bbebee/plugin-manager:enabled`)
+are applied at boot by `computeEnabledPlugins` (`apps/mobile/src/boot.ts`), together with provider
+arbitration — a non-critical service key with several providers starts exactly one — mirroring
+desktop's composition. The loader
 dynamically invokes `load()` on demand at startup, ensuring that unconfigured plugins are neither
 fetched nor evaluated. The generated file is committed so a clean checkout builds without running
 codegen first.
@@ -46,10 +50,13 @@ To maximize startup performance without breaking Cordis DI lifecycle:
   The `bootstrap` core services array remains strictly sequential.
 - **Post-first-frame Deferred Loading**: Plugins non-essential to the initial UI frame (such as
   `plugin-local-scanner`, `plugin-download`, `plugin-share`, `plugin-visualizer`, `plugin-sleep-timer`,
-  and `plugin-history`) are excluded from `INITIAL_ENABLED`. After the Shell mounts its first paint,
-  the app invokes `app.loadPlugin(id)` during `requestIdleCallback` (or `setTimeout` fallback).
-  As deferred plugins activate and register their views/routes onto `ctx.ui`, `ui/changed` fires and
-  dynamically populates navigation entries without blocking the initial screen.
+  and `plugin-history`, plus the registry trio — `plugin-registry`, `plugin-registry-metadata`,
+  `plugin-registry-ui-mobile` — and the plugin manager's mobile views) are listed in
+  `DEFERRED_PLUGIN_IDS` (`apps/mobile/src/plugins.ts`) and excluded from `INITIAL_ENABLED`. After the
+  Shell mounts its first paint, the app invokes `app.loadPlugin(id)` during `requestIdleCallback`
+  (or `setTimeout` fallback — Hermes has no idle callback, so the fallback is the path actually
+  taken). As deferred plugins activate and register their views/routes onto `ctx.ui`, `ui/changed`
+  fires and dynamically populates navigation entries without blocking the initial screen.
 
 
 ### 6.2 Desktop dynamic loading — `plugin-loader-dynamic`

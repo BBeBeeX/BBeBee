@@ -109,22 +109,34 @@ export interface FsService {
   /** Ask the user to pick a folder, returning a Uri with durable permission. */
   pickDirectory(): Promise<Uri | undefined>
 
+  /**
+   * Ask the user to pick files through the platform picker. User-driven, so
+   * no capability token gates it; `[]` means the user cancelled. Optional:
+   * absent (or refused in words) where the host has no picker — never an
+   * empty array, which a caller cannot tell from a cancel.
+   */
+  pickFiles?(opts?: { multiple?: boolean }): Promise<Array<{ uri: Uri; name?: string; size?: number }>>
+
   /** Convert a Uri into one a native audio decoder can open (SAF tree resolution on Android). */
-  toPlayableUri(uri: Uri): Promise<Uri>
+  toPlayableUri(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uri>
 }
 ```
 
-| | Desktop (`core-fs-tauri`) | Expo (`core-fs-mobile`) |
+| | Desktop (`core-fs-desktop`) | Expo (`core-fs-mobile`) |
 |---|---|---|
 | Backing | Node.js sidecar `node:fs/promises`, streamed over JSON-RPC IPC | `expo-file-system` `File` / `Directory` classes |
 | `dir('music')` | Tauri OS paths / sidecar `os.homedir()` | ⚠️ No equivalent — returns `null` and callers must fall back to `pickDirectory()` |
 | `watch` | Node.js sidecar `fs.watch`, reliable | ⚠️ Not supported. Resolves to a no-op disposer; the scanner falls back to polling `mtime` |
 | `pickDirectory` | `@tauri-apps/plugin-dialog` `open()` | Storage Access Framework (Android) / document picker (iOS) |
+| `pickFiles` | Host dialog over the renderer bridge (`window.BBeBee.dialog.pickFiles`); single-pick when `multiple: false`. A bare-Node host (the sidecar) has nobody to ask and refuses in words — never `[]`, which a caller cannot tell from a cancel | `expo-document-picker`, `copyToCacheDirectory` folding SAF picks into readable `file://` uris; `[]` on cancel |
+| Reads (`readFile`/`readBytes`) | `node:fs` honours the signal in-process (`AbortError`/`ABORT_ERR`); the renderer bridge checks it at its await points, since a live signal cannot cross IPC | same abort error shape, checked at the read's await points |
 
 > ⚠️ **The biggest leak in the whole abstraction.** On Android, a user-picked folder is a
 > `content://` SAF tree URI, not a path: it cannot be handed to a native audio decoder, and its
 > permission must be persisted across restarts. `core-fs-mobile` persists the grant and exposes
 > `fs.toPlayableUri(uri)` used by `ctx.audio`; on iOS and desktop that is the identity function.
+> The optional `signal` aborts that copy at the await points (`readBytes`-style `AbortError`);
+> it is advisory, since a copy already in flight natively cannot be interrupted mid-write.
 > The scanner ([06](../sources/spec.md)) is written against `list`/`stat` precisely so it does
 > not care.
 

@@ -236,7 +236,8 @@ export interface Host {
 const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
   fs: new Set([
     'dir', 'exists', 'stat', 'list', 'mkdir', 'remove', 'move', 'copy',
-    'readFile', 'readBytes', 'readRange', 'writeFile', 'freeSpace', 'toPlayableUri', 'pickDirectory',
+    'readFile', 'readBytes', 'readRange', 'writeFile', 'freeSpace', 'toPlayableUri',
+    'pickDirectory', 'pickFiles',
   ]),
   db: new Set(['query', 'get', 'exec', 'execBatch', 'defineSchema']),
   paths: new Set([

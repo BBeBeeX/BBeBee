@@ -167,6 +167,13 @@ export interface MobileAudioConfig {
   mpvPlugin: Plugin
   createContext?: () => BaseAudioContext
   bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
+  /**
+   * The persisted `audioExclusive` setting, seeded by the shell from the
+   * pre-boot store read so bit-perfect exclusive output is in force from the
+   * first engine mount, not from the first settings change. Same seeding
+   * contract as the desktop wrapper's `initialAudioExclusive`.
+   */
+  initialAudioExclusive?: boolean
 }
 
 /**
@@ -186,6 +193,7 @@ export class MobileAudioService extends Service implements AudioService {
   private currentVolume = 0.8
   private currentMuted = false
   private currentDeviceId = 'default'
+  private currentAudioExclusive: boolean
   private lastNativeDsp?: {
     af: string
     replaygain?: string
@@ -203,6 +211,7 @@ export class MobileAudioService extends Service implements AudioService {
     private readonly config: MobileAudioConfig,
   ) {
     super(ctx, 'audio')
+    this.currentAudioExclusive = config.initialAudioExclusive ?? false
   }
 
   async [Service.init]() {
@@ -364,6 +373,7 @@ export class MobileAudioService extends Service implements AudioService {
   }
 
   async setAudioExclusive(exclusive: boolean): Promise<void> {
+    this.currentAudioExclusive = exclusive
     const engine = this.activeEngine as unknown as { setAudioExclusive?: (e: boolean) => Promise<void> }
     await engine.setAudioExclusive?.(exclusive).catch(() => undefined)
   }
@@ -482,6 +492,11 @@ export class MobileAudioService extends Service implements AudioService {
     // The engine mounted after any `dsp/af-changed` that already fired; push
     // the current chain so it starts in step with the Web Audio graph.
     this.pushNativeDsp()
+    // The seeded setting outlives the mount that raced it: apply it here, the
+    // way the desktop wrapper does at the end of its own `mountEngine`.
+    if (this.currentAudioExclusive) {
+      await this.setAudioExclusive(true)
+    }
   }
 
   async switchEngine(targetEngine: 'mpv' | 'wasapi'): Promise<void> {

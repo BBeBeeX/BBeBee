@@ -9,7 +9,7 @@
  * `ctx.ui`.
  */
 
-import { createElement as h, useCallback, useEffect, useState, type ComponentType } from 'react'
+import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
 import { ActivityIndicator, BackHandler, Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
 /*
  * ⚠️ `react-native-safe-area-context`, not React Native's own `SafeAreaView`.
@@ -25,7 +25,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
 import type { StoreService } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
-import { useI18n, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
+import { useI18n, usePalette, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
 import { renderBootErrorMessage } from './boot-error'
 import { boot } from './boot'
 import {
@@ -34,9 +34,56 @@ import {
   resolveMobileLayout,
   type MobileLayoutMode,
 } from './layout'
+import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
 import brandIcon from '../assets/icon.png'
+
+/**
+ * The idle gate for the deferred plugin pass, mirroring desktop's
+ * `main.tsx`: run when the platform yields, or 200 ms in — whichever the
+ * runtime offers. Hermes carries no `requestIdleCallback`, so the timeout is
+ * the branch a phone actually takes.
+ */
+function scheduleIdle(cb: () => void): void {
+  const idle = (globalThis as {
+    requestIdleCallback?: (callback: () => void) => void
+  }).requestIdleCallback
+  if (typeof idle === 'function') {
+    idle.call(globalThis, cb)
+  } else {
+    setTimeout(cb, 200)
+  }
+}
+
+/**
+ * Load the deferred plugins after the first frame — the mobile mirror of the
+ * desktop renderer's post-render idle pass. `boot()` starts the shell on
+ * `INITIAL_ENABLED`; everything in `DEFERRED_PLUGIN_IDS` rides in here. A
+ * plugin the user disabled stays off, read from plugin-manager's merged
+ * view (`registerManifests` in `boot.ts` is what makes that list non-empty);
+ * an individual failure is logged and skipped, never fatal.
+ */
+async function loadDeferredPlugins(app: Awaited<ReturnType<typeof boot>>, ctx: Context): Promise<void> {
+  for (const id of DEFERRED_PLUGIN_IDS) {
+    const pm = (
+      app.ctx as unknown as {
+        'plugin-manager'?: { list(): readonly { id: string; enabled: boolean }[] }
+      }
+    )['plugin-manager']
+    if (pm) {
+      const item = pm.list().find((p) => p.id === id)
+      if (item && item.enabled === false) {
+        continue
+      }
+    }
+    try {
+      await app.loadPlugin(id)
+    } catch (error) {
+      ctx.logger?.warn?.(`deferred plugin ${id} failed to load: ${String(error)}`)
+    }
+  }
+}
 
 /** What the tab bar can navigate to: a route id plus its i18n title key. */
 interface Tab {
@@ -94,6 +141,15 @@ function useUiChangedTick(ctx: Context): number {
 
 function Shell({ ctx }: { ctx: Context }) {
   const { t } = useI18n(ctx)
+  /*
+   * The shell paints from the same palette the kit's components read. Every
+   * colour below comes off this object — a hardcoded hex here would outlive
+   * a theme switch and paint the chrome in a scheme the screens no longer
+   * speak. The hook is what makes the repaint happen: it subscribes to the
+   * palette store, so a theme (or scheme) change re-renders the shell and
+   * everything it renders with it.
+   */
+  const palette = usePalette()
   const uiTick = useUiChangedTick(ctx)
   const defaultTab = TABS[0]
   const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
@@ -325,7 +381,7 @@ function Shell({ ctx }: { ctx: Context }) {
               alignItems: 'center',
               paddingHorizontal: 16,
               paddingVertical: 10,
-              borderBottomColor: '#1E1E28',
+              borderBottomColor: palette.border.subtle,
               borderBottomWidth: 1,
             },
           },
@@ -339,7 +395,7 @@ function Shell({ ctx }: { ctx: Context }) {
             },
             h(
               Text,
-              { style: { color: '#7C5CFF', fontSize: 16, fontWeight: '600' } },
+              { style: { color: palette.accent.base, fontSize: 16, fontWeight: '600' } },
               t('app:common.app.backPill'),
             ),
           ),
@@ -371,7 +427,7 @@ function Shell({ ctx }: { ctx: Context }) {
         ? h(PageView, { ctx, ...params, onBack, onOpenAlbum })
         : h(
             Text,
-            { style: { padding: 24, color: '#A0A0AE' } },
+            { style: { padding: 24, color: palette.text.secondary } },
             id
               ? t('app:common.app.hasNoMobileView', { currentId: id })
               : t('app:common.app.noPluginRoute'),
@@ -418,7 +474,7 @@ function Shell({ ctx }: { ctx: Context }) {
       : null,
     h(
       View,
-      { style: { flexDirection: 'row', borderTopColor: '#1E1E28', borderTopWidth: 1 } },
+      { style: { flexDirection: 'row', borderTopColor: palette.border.subtle, borderTopWidth: 1 } },
       ...TABS.map((tab) => {
         const isSelected =
           activeTab?.id === tab.id ||
@@ -438,7 +494,7 @@ function Shell({ ctx }: { ctx: Context }) {
             Text,
             {
               numberOfLines: 1,
-              style: { color: isSelected ? '#F5F5F7' : '#5A5A68' },
+              style: { color: isSelected ? palette.text.primary : palette.text.secondary },
             },
             tabTitle,
           ),
@@ -460,7 +516,7 @@ function Shell({ ctx }: { ctx: Context }) {
     { style: { flex: 1, flexDirection: 'row' } },
     h(
       View,
-      { style: { width: 240, borderRightWidth: 1, borderRightColor: '#1E1E28' } },
+      { style: { width: 240, borderRightWidth: 1, borderRightColor: palette.border.subtle } },
       h(
         View,
         {
@@ -474,7 +530,7 @@ function Shell({ ctx }: { ctx: Context }) {
           },
         },
         h(Image, { source: brandIcon, style: { width: 28, height: 28, borderRadius: 6 } }),
-        h(Text, { style: { color: '#F5F5F7', fontSize: 18, fontWeight: '700' } }, 'B Be Bee'),
+        h(Text, { style: { color: palette.text.primary, fontSize: 18, fontWeight: '700' } }, 'B Be Bee'),
       ),
       h(
         View,
@@ -496,7 +552,7 @@ function Shell({ ctx }: { ctx: Context }) {
                 paddingVertical: 14,
                 paddingHorizontal: 20,
                 borderLeftWidth: 3,
-                borderLeftColor: isSelected ? '#7C5CFF' : 'transparent',
+                borderLeftColor: isSelected ? palette.accent.base : 'transparent',
               },
             },
             h(
@@ -504,7 +560,7 @@ function Shell({ ctx }: { ctx: Context }) {
               {
                 numberOfLines: 1,
                 style: {
-                  color: isSelected ? '#F5F5F7' : '#5A5A68',
+                  color: isSelected ? palette.text.primary : palette.text.secondary,
                   fontWeight: isSelected ? '600' : '400',
                 },
               },
@@ -534,14 +590,14 @@ function Shell({ ctx }: { ctx: Context }) {
           testID: 'rail-dual-screen',
           style: {
             borderTopWidth: 1,
-            borderTopColor: '#1E1E28',
+            borderTopColor: palette.border.subtle,
             paddingVertical: 12,
             paddingHorizontal: 20,
           },
         },
         h(
           Text,
-          { style: { color: '#7C5CFF', fontSize: 14, fontWeight: '600' } },
+          { style: { color: palette.accent.base, fontSize: 14, fontWeight: '600' } },
           t('app:common.app.dualScreen'),
         ),
       ),
@@ -567,7 +623,7 @@ function Shell({ ctx }: { ctx: Context }) {
     h(
       View,
       {
-        style: { flex: 1, borderRightWidth: 1, borderRightColor: '#1E1E28' },
+        style: { flex: 1, borderRightWidth: 1, borderRightColor: palette.border.subtle },
         testID: 'foldable-left-pane',
       },
       h(
@@ -591,7 +647,7 @@ function Shell({ ctx }: { ctx: Context }) {
           },
           h(
             Text,
-            { style: { color: '#7C5CFF', fontSize: 13, fontWeight: '600' } },
+            { style: { color: palette.accent.base, fontSize: 13, fontWeight: '600' } },
             t('app:common.app.exitDualScreen'),
           ),
         ),
@@ -621,7 +677,7 @@ function Shell({ ctx }: { ctx: Context }) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: '#0B0B0F',
+            backgroundColor: palette.bg.base,
             zIndex: 100,
           },
           testID: 'now-playing-overlay',
@@ -630,7 +686,7 @@ function Shell({ ctx }: { ctx: Context }) {
           ? h(NowPlayingView, { ctx, onClose: () => setIsFullscreenNowPlaying(false) })
           : h(
               Text,
-              { style: { padding: 24, color: '#A0A0AE' } },
+              { style: { padding: 24, color: palette.text.secondary } },
               t('app:common.app.nowPlayingNoMobileView'),
             ),
       )
@@ -675,9 +731,9 @@ function Shell({ ctx }: { ctx: Context }) {
               right: 0,
               bottom: 0,
               width: Math.min(360, Math.round(width * 0.45)),
-              backgroundColor: '#14141C',
+              backgroundColor: palette.bg.overlay,
               borderLeftWidth: 1,
-              borderLeftColor: '#1E1E28',
+              borderLeftColor: palette.border.subtle,
               zIndex: 120,
             },
             testID: 'queue-drawer',
@@ -691,10 +747,10 @@ function Shell({ ctx }: { ctx: Context }) {
                 justifyContent: 'space-between',
                 padding: 16,
                 borderBottomWidth: 1,
-                borderBottomColor: '#1E1E28',
+                borderBottomColor: palette.border.subtle,
               },
             },
-            h(Text, { style: { color: '#F5F5F7', fontSize: 16, fontWeight: '600' } }, t('queue:index.queue')),
+            h(Text, { style: { color: palette.text.primary, fontSize: 16, fontWeight: '600' } }, t('queue:index.queue')),
             h(
               Pressable,
               {
@@ -703,7 +759,7 @@ function Shell({ ctx }: { ctx: Context }) {
                 accessibilityLabel: t('app:common.close'),
                 style: { padding: 6 },
               },
-              h(Text, { style: { color: '#A0A0AE', fontSize: 16 } }, '✕'),
+              h(Text, { style: { color: palette.text.secondary, fontSize: 16 } }, '✕'),
             ),
           ),
           h(View, { style: { flex: 1 } }, h(QueueView, { ctx })),
@@ -714,7 +770,7 @@ function Shell({ ctx }: { ctx: Context }) {
     SafeAreaView,
     // `shell-<layout>` lets a manual rotation check (and later an e2e tap
     // through) see which branch the classifier picked without a debugger.
-    { style: { flex: 1, backgroundColor: '#0B0B0F' }, testID: `shell-${layout}` },
+    { style: { flex: 1, backgroundColor: palette.bg.base }, testID: `shell-${layout}` },
     layout === 'tablet'
       ? tabletChrome
       : layout === 'foldable'
@@ -750,12 +806,34 @@ function Shell({ ctx }: { ctx: Context }) {
 export default function App() {
   const [ctx, setCtx] = useState<Context>()
   const [error, setError] = useState<string>()
+  // The pre-shell screens paint from the palette too: a light-scheme theme
+  // must not flash a dark loading screen at every launch.
+  const palette = usePalette()
+
+  /*
+   * The `App` instance from `boot()`, kept only to hand the deferred pass its
+   * `loadPlugin`. A ref rather than state: the ready chain below is the
+   * single source of truth for when loading begins.
+   */
+  const bootAppRef = useRef<Awaited<ReturnType<typeof boot>> | null>(null)
 
   useEffect(() => {
     let disposed = false
     boot()
-      .then((app) => app.ready(['ui'], { timeoutMs: 15_000 }))
-      .then((ready) => { if (!disposed) setCtx(ready) })
+      .then((app) => {
+        bootAppRef.current = app
+        return app.ready(['ui'], { timeoutMs: 15_000 })
+      })
+      .then((ready) => {
+        if (disposed) return
+        setCtx(ready)
+        // First frame is about to paint — bring the deferred plugins in
+        // during idle, exactly as the desktop renderer does.
+        scheduleIdle(() => {
+          const app = bootAppRef.current
+          if (app) void loadDeferredPlugins(app, ready).catch(() => {})
+        })
+      })
       .catch((e: unknown) => setError(e instanceof Error ? (e.stack ?? e.message) : String(e)))
     return () => { disposed = true }
   }, [])
@@ -763,15 +841,15 @@ export default function App() {
   if (error) {
     return h(
       SafeAreaView,
-      { style: { flex: 1, backgroundColor: '#0B0B0F' } },
-      h(Text, { style: { padding: 24, color: '#FF5C5C' } }, renderBootErrorMessage(error)),
+      { style: { flex: 1, backgroundColor: palette.bg.base } },
+      h(Text, { style: { padding: 24, color: palette.state.error } }, renderBootErrorMessage(error)),
     )
   }
   if (!ctx) {
     return h(
       SafeAreaView,
-      { style: { flex: 1, backgroundColor: '#0B0B0F', justifyContent: 'center' } },
-      h(ActivityIndicator, { color: '#7C5CFF' }),
+      { style: { flex: 1, backgroundColor: palette.bg.base, justifyContent: 'center' } },
+      h(ActivityIndicator, { color: palette.accent.base }),
     )
   }
   return h(Shell, { ctx })

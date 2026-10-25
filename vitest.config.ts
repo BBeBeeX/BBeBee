@@ -51,6 +51,27 @@ export default defineConfig({
         new URL('./test/stubs/expo-secure-store.ts', import.meta.url),
       ),
       /*
+       * And the document picker, for `core-fs-mobile`'s `pickFiles`. The
+       * system sheet is genuinely of the device, so the stub only carries the
+       * result shape — `canceled`/`assets` — and a lever to script it, which
+       * is what the fs conformance pickFiles check and the mobile specifics
+       * exercise.
+       */
+      'expo-document-picker': fileURLToPath(
+        new URL('./test/stubs/expo-document-picker.ts', import.meta.url),
+      ),
+      /*
+       * And the device surfaces, for `core-device-mobile` — the one mobile core
+       * package whose tests came last. Each stub carries the exact surface the
+       * service reads plus a lever to script it, including the refusals the
+       * service is built to degrade from rather than die on.
+       */
+      'expo-network': fileURLToPath(new URL('./test/stubs/expo-network.ts', import.meta.url)),
+      'expo-battery': fileURLToPath(new URL('./test/stubs/expo-battery.ts', import.meta.url)),
+      'expo-application': fileURLToPath(
+        new URL('./test/stubs/expo-application.ts', import.meta.url),
+      ),
+      /*
        * And the transport itself. `expo/fetch` binds the native network stack
        * through `ExpoFetchModule`, so Node cannot load it — but the stub is
        * expo-*shaped*, not Node-shaped: its `Headers` is React Native's

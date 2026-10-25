@@ -265,6 +265,76 @@ export const fsConformance: ConformanceSuite<FsSubject> = {
       },
     },
     {
+      name: 'reads honour an aborted signal',
+      because:
+        'a cancelled download or abandoned scan must not resolve as if the read had been wanted',
+      async run({ fs, scratch }) {
+        const uri = fs.join(scratch, 'aborted.txt')
+        await fs.writeFile(uri, 'payload')
+        const controller = new AbortController()
+        controller.abort()
+        // The one abort error shape both platforms throw: node:fs spells it
+        // `name: 'AbortError'` / `code: 'ABORT_ERR'`; the Expo side reproduces
+        // that shape rather than inventing a third one.
+        const isAbort = (error: unknown): boolean => {
+          const err = error as { name?: string; code?: string; message?: string }
+          return (
+            err?.name === 'AbortError' ||
+            err?.code === 'ABORT_ERR' ||
+            /abort/i.test(err?.message ?? '')
+          )
+        }
+        await assertRejects(
+          () => fs.readBytes(uri, { signal: controller.signal }),
+          'an aborted readBytes',
+          isAbort,
+        )
+        await assertRejects(
+          () => fs.readFile(uri, { signal: controller.signal }),
+          'an aborted readFile',
+          isAbort,
+        )
+      },
+    },
+    {
+      name: 'pickFiles answers the contract shape or says plainly there is nobody to ask',
+      because:
+        'imports and playlist builders route user picks through it, and an empty array must mean the user cancelled — never "unsupported"',
+      async run({ fs }) {
+        // Optional capability: absent where the host has no picker, and the
+        // contract documents that rather than pretending.
+        const pick = fs.pickFiles?.bind(fs)
+        if (!pick) return
+        const picked = await pick({ multiple: false }).then(
+          (value) => value,
+          (error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error)
+            // A host without a dialog (a bare Node sidecar) refuses in words.
+            if (/not supported|unsupported|no host|nobody to ask|cannot/i.test(message)) {
+              return undefined
+            }
+            throw error
+          },
+        )
+        if (picked === undefined) return
+        assert(Array.isArray(picked), 'pickFiles resolves an array')
+        for (const entry of picked) {
+          assert(
+            typeof entry?.uri === 'string' && entry.uri.length > 0,
+            'every picked entry carries a uri',
+          )
+          assert(
+            entry.name === undefined || typeof entry.name === 'string',
+            'name is a string when present',
+          )
+          assert(
+            entry.size === undefined || typeof entry.size === 'number',
+            'size is a number when present',
+          )
+        }
+      },
+    },
+    {
       name: 'freeSpace reports a positive number',
       because: 'the download policy refuses to start without headroom',
       async run({ fs, scratch }) {

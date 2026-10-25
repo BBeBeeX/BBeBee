@@ -103,7 +103,7 @@ name stem must equal the entry's `id` (validation enforces it):
 | `dependencies` | plugin | Dependencies on other registry plugin entries, each `"<registry-id>"` or `"<registry-id>@<semver-range>"`. CI checks the ids exist, the ranges parse, and the graph is acyclic; the client resolves the closure at install time. |
 | `i18n` | plugin | Non-empty array of language tags the plugin ships UI strings for (e.g. `["en", "zh"]`). Required (schema v2). |
 | `category` | plugin | Free-form category slug (e.g. `ui-enhancement`) the Discover page's category filter groups by. Unknown slugs pass through verbatim. |
-| `params` | `music-source` | Optional string array of configurable keys (e.g. `["sourceurl", "username", "password"]`). When containing `"sourceurl"`, users may customize the backend address/path in client settings, and BBeBee dynamically whitelists the configured host in the QuickJS sandbox. Also relaxes strict `entry.sourceUrl` match in `install-state.ts` when customized. |
+| `params` | `music-source` | Optional string array of configurable keys (e.g. `["sourceurl", "username", "password"]`). When containing `"sourceurl"`, users may customize the backend address/path in client settings, and BBeBee dynamically whitelists the configured host in the source sandbox. Also relaxes strict `entry.sourceUrl` match in `install-state.ts` when customized. |
 
 > **Plugin CI, beyond the schema.** Every plugin entry is validated against the
 > npm registry itself: the entry's `npm` package must be **published on the
@@ -313,6 +313,11 @@ Before any installation or update proceeds, the desktop UI (`packages/ui/plugin-
 - **Commit Diff**: For updates, displays the commit progression (e.g., `a1b2c3d → e4f5g6h`); for plugins, the version progression instead.
 - **Block Gating**: a `block` audit disables the confirm button by default — the explicit-risk-confirmation red line (see the spec at [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) (L2)); the desktop UI implements it as the "I acknowledge the high-risk findings and confirm forced installation" override checkbox. A `warn`-only audit leaves the confirm button enabled.
 
+The mobile Discover surface ([§8.2](#82-the-mobile-discover-surface)) presents the same two-step
+contract through `packages/ui/plugin-registry-ui-mobile`'s `InstallConfirmSheet` — a bottom sheet
+with the same audit badge and findings, the same host disclosure, and the same gated confirms
+(block-audit acknowledgement, locally-modified overwrite), drawn as press-to-toggle rows.
+
 ### 5.5 `registry.lock.json` Install Records
 
 - **Location**: Stored in the App User Data directory as `registry.lock.json` (also mirrored in `ctx.store` under `registry.lock`).
@@ -395,12 +400,12 @@ opt-in, user-confirmed content. Today's one built-in is the lrclib lyric source 
 
 ## 8. View placement
 
-The registry view (Discover, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`:
+The registry view (Discover, route `/registry`) is contributed to the desktop shell with `placement: ['tray']` rather than `sidebar`. On mobile the same `registry.screen` route exists without the tray — [§8.2](#82-the-mobile-discover-surface) — because the shell's tab bar is fixed and the screen is reached from settings.
 
 1. **Information architecture hierarchy**: The left sidebar is reserved for primary audio playback and local library navigation (Search, Library, Albums, Playlists). Management tools and extensions (Registry, Downloads, History, Import Share) are aggregated in the TopBar tray to prevent navigation clutter.
 2. **Update notification coupling**: `apps/desktop/renderer/TopBar.tsx` hosts `TrayIndicator`, which subscribes to the `registry/updates-available` event. When updates are found, it displays an update indicator dot (`topbar-tray-update-dot`) on the tray toggle button and on the registry entry inside the tray panel. Placing the registry in the tray allows update notifications to alert the user promptly without polluting the core browsing sidebar.
 
-### 8.1 The Discovery page surface
+### 8.1 The Discovery page surface (desktop)
 
 Beyond the four kind tabs, the screen carries a set of client-side view features (all view state; nothing beyond favorites is persisted):
 
@@ -409,6 +414,39 @@ Beyond the four kind tabs, the screen carries a set of client-side view features
 - **Plugin category filter** — options derive from the `category` slugs actually present in the index (§2); unknown slugs pass through untranslated instead of crashing.
 - **Favorites / Installed tabs** — favorites are a localStorage id set (`bbebee_registry_favorites`); the installed tab lists what the content services report as installed or updateable, annotates lock-record commit/date metadata (§5.5), and offers uninstall for the kinds whose owning services expose a remove API (plugins have none — the tab points at plugin management instead).
 - **Task center & diagnostics** — the header task button and the Diagnostics tab render the optional service surfaces documented in §4.
+
+### 8.2 The mobile Discover surface
+
+`packages/ui/plugin-registry-ui-mobile` fills the same two headless descriptors the desktop package
+does — the `registry.screen` route and the `registry.settings-card` in settings — and adds the
+screen's one mobile entrance: a settings link row (section `sources`) that pushes the route onto
+the stack, since the shell's tab bar is fixed and the tray placement is desktop-only.
+
+The surface is the desktop screen scoped to a phone:
+
+- **The four kind tabs**, with catalog counts. The `plugin` kind stays listed; an install attempt
+  surfaces the service's own refusal rather than hiding the tab — npm plugin installation needs
+  the desktop lifecycle bridge (`PluginLifecycleBridge.installPlugin`), so dynamic plugin loading
+  remains desktop-only and the refusal names it.
+- **Search and sorting** — by name / stars / downloads / contributors; the numeric sorts read
+  `ctx.registryMetadata` exactly as the desktop's do (nothing requested until a numeric sort is
+  active, degrading quietly when the service is absent), and plugin entries overlay their
+  npm-latest version since the index carries none for that kind.
+- **The same two-step install contract** (§5.4) as a bottom sheet, with updates reporting through
+  the same task center (`registry/tasks-changed`).
+- **Uninstall for all four kinds** where the owning service exposes a remove API — sources
+  (`sources.remove`, catalogue and lock record purged), lyric sources, themes, and
+  `plugin-manager`'s uninstall.
+- **The real `registry.settings-card`** in mobile settings (entry point plus installed-state
+  summary), not a "not available on this platform" placeholder.
+
+Deliberately absent on mobile: favorites, the Installed tab, diagnostics, the service-provider
+picker, local `.tgz` import, preview images on entry cards, and `minAppVersion` gating — a phone
+has no app-version bridge the view could read, so an unknown version never blocks. Mobile's other
+install path, pasting source JSON into the import screen (`plugin-sources-ui-mobile`), is
+unchanged and independent of the registry; the mobile theme screen links to the Discover route
+for registry packs (`plugin-theme-ui-mobile`), so installed themes have a browse surface beside
+the settings card.
 
 ---
 

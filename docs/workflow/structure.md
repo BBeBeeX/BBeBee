@@ -52,7 +52,7 @@ B_Be_Bee/
 │
 ├── apps/                                   🔹 LAYER 5 — application shells
 │   ├── mobile/                     ✅        Expo app
-│   │   ├── src/boot.ts                        composition root: registers core-*-expo ([architecture/layers.md §1](../architecture/layers.md#1-the-layer-model))
+│   │   ├── src/boot.ts                        composition root: registers core-*-mobile ([architecture/layers.md §1](../architecture/layers.md#1-the-layer-model))
 │   │   ├── src/plugins.ts                     the allowlist, as data — imports nothing
 │   │   ├── src/App.tsx                        mounts inside ctx.inject(['ui'], …)
 │   │   ├── generated/plugins.ts               codegen: static plugin imports ([plugins/loading.md §6.1](../plugins/loading.md))
@@ -138,10 +138,10 @@ B_Be_Bee/
 │   │   ├── core-media-session-mobile/  ✅
 │   │   ├── core-codec-desktop/        ✅        ctx.codec — tags via music-metadata over ctx.fs;
 │   │   ├── core-codec-mobile/          ✅          -rn adds the device's decoder
-│   │   ├── core-audio-mpv/         ✅        ctx.audio — libmpv native engine (desktop subprocess)
-│   │   ├── core-audio-mpv/         ✅        ctx.audio — the audio engine ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine))
+│   │   ├── core-audio-mpv/         ✅        ctx.audio — the libmpv engine ([audio/engine.md §1](../audio/engine.md#1-ctxaudio--the-engine)): desktop subprocess, mobile in-process
 │   │   ├── core-js-quickjs-desktop/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
-│   │   ├── core-js-quickjs-mobile/             ⚠️ the one M2 gap: Hermes has no WASM
+│   │   ├── core-js-mobile/            ✅        ctx.js on mobile — pure-JS interpreter realm
+│   │   │                                       (Hermes has no WASM for QuickJS; see README)
 │   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC clients + sidecar host.
 │   │   │                                       Layer 2 on both sides of the process boundary
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell
@@ -212,6 +212,10 @@ B_Be_Bee/
 │   │   │                                       ctx.paths.cache, fetched only on a miss, LRU per
 │   │   │                                       class ([audio/playback.md](../audio/playback.md), [data-model/schema.md](../data-model/schema.md))
 │   │   ├── plugin-audio-converter/ ✅        ctx.audioConverter — audio transcoding, compression presets, task queue, and size estimation
+│   │   ├── plugin-registry/        ✅        ctx.contentRegistry — the community content index: browse,
+│   │   │                                       update checks and install/update tasks for sources,
+│   │   │                                       lyric sources and themes ([sources/registry.md](../sources/registry.md))
+│   │   ├── plugin-registry-metadata/ ✅      lazy GitHub star/contributor counts for registry entries
 │   │   └── plugin-…
 │   │
 │   ├── ui/                          🔹 LAYER 5 — views and UI infrastructure
@@ -228,7 +232,8 @@ B_Be_Bee/
 │   │   │                                       actions for a track, playlist and collection
 │   │   ├── ui-parity/              ✅        the component contract, and the check that both
 │   │   │                                       kits meet it ([ui/design-system.md](../ui/design-system.md))
-│   │   ├── ui-kit-mobile/          ✅        React Native components
+│   │   ├── ui-kit-mobile/          ✅        React Native components, plus the live-palette resolver the
+│   │   │                                       theme drive installs (`primitives.ts`, `theme-bridge.ts`, `hooks/`)
 │   │   ├── ui-kit-desktop/         ✅        React DOM components (modular components & theme)
 │   │   ├── plugin-queue-ui-desktop/  ✅      ┐ the up-next queue
 │   │   ├── plugin-queue-ui-mobile/   ✅      ┘
@@ -248,17 +253,31 @@ B_Be_Bee/
 │   │   ├── plugin-local-scanner-ui-mobile/  ✅ ┘
 │   │   ├── plugin-inspector-ui-desktop/ ✅   the fiber tree, rendered
 │   │   ├── plugin-lyrics-ui-desktop/ ✅      now-playing lyrics panel, smooth auto-scrolling
+│   │   ├── plugin-lyrics-ui-mobile/  ✅      the same `lyrics.panel` view id, filled into the `now-playing.panel`
+│   │   │                                       slot the mobile player reads: synced auto-scroll, tap-to-seek,
+│   │   │                                       manual scroll suspends auto-follow ([ui/architecture.md §2](../ui/architecture.md#2-contributions-are-descriptors))
 │   │   ├── plugin-desktop-lyrics-ui-desktop/ ✅ desktop lyrics button + secondary window adapter
 │   │   ├── plugin-visualizer-ui-desktop/ ✅  audio visualizer canvas and settings configuration panel
+│   │   ├── plugin-visualizer-ui-mobile/ ✅   the `visualizer.canvas` slot view (pure-JS rAF loop, ~30 fps while
+│   │   │                                       playing — no Skia in the repo) + the visualizer settings card
 │   │   ├── plugin-mini-player-ui-desktop/ ✅ desktop floating mini player & Dynamic Island secondary window
 │   │   ├── plugin-share-ui-desktop/   ✅     ┐ share card export and image steganography modals
 │   │   ├── plugin-share-ui-mobile/    ✅     ┘
 │   │   ├── plugin-theme-ui-desktop/   ✅     four-category theme settings card (packs, dynamic cover theme, glass controls)
+│   │   ├── plugin-theme-ui-mobile/    ✅     the `theme.settings` card (glass omitted — no RN counterpart) and the
+│   │   │                                       live-palette driver: `themeToPalette` → kit-wide `setPalette`
 │   │   ├── plugin-dsp-ui-desktop/  ✅        ┐ 10-band EQ sliders, chain ordering, effect bypass,
 │   │   ├── plugin-dsp-ui-mobile/   ✅        ┘ and settings integration ([ui/architecture.md §4](../ui/architecture.md#4-binding-services-to-react))
 │   │   ├── plugin-settings-ui-desktop/ ✅    ┐ settings center: modular sections & diagnostics,
 │   │   ├── plugin-settings-ui-mobile/  ✅    ┘ and category tabs ([ui/architecture.md §5](../ui/architecture.md))
-│   │   └── plugin-audio-converter-ui-desktop/ ✅ desktop tray workbench view, batch conversion, progress, and preset controls
+│   │   ├── plugin-audio-converter-ui-desktop/ ✅ desktop tray workbench view, batch conversion, progress, and preset controls
+│   │   ├── plugin-audio-converter-ui-mobile/ ✅ the same workbench (`audio-converter.view`, full option set incl.
+│   │   │                                       VBR/volumeGain/fades) + a settings link-row entrance
+│   │   ├── plugin-registry-ui-desktop/ ✅    ┐ the Discover screen (`registry.screen`) and settings card:
+│   │   ├── plugin-registry-ui-mobile/  ✅    ┘ browse and install sources, lyric sources and themes
+│   │   └── plugin-manager-ui-mobile/  ✅     the plugin list with enable/disable toggles — persisted changes apply
+│   │                                           at next launch (no mobile lifecycle bridge); desktop keeps
+│   │                                           management in the settings screen's own plugins section
 │   │
 │   ├── sdk/                         🔧 OUTSIDE THE LAYER MODEL
 │   │                                         @BBeBee/sdk — public development kit for external plugins

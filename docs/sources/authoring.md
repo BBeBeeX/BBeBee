@@ -345,8 +345,39 @@ For the person authoring a document — in the app's editor, or in a text file t
 - [ ] `check` passes ([§10](#10-diagnosing-a-broken-source)), and the trace has no error steps.
 - [ ] Debug-run search, explore, album and stream at least once each.
 - [ ] Page 2 of a search returns different items than page 1.
+- [ ] Every `@js:` block and `jsLib` function stays inside the portable subset (below) — no
+      `class` syntax, no `get`/`set` accessors — so the document runs on mobile too.
 - [ ] Export, re-import into a clean profile, and confirm it still works — that is the only test
       of what your document actually contains.
+
+### The JavaScript a rule can rely on
+
+`@js:` blocks, `jsLib`, and the scripted auth fields (`loginCheckJs`, `loginQrJs`, `loginPollJs`,
+`loginRefreshJs`) all run in `ctx.js`, on both platforms, and both implementations pass the same
+22-check conformance suite — but they are not the same engine. Desktop runs QuickJS compiled to
+WebAssembly; mobile runs a pure-JS interpreter (`@nyariv/sandboxjs` in `core-js-mobile`), because
+Hermes has neither WebAssembly nor `eval`/`new Function`. Write to the intersection and the
+document runs everywhere:
+
+| Portable — works on desktop and mobile | Mobile-only gap |
+|---|---|
+| `const` / `let`, arrow functions, template literals | `class` declarations and expressions (no `extends` / `super`) |
+| Destructuring, spread / rest, closures, object and array literals, method shorthand | `get` / `set` accessors in object literals |
+| Generators, `async` / `await` (host bridges like `src.get` are awaited normally) | |
+| `for…of`, optional chaining (`?.`), nullish coalescing (`??`) | |
+| The standard `JSON` / `Math` / `Date` / `String` / `Array` / `Map` / `Set` / `Promise` surface, and sandboxed `eval` / `Function` | |
+
+A construct outside the portable column fails on mobile with a `JsScriptError` naming the syntax —
+the same shape as any other script bug, not a crash — so a document that runs on desktop but not
+on mobile is an authoring bug, not a platform flake. Everything the rule language itself asks for
+(async IIFEs awaiting `src.*` bridges, the builtins above) is inside the portable set.
+
+Two timing differences if a rule runs close to its limits (the values live in
+[runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)): on mobile
+`timeoutMs` is enforced as a tick quota, so a runaway loop dies *near* the deadline rather than on
+it, and `memoryBytes` is not enforced — an allocation blow-up reports as a timeout, while the 1 MB
+result cap still holds. `budgetMs`, the 10 s wall clock a `@js:` rule with network gets, is a wall
+clock on both platforms.
 
 ---
 

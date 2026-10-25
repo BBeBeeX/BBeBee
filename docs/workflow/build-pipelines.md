@@ -10,7 +10,7 @@
 | Desktop renderer | **Vite** | `apps/desktop/renderer/index.html` | Native ESM in dev; strict CSP whose single concession is `'wasm-unsafe-eval'`, without which QuickJS cannot compile and the boot fails — it is not `'unsafe-eval'`, so no foreign *JavaScript* loads ([architecture/layers.md §2](../architecture/layers.md#processsecurity-posture-on-desktop)). `img-src`/`media-src` carry plain `http:` for sources that serve artwork and streams from such hosts. Pinned by `renderer/csp.test.ts` |
 | Desktop app host & sidecar | **Tauri v2 + Vite** | `apps/desktop/src-tauri/` & `apps/desktop/sidecar/` | Tauri Rust host for windowing & OS APIs; Node.js sidecar for filesystem & child-process isolation |
 | Packages | **tsup** (or `tsc` for `protocol`) | per-package `src/index.ts` | ESM only; `protocol` emits types only |
-| QuickJS WASM | embedded in the bundle | `core-js-quickjs-desktop` | One **single-file** variant (`@jitl/quickjs-singlefile-browser-release-sync`) through `quickjs-emscripten-core`, so the engine is bytes in a JS chunk and is never fetched — a sandbox that downloads its own engine is not one ([services/contracts.md §19](../services/contracts.md)). `getQuickJS()` is what this is instead of: it picks a separate-`.wasm` variant that fetches at startup — served `index.html` by Vite in dev, refused outright by a `file://` renderer once packaged — and drags all four variants (~4 MB) into the build |
+| QuickJS WASM | embedded in the bundle | `core-js-quickjs-desktop` | One **single-file** variant (`@jitl/quickjs-singlefile-browser-release-sync`) through `quickjs-emscripten-core`, so the engine is bytes in a JS chunk and is never fetched — a sandbox that downloads its own engine is not one ([services/contracts.md §19](../services/contracts.md)). `getQuickJS()` is what this is instead of: it picks a separate-`.wasm` variant that fetches at startup — served `index.html` by Vite in dev, refused outright by a `file://` renderer once packaged — and drags all four variants (~4 MB) into the build. Mobile needs none of it: `core-js-mobile` is a pure-JS interpreter realm (`@nyariv/sandboxjs`) because Hermes has no WebAssembly, so the Metro bundle carries no QuickJS bytes |
 
 ```jsonc
 // metro.config.js — the parts that are not boilerplate
@@ -80,6 +80,15 @@ gates, and packages native installers (`deb`, `appimage`, `nsis`, `dmg`).
 Locally: `pnpm build:desktop && pnpm package:desktop` (or `pnpm dist:desktop`). The
 condensed developer version of these rules lives in the root [README.md](../../README.md).
 
+**Mobile counterpart.** The same engine ships to phones as an Expo native module rather than a
+subprocess: `apps/mobile/modules/audio-engine` declares both platforms in its
+`expo-module.config.json` (the Android Kotlin module; `ios/audio-engine.podspec` for iOS), and
+`node scripts/fetch-audio-engine.mjs --mobile` stages the Android `arm64-v8a`/`x86_64` packages
+and the iOS xcframework into root `resources/` under the same `audio-engine.version.json` +
+SHA256 discipline as the desktop assets. The iOS side needs a Mac (`pod install` during a
+dev-client rebuild), so it sits outside the Linux/Windows dev loop for the same reason the
+device smoke matrix is manual.
+
 There is no Turborepo and no `turbo.json`: the root scripts orchestrate with `pnpm -r` — `build`
 runs before `test` for packages with conformance suites, and `typecheck` and `lint` are plain
 recursive runs over the workspace.
@@ -125,7 +134,7 @@ authority; this matrix is a map. Several of these move weekly.
 | `@tanstack/react-virtual` | 3.14.10 | Desktop list virtualisation |
 | `music-metadata` | 11.15.0 | Tag reading on **both** targets — it is pure JS over `ctx.fs`, so `core-codec-mobile` inherits it rather than adding a native reader that would have to agree with it |
 | `quickjs-emscripten-core` + `@jitl/quickjs-singlefile-browser-release-sync` | **0.32.0** | ⚠️ `ctx.js` on desktop. Pin both exactly and keep them equal — a variant and a core of different versions share an FFI ABI that is not versioned. The single-file variant is what makes the engine bundled rather than fetched ([services/contracts.md §19](../services/contracts.md)); the `browser` build is the environment-agnostic one, so Vitest, `main` and the sandboxed renderer all run the same realm |
-| `react-native-quickjs` | **0.4.x** | ⚠️ Planned for `ctx.js` on mobile (M2 gap) — not yet installed. See §5.3 |
+| `react-native-quickjs` | — | **Never adopted.** The M2 gap it was planned for closed differently: `core-js-mobile` runs a pure-JS interpreter realm (`@nyariv/sandboxjs`) because Hermes has no WebAssembly for any QuickJS binding. See §5.3 |
 
 ### 5.1 The Cordis RC problem
 
@@ -178,8 +187,10 @@ If the two native modules ever become a problem, 3 is the escape hatch and it is
 
 `ctx.js` is a third pre-1.0 bet, and it arrived with
 [ADR-5](../architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime)
-rather than being chosen at leisure. Two QuickJS bindings, two build systems, one of them a native
-module on a platform where native modules are expensive to change.
+rather than being chosen at leisure. Only one QuickJS binding ships — the desktop realm;
+mobile's `core-js-mobile` avoids the native-module problem entirely with a pure-JS interpreter
+behind the same `JsRealm` contract (the trade: no heap ceiling, and `timeoutMs` enforced as a
+tick quota rather than a hard interrupt).
 
 The mitigation is the same shape as the other two, and it is why `ctx.js` is a *service* rather
 than an import inside `plugin-source-runtime`: the contract is "evaluate this string in a realm

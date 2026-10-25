@@ -28,12 +28,18 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
     "cordis": "4.0.0-rc.9",
+    "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.6"
   },
   "devDependencies": {
-    "@bbebee/core-paths-mobile": "workspace:*"
+    "@bbebee/core-db-mobile": "workspace:*",
+    "@bbebee/core-paths-mobile": "workspace:*",
+    "@bbebee/core-store-fs": "workspace:*",
+    "@bbebee/plugin-log-buffer": "workspace:*",
+    "@bbebee/plugin-log-console": "workspace:*",
+    "@bbebee/plugin-log-file": "workspace:*"
   }
 }

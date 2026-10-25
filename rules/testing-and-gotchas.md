@@ -89,7 +89,9 @@ Test conventions, common gotchas, and milestone status for BBeBee.
   - Curation: library, playlists, downloads, cache, lyrics, desktop lyrics
   - Dynamic plugin loading with code-splitting
 - **Known gaps**:
-  - `core-js-quickjs-mobile` not built (mobile currently has no QuickJS sandbox)
+  - ~~`core-js-quickjs-mobile` not built~~ — closed by `core-js-mobile`: Hermes has no
+    WebAssembly for QuickJS, so mobile runs a pure-JS interpreter realm (`@nyariv/sandboxjs`)
+    with the same `JsRealm` contract (no heap ceiling; `timeoutMs` as a tick quota)
   - `@css:` and `@xpath:` rule engines are stubbed
   - Download policies do not have per-policy scopes yet
 - **Differences from early docs**:

@@ -57,7 +57,7 @@ flowchart TD
    - **Union-Preserving Egress Update:** `store.updateSourceUrl` unions the extracted host with the existing allowlist (`row.allowed_hosts_json` and `doc.allowedHosts`), ensuring that built-in CDN nodes or secondary endpoints defined in the original source are preserved rather than overwritten.
    - **Hot Sandbox Reconfiguration:** The updated allowlist is persisted to SQLite (`allowed_hosts_json` and `doc_json`), `docHash` is recomputed, and `source/changed` is broadcast with `['params', 'sourceUrl', 'allowedHosts']`. `plugin-source-runtime` immediately updates its `scoped.intercept('http', { allowedHosts })` policy without requiring an application restart.
    - **Relaxed Registry Matching:** `install-state.ts` detects that `sourceurl` is present in `params` and skips strict equality on `entry.sourceUrl`, preventing user-configured instances from being incorrectly flagged as uninstalled or out-of-sync.
-   - Any outbound HTTP request inside the QuickJS sandbox to a destination outside this allowlist is rejected with `CapabilityError` before leaving the process ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); see [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security) (L2)).
+   - Any outbound HTTP request inside the source sandbox to a destination outside this allowlist is rejected with `CapabilityError` before leaving the process ([runtime.md §8](./runtime.md#8-trust-what-an-imported-source-can-and-cannot-do); see [rules/sources.md §3](../../rules/sources.md#3-sandboxing--security) (L2)).
 
 ---
 
@@ -120,7 +120,7 @@ Configuration updates are saved into the source record's `config` column.
 
 When a lyric query is executed:
 1. **Query Context:** The script is handed a frozen query object — `{ title, artist, duration }`, plus a frozen `config` copy when the source defines one — and `searchLyrics` / `main` / `getLyrics` receive exactly that object.
-2. **QuickJS Environment:** The realm additionally exposes `httpFetch` (host-proxied, restricted to the source's `allowedHosts`) and a top-level `config` binding (`source.config ?? {}`).
+2. **Sandbox Environment:** The `ctx.js` realm — QuickJS on desktop, the pure-JS interpreter on mobile — additionally exposes `httpFetch` (host-proxied, restricted to the source's `allowedHosts`) and a top-level `config` binding (`source.config ?? {}`).
 3. **Fallback Evaluator:** Without `ctx.js`, the same three bindings are applied as function parameters (`__query__`, `httpFetch`, `config`), so scripts read custom API endpoints, language preferences, or header overrides identically.
 
 ---
@@ -145,7 +145,7 @@ The source configure modal (`SourceConfigureModal`) follows a strict declarative
    - The generic `var` field is excluded when `loginType !== 'variable'`, unless explicitly declared in `loginUi` or `params`.
 3. **Variables Section (`vars` / `source_vars`):**
    - Renders inputs strictly for non-credential, non-host keys declared in `doc.params` (e.g. `clientApp`).
-   - Arbitrary dynamic variable additions ("New Key / Value / Add") are strictly prohibited and omitted: the QuickJS sandbox cannot consume undeclared runtime variables, so freeform key-value forms are removed.
+   - Arbitrary dynamic variable additions ("New Key / Value / Add") are strictly prohibited and omitted: the sandbox cannot consume undeclared runtime variables, so freeform key-value forms are removed.
 4. **Connectivity Probe:**
    - The "Test Connection" button is only displayed if the source declares a host parameter, is Subsonic, or defines a `loginUrl`.
 5. **Zero-Configuration Empty State:**

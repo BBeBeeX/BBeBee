@@ -1,0 +1,27 @@
+{
+  "id": "@bbebee/plugin-visualizer-ui-mobile",
+  "name": "@bbebee/plugin-visualizer-ui-mobile",
+  "displayName": "Visualizer UI (Mobile)",
+  "description": "Mobile React Native views for @bbebee/plugin-visualizer (Audio Visualizer).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-visualizer"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "dsp",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}

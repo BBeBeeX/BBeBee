@@ -287,7 +287,11 @@ How each flow is expressed in the document:
 `loginCheckJs` runs after every response and decides whether the session is still good; returning
 false sets `status = 'expired'` and emits `source/auth-expired`. It is the source's equivalent of
 "the server started answering with the login page again", which no HTTP status code reliably
-signals.
+signals. It is script, so it runs only where the `js` service exists — both shipped platforms
+provide one, on mobile as well as desktop, and the same is true of the scripted login flows
+(`loginQrJs` / `loginPollJs` / `loginRefreshJs`). A build with no sandbox at all would skip the
+check and let rejected credentials look signed-in; the runtime treats `js` as optional so such a
+build still runs unscripted documents, but every shipped composition root wires one.
 
 Rules, all non-negotiable and all unchanged from when sources were plugins:
 
@@ -445,11 +449,15 @@ source cannot reach anything that is not on the list below.
 
 ### The evaluator
 
-(see the spec at [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security) (L2); this section covers only principles and usage: `ctx.js` is a standalone interpreter realm with no host globals, no Cordis, no DOM and no module system, and values cross the boundary only by cloning) Source JavaScript runs in `ctx.js` — QuickJS on both platforms — and it is
+(see the spec at [rules/sources.md §3 — Sandboxing & Security](../../rules/sources.md#3-sandboxing--security) (L2); this section covers only principles and usage: `ctx.js` is a standalone interpreter realm with no host globals, no Cordis, no DOM and no module system, and values cross the boundary only by cloning) Source JavaScript runs in `ctx.js` — on desktop a QuickJS realm compiled to WebAssembly
+(`core-js-quickjs-desktop`), on mobile (`core-js-mobile`) a pure-JS interpreter realm
+(`@nyariv/sandboxjs`) running as ordinary Hermes module code, because Hermes implements neither
+WebAssembly nor `eval`/`new Function` — and it is
 the isolated realm that [capabilities.md §7](../plugins/capabilities.md#what-this-is-not) says real containment
 requires. Sources are the reason it exists now rather than later; third-party plugins inherit it
 ([roadmap.md §M5](../roadmap/roadmap.md#m5--third-party-extensions-on-the-sandbox)). The contract is in
-[contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator).
+[contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator); the mobile implementation's
+README (`packages/core/core-js-mobile/README.md`) is authoritative on how it differs.
 
 The entire host surface a source can see:
 
@@ -507,6 +515,26 @@ The gating norm — outbound requests checked against the manifest's `allowedHos
 | Output size per rule | 1 MB | A selector that returns an entire page into a table cell |
 | Concurrency | `concurrentRate`, default conservative | The user's IP getting banned by their own server |
 | `webView` option | Desktop only, off by default, per-source opt-in with a warning | A full browser context with the user's session, reachable from a pasted string |
+
+Three of those rows change shape on mobile, without changing what they protect (`core-js-mobile`'s
+README is the authority; the runtime holds one realm per source, rebuilds it whenever it finds
+`realm.disposed`, and works unchanged across all three):
+
+- **Memory is not enforced on mobile.** There is no allocator to fail, so `memoryBytes` is
+  accepted and never checked. An allocation blow-up is still stopped — the loop driving it
+  breaches the execution quota — but it reports as a timeout, never a `JsMemoryError`.
+  `maxResultBytes` (the output-size row) still caps what crosses out.
+- **`timeoutMs` is a tick quota on mobile, not a wall clock.** A synchronous stretch cannot be
+  interrupted from a single-threaded host, so the quota bounds the overshoot to roughly one
+  deadline: an infinite loop dies *near* the deadline, deterministically, but the arrival time
+  is load-dependent. `budgetMs` (the 10 s `@js:` wall clock) stays a wall clock on both —
+  enforced host-side.
+- **Dropped async work is unobservable on mobile.** The desktop realm pumps its job queue and
+  reports unhandled rejections; a promise the script neither returns nor awaits is never linked
+  to the caller. Source rules always await their results, so this is an authoring-error path only.
+
+The two realms also interpret slightly different language subsets; what a source author can rely
+on across both platforms is tabulated in [authoring.md §13](./authoring.md#13-writing-a-source-checklist).
 
 `allowedHosts` entries are **hostnames**, and import refuses anything that would be silently widened
 to one. `nas:4533` reads as "this host on this port", but there is no port anywhere in the matcher —

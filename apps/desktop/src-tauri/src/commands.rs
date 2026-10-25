@@ -1071,8 +1071,15 @@ pub async fn desktop_dialog_pick_directory(
 pub async fn dialog_pick_files(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
-    _options: Option<serde_json::Value>,
+    options: Option<serde_json::Value>,
 ) -> Result<Vec<String>, String> {
+    // The fs contract's `pickFiles({ multiple })`; multi stays the default so
+    // existing callers that pass `{ extensions }` (or nothing) see no change.
+    let multiple = options
+        .as_ref()
+        .and_then(|o| o.get("multiple"))
+        .and_then(|m| m.as_bool())
+        .unwrap_or(true);
     if let Ok(mock) = std::env::var("BBEBEE_MOCK_PICKED_FILES") {
         if !mock.is_empty() {
             let files: Vec<String> = mock.split(';').map(|s| s.to_string()).collect();
@@ -1088,14 +1095,21 @@ pub async fn dialog_pick_files(
     if let Some(window) = app.get_webview_window("main") {
         builder = builder.set_parent(&window);
     }
-    builder.pick_files(move |paths| {
-        let files = paths
-            .unwrap_or_default()
-            .into_iter()
-            .map(|f| f.to_string())
-            .collect::<Vec<_>>();
-        let _ = tx.send(files);
-    });
+    if multiple {
+        builder.pick_files(move |paths| {
+            let files = paths
+                .unwrap_or_default()
+                .into_iter()
+                .map(|f| f.to_string())
+                .collect::<Vec<_>>();
+            let _ = tx.send(files);
+        });
+    } else {
+        builder.pick_file(move |path| {
+            let files = path.map(|f| vec![f.to_string()]).unwrap_or_default();
+            let _ = tx.send(files);
+        });
+    }
 
     let files = rx.await.map_err(|e| e.to_string())?;
 

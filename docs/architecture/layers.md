@@ -46,7 +46,7 @@ machine underneath.
 ┌─────────────────────────────────────────────────────────────────┐
 │ Layer 2: Core Plugins Layer                                     │
 │  (Core Capability Services — one implementation per target)     │
-│  core-fs-* · core-http-* · core-db-* · core-js-quickjs-* · …    │
+│  core-fs-* · core-http-* · core-db-* · core-js-* · …            │
 │  ✅ Depends on: Protocol, Kernel                                │
 │  ⚠️ The ONLY layer permitted to directly call system APIs /     │
 │     Kernel                                                      │
@@ -124,7 +124,7 @@ flowchart TD
         C1["core-fs-desktop / core-fs-mobile"]
         C2["core-http-desktop / core-http-mobile"]
         C3["core-db-desktop / core-db-mobile"]
-        C4["core-js-quickjs-* · core-secrets-* · core-media-session-* · ..."]
+        C4["core-js-* · core-secrets-* · core-media-session-* · ..."]
     end
     subgraph L1["Layer 1 — @BBeBee/kernel"]
         K["Cordis Context · DI · fibers · events<br/>config loader · plugin resolution · capability gate"]
@@ -261,7 +261,7 @@ direct consequence of ADR-3 and is what allows the same plugin graph to run on b
 flowchart LR
     subgraph Hermes["Hermes runtime — single JS context"]
         KM["@BBeBee/kernel<br/>Cordis Context"]
-        CM["core-*-expo plugins"]
+        CM["core-*-mobile plugins"]
         FM["feature plugins"]
         UM["React Native shell"]
         KM --- CM
@@ -384,8 +384,17 @@ Points worth internalising:
 - **The shell waits on a service, not on a timer.** `apps/*` mounts its React tree inside
   `ctx.inject(['ui'], …)`, so the UI cannot render before the registry it reads from exists.
 - **Non-critical plugins are deferred.** Plugins not required for the initial screen (e.g. scanner,
-  download, share, visualizer, sleep-timer, history) are loaded after the first frame via `app.loadPlugin()`
-  during idle intervals (`requestIdleCallback`), preventing startup contention.
+  download, share, visualizer, sleep-timer, history, the registry's UI, the plugin manager's
+  mobile screen) are loaded after the first frame via `app.loadPlugin()` during idle intervals —
+  `requestIdleCallback` in `apps/desktop/renderer/main.tsx`, mirrored by `scheduleIdle` in
+  `apps/mobile/src/App.tsx` over each shell's `DEFERRED_PLUGIN_IDS` (Hermes carries no idle
+  callback, so the mobile side falls back to a short timeout) — preventing startup contention.
+  The deferred pass honours plugin-manager's merged view, so a plugin the user disabled never
+  loads in the first place.
+- **The mobile boot pre-reads the store.** `apps/mobile/src/boot.ts` reads `store.json` once
+  before the app starts and seeds `StoreFs`'s `initialData` with it, so the audio overrides it
+  carries (`audioExclusive`, `audioOutputDeviceId`) are applied when the audio service starts
+  rather than costing a second disk read after it.
 - **Desktop startup parallelization & perception.** Tauri's main window creation runs before `createHost()`,
   presenting a lightweight pure CSS splash screen immediately inside the webview window,
   completely eliminating blank flashes while sidecar and renderer boot concurrently.
@@ -412,7 +421,7 @@ registration view.
 | `ctx.background` | `core-background-mobile` | `core-background-desktop` |
 | `ctx.device` | `core-device-mobile` | `core-device-desktop` |
 | `ctx.codec` | `core-codec-mobile` | `core-codec-desktop` |
-| `ctx.js` | Built-in / In development | `core-js-quickjs-desktop` |
+| `ctx.js` | `core-js-mobile` (pure-JS interpreter) | `core-js-quickjs-desktop` |
 | `ctx.audio` | `MobileAudioService` (`core-audio-mpv`) | `DesktopAudioService` (`core-audio-mpv`) |
 | plugin loading | Static bundling via codegen (`apps/mobile/generated/plugins.ts`) | Dynamic discovery via Vite globs (`getBuiltinPluginRegistry`) + `bbebee-plugin://` bridge |
 

@@ -115,6 +115,8 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 | `js` | May evaluate untrusted script in `ctx.js` (`plugin-source-runtime` only) |
 | `audio`, `mediaSession`, `notify`, `shell`, `background` | Audio graph / OS-level actions |
 
+> User-driven picks (`ctx.fs.pickDirectory`, `ctx.fs.pickFiles`) carry no capability token: the user, not the plugin, chooses what is handed over, and each picked location then classifies through the usual `fs:read:*` scoping on first read.
+
 > ⚠️ When a capability error appears: **widen the manifest, never the gate.**
 
 ---

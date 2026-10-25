@@ -8,11 +8,11 @@
  */
 
 import { act, cleanup, render } from '@testing-library/react'
-import { createElement as h, type ReactNode } from 'react'
+import { createElement as h, type ReactElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
-import type { NowPlayingStyleId, QueueItem, Track, TransportState } from '@BBeBee/protocol'
-import { configureNative } from '@BBeBee/ui-kit-mobile'
+import type { Contribution, NowPlayingStyleId, QueueItem, SlotContribution, Track, TransportState } from '@BBeBee/protocol'
+import { configureNative, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { NowPlayingBar, NowPlayingScreen } from './index.js'
 
 import nowPlayingCatalogue from '../../../feature/plugin-i18n/src/locales/nowPlaying.json'
@@ -177,10 +177,28 @@ async function harness(
   }
 
   class UiStub extends Service {
+    readonly views = new Map<string, unknown>()
+    readonly contributions: Contribution[] = []
     constructor(ctx: Context) {
       super(ctx, 'ui')
     }
     navigate = (routeId: string) => void calls.push(`navigate:${routeId}`)
+    registerView = (id: string, component: unknown) => {
+      this.views.set(id, component)
+      this.ctx.emit('ui/changed')
+      return () => void this.views.delete(id)
+    }
+    contribute = (c: Contribution) => {
+      this.contributions.push(c)
+      this.ctx.emit('ui/changed')
+      return () => {
+        const index = this.contributions.indexOf(c)
+        if (index >= 0) this.contributions.splice(index, 1)
+      }
+    }
+    slotsFor = (slot: string): SlotContribution[] =>
+      this.contributions.filter((c): c is SlotContribution => c.kind === 'slot' && c.slot === slot)
+    viewFor = (id: string) => this.views.get(id)
   }
 
   class NowPlayingStub extends Service {
@@ -404,5 +422,75 @@ describe('NowPlayingScreen on mobile', () => {
     ctx.nowPlaying.setStyle('cinematic')
     const { container } = render(h(NowPlayingScreen, { ctx }))
     expect(container.textContent).toContain('Nothing playing')
+  })
+})
+
+describe('NowPlayingScreen panel slot on mobile', () => {
+  /** A stand-in for the lyrics view the real `plugin-lyrics-ui-mobile` registers. */
+  function PanelStub(): ReactElement {
+    const native = nativePrimitives()
+    return h(
+      native.View as never,
+      { testID: 'stub-panel' },
+      h(native.Text as never, null, 'LYRICS PANEL MARKER'),
+    )
+  }
+
+  const PANEL_SLOT: SlotContribution = {
+    kind: 'slot',
+    id: 'lyrics.panel',
+    slot: 'now-playing.panel',
+    order: 10,
+  }
+
+  it('renders the now-playing.panel contribution as a band while a track is loaded', async () => {
+    const { ctx } = await harness({
+      trackUrn: 'BBeBee:local:track:1',
+      nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+      status: 'playing',
+    })
+    ctx.ui.registerView('lyrics.panel', PanelStub)
+    ctx.ui.contribute(PANEL_SLOT)
+
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+    const band = container.querySelector('[data-testid="now-playing-panel"]') as HTMLElement
+    expect(band).toBeTruthy()
+    expect(container.textContent).toContain('LYRICS PANEL MARKER')
+  })
+
+  it('renders one band even when headless and view packages contribute the same id', async () => {
+    const { ctx } = await harness({
+      trackUrn: 'BBeBee:local:track:1',
+      nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+      status: 'playing',
+    })
+    ctx.ui.registerView('lyrics.panel', PanelStub)
+    ctx.ui.contribute(PANEL_SLOT)
+    ctx.ui.contribute(PANEL_SLOT)
+
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+    expect(container.querySelectorAll('[data-testid="now-playing-panel"]')).toHaveLength(1)
+  })
+
+  it('stays panel-free while idle, even with a contribution registered', async () => {
+    const { ctx } = await harness()
+    ctx.ui.registerView('lyrics.panel', PanelStub)
+    ctx.ui.contribute(PANEL_SLOT)
+
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+    expect(container.querySelector('[data-testid="now-playing-panel"]')).toBeFalsy()
+    expect(container.textContent).not.toContain('LYRICS PANEL MARKER')
+  })
+
+  it('renders the band with no contribution when the well-known view id is registered', async () => {
+    const { ctx } = await harness({
+      trackUrn: 'BBeBee:local:track:1',
+      nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+      status: 'playing',
+    })
+    ctx.ui.registerView('lyrics.panel', PanelStub)
+
+    const { container } = render(h(NowPlayingScreen, { ctx }))
+    expect(container.querySelector('[data-testid="now-playing-panel"]')).toBeTruthy()
   })
 })

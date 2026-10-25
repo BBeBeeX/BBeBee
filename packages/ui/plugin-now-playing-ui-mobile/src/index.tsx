@@ -13,6 +13,12 @@
  * **Style templates** — four layout variants (classic, full-cover, vinyl,
  * compact) selectable via `useNowPlayingStyle`. On narrow screens `compact`
  * falls back to a vertical stack rather than side-by-side.
+ *
+ * **Panel slot** — the `now-playing.panel` slot (the synchronized lyrics view,
+ * contributed by `plugin-lyrics`) renders as a flexible band between the style
+ * switcher and the layout body, mirroring the desktop screen's panel column.
+ * It appears only while a track is loaded, so the idle player looks exactly
+ * as it did before any panel plugin loaded.
  */
 
 import { createElement as h, useEffect, useState } from 'react'
@@ -458,6 +464,38 @@ const MOBILE_LAYOUT_MAP: Record<NowPlayingStyleId, typeof ClassicMobileLayout> =
   compact: CompactMobileLayout,
 }
 
+/* ── Panel slot ────────────────────────────────────────────────────────── */
+
+/**
+ * The component filling `now-playing.panel`, or `null`.
+ *
+ * Same resolution order as the desktop screen: the first slot contribution
+ * whose view is registered on this shell wins (contributions are deduped by
+ * id, because the headless feature and the view package both contribute the
+ * same descriptor), then the well-known `lyrics.panel` id as the fallback.
+ * A slot with no mobile view is a normal state, not an error — the band
+ * simply does not render.
+ */
+function usePanelView(ctx: Context): React.ComponentType<{ ctx: Context }> | null {
+  return useServiceState(ctx, ['ui/changed'], () => {
+    const ui = serviceOf<UiService>(ctx, 'ui')
+    const seen = new Set<string>()
+    for (const slot of ui?.slotsFor?.('now-playing.panel') ?? []) {
+      if (seen.has(slot.id)) continue
+      seen.add(slot.id)
+      if (slot.when && !slot.when({ ctx })) continue
+      const view = ui?.viewFor?.(slot.id) as
+        | React.ComponentType<{ ctx: Context }>
+        | undefined
+      if (view) return view
+    }
+    return (
+      (ui?.viewFor?.('lyrics.panel') as React.ComponentType<{ ctx: Context }> | undefined) ??
+      null
+    )
+  })
+}
+
 /* ── Main screen ───────────────────────────────────────────────────────── */
 
 export interface NowPlayingScreenProps {
@@ -474,8 +512,14 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
   const duration = useDuration(ctx)
   const can = useTransportAvailability(ctx)
   const { styleId, setStyle } = useNowPlayingStyle(ctx)
+  const PanelView = usePanelView(ctx)
 
   const Layout = MOBILE_LAYOUT_MAP[styleId] ?? MOBILE_LAYOUT_MAP.classic
+
+  // The band shares the screen with the layout: both grow, the band capped at
+  // a third of the player so the artwork and controls keep their room. Idle —
+  // nothing loaded — renders exactly the pre-panel layout.
+  const showPanel = Boolean(PanelView) && Boolean(state.trackUrn)
 
   return h(
     native.View as never,
@@ -484,6 +528,21 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
       style: { flex: 1, backgroundColor: p().bg.base },
     },
     h(StyleSwitcherButton, { styleId, setStyle, t }),
+    showPanel && PanelView
+      ? h(
+          native.View as never,
+          {
+            testID: 'now-playing-panel',
+            style: {
+              flex: 1,
+              maxHeight: '35%',
+              minHeight: 120,
+              paddingHorizontal: tokens.space[5],
+            },
+          },
+          h(PanelView, { ctx }),
+        )
+      : null,
     h(Layout, { ctx, state, position, duration, can, onClose }),
   )
 }

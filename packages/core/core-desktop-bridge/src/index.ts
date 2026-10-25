@@ -175,6 +175,25 @@ export class FsBridge extends Service implements FsService {
     assertFs(config, mode, this.scopeOf(uri, capabilityConfigOf(config)))
   }
 
+  /**
+   * The abort error shape both platforms throw — `name: 'AbortError'`,
+   * `code: 'ABORT_ERR'`, the same class `node:fs` throws and the conformance
+   * suite pins.
+   *
+   * ⚠️ A `signal` is a live object and cannot cross IPC, so the bridge honours
+   * it here: an aborted caller refuses the result rather than receiving it,
+   * exactly at the await points the read has. The sidecar's read itself keeps
+   * running — the documented cost of the transport (see the CodecBridge note
+   * on signals); the in-process implementations cancel the read outright.
+   */
+  private abortIfRequested(signal?: AbortSignal): void {
+    if (!signal?.aborted) return
+    const error = new Error('This operation was aborted')
+    error.name = 'AbortError'
+    ;(error as { code?: string }).code = 'ABORT_ERR'
+    throw error
+  }
+
   private async call<T>(method: string, args: unknown[]): Promise<T> {
     const res = await this.bridge.call('fs', method, args)
     return unwrapBridgeResult<T>(res)
@@ -232,13 +251,21 @@ export class FsBridge extends Service implements FsService {
     await this.call('copy', [from, to])
   }
   async readFile(uri: Uri, opts?: ReadOptions) {
+    this.abortIfRequested(opts?.signal)
     this.check(uri, 'read')
     // `signal` is a live object and cannot cross IPC; the rest is data.
-    return this.call<string>('readFile', [uri, opts ? { encoding: opts.encoding } : undefined])
+    const text = await this.call<string>(
+      'readFile',
+      [uri, opts ? { encoding: opts.encoding } : undefined],
+    )
+    this.abortIfRequested(opts?.signal)
+    return text
   }
-  async readBytes(uri: Uri): Promise<Uint8Array> {
+  async readBytes(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uint8Array> {
+    this.abortIfRequested(opts?.signal)
     this.check(uri, 'read')
     const raw = await this.call<unknown>('readBytes', [uri])
+    this.abortIfRequested(opts?.signal)
     return normalizeBridgeBytes(raw) ?? new Uint8Array(0)
   }
   /**
@@ -289,6 +316,55 @@ export class FsBridge extends Service implements FsService {
       return undefined
     }
     return this.call<Uri | undefined>('pickDirectory', [])
+  }
+
+  /**
+   * The user-driven file picker, shaped like `pickDirectory` above: the dialog
+   * is host territory (`window.BBeBee.dialog.pickFiles`, the preload over the
+   * Tauri `desktop_dialog_pick_files` command), and the bridge only normalises
+   * the answer into the contract's `{ uri, name?, size? }` entries. The host
+   * whitelists every pick into the sidecar's `extraRoots` before it answers,
+   * so the `stat`s here are readable.
+   *
+   * Cancel is `[]`. Where the preload predates the dialog surface, the call
+   * falls through to the sidecar, which refuses in words rather than answer an
+   * empty array a caller cannot tell from a cancel.
+   */
+  async pickFiles(
+    opts?: { multiple?: boolean },
+  ): Promise<Array<{ uri: Uri; name?: string; size?: number }>> {
+    const host =
+      typeof window !== 'undefined'
+        ? (window as unknown as {
+            BBeBee?: {
+              dialog?: {
+                pickFiles?: (options?: { multiple?: boolean }) => Promise<string[]>
+              }
+            }
+          }).BBeBee
+        : undefined
+    if (!host?.dialog?.pickFiles) {
+      return this.call<Array<{ uri: Uri; name?: string; size?: number }>>('pickFiles', [opts])
+    }
+    const paths = await host.dialog.pickFiles({ multiple: opts?.multiple ?? false })
+    if (!Array.isArray(paths) || paths.length === 0) return []
+    // A single-pick request gets the first answer even where the host dialog
+    // is always multi (the belt to the Rust command's braces).
+    const picked = (opts?.multiple ? paths : paths.slice(0, 1))
+      .map((raw) => normalizeToUri(raw))
+      .filter((uri): uri is Uri => Boolean(uri))
+    return Promise.all(
+      picked.map(async (uri) => {
+        const entry: { uri: Uri; name?: string; size?: number } = { uri, name: this.basename(uri) }
+        try {
+          entry.size = (await this.stat(uri)).size
+        } catch {
+          // A stat miss must not erase a file the user just picked; the
+          // contract spells `size` optional for exactly this.
+        }
+        return entry
+      }),
+    )
   }
 
   /** Chunked over IPC, so a large file never materialises in one message. */

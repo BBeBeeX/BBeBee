@@ -11,6 +11,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
 import { scopeContext } from '@BBeBee/kernel'
+import { secretsConformance } from '@BBeBee/protocol/conformance'
 import { SecretsExpo } from './index.js'
 
 async function harness() {
@@ -184,4 +185,20 @@ describe('scoping', () => {
     const device = await harness()
     expect(device.secrets.isHardwareBacked).toBe(true)
   })
+})
+
+/**
+ * The shared contract, run against the Expo store — the twin of
+ * `core-secrets-desktop`'s conformance block. A credential store whose answers
+ * differ by platform is not a grant but an accident, so the 11 checks run here
+ * exactly as they run there, against the same `expo-secure-store` stub the
+ * scoping tests above use.
+ */
+describe(`${secretsConformance.service} conformance`, () => {
+  for (const check of secretsConformance.checks) {
+    it(`${check.name} — ${check.because}`, async () => {
+      const ctx = await harness()
+      await check.run({ secrets: ctx.secrets })
+    })
+  }
 })

@@ -38,7 +38,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.device` | Network status, battery, media keys, platform info | `core-device-desktop`, `core-device-mobile` |
 | `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-desktop`, `core-media-session-mobile` |
 | `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-desktop`, `core-background-mobile` |
-| `ctx.js` | Sandboxed QuickJS evaluator for untrusted scripts | `core-js-quickjs-desktop` (desktop) |
+| `ctx.js` | Sandboxed evaluator for untrusted scripts (QuickJS/WASM on desktop; a pure-JS interpreter realm on mobile — Hermes implements neither `WebAssembly` nor `eval`) | `core-js-quickjs-desktop` (desktop), `core-js-mobile` (mobile) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
 
 ### Diagnostic Logging (Layer 3)
@@ -91,7 +91,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 ## 5. Startup & Initialization Performance
 
 - **Preloaded Store data:** If the composition root pre-reads `store.json` at boot (e.g. to inspect audio output engine preferences before service instantiation), pass `StoreConfig.initialData` to seed the in-memory document, eliminating duplicate disk reads.
-- **Lazy WASM compilation in `core-js-quickjs-desktop`:** `[Service.init]()` returns immediately; WASM is compiled on first `createRealm()` invocation.
+- **Lazy WASM compilation in `core-js-quickjs-desktop`:** `[Service.init]()` returns immediately; WASM is compiled on first `createRealm()` invocation. (`core-js-mobile` has nothing to compile — its realm is a pure-JS interpreter built on first use.)
 - **Non-blocking background tasks:** Heavy I/O initialization such as initial cache sweep in `plugin-cache` must be deferred to background timers (e.g. 5s post-boot) rather than blocking `init()`.
 
 ---
@@ -113,7 +113,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 
 ## 8. Audio Transcoding & Download Container Integrity
 
-- **`ctx.codec.transcode(options)`:** Core audio codec service provides optional transcoding between containers (FLAC, MP3, M4A/AAC, Opus, WAV). On desktop, this routes through the host bridge (`audio:transcode`) backed by FFmpeg.
+- **`ctx.codec.transcode(options)`:** Core audio codec service provides optional transcoding between containers (FLAC, MP3, M4A/AAC, Opus, WAV). On desktop, this routes through the host bridge (`audio:transcode`) backed by FFmpeg. On mobile, the same call rides the native codec seam (`bbebeeNativeCodec`, installed by the audio-engine Expo module) into the engine's libav pipeline; options the linked engine build cannot apply are named in the start answer's `unsupported` list rather than silently dropped.
 - **Container sniffing and format reconciliation in `ctx.downloads`:** When remote streams deliver audio whose real magic-bytes container does not match the user's preferred format in `settings.downloadFormat` (e.g. source serves MP3 stream when FLAC was selected), `plugin-download` invokes `ctx.audioConverter.convertDirect` (falling back to `ctx.codec.transcode` if the audio converter plugin is not loaded) to convert the downloaded file to the configured format before embedding metadata tags (Vorbis comment / ID3) and artwork. If transcoding is unavailable or fails, it gracefully falls back to the native detected container format.
 - **Embedded tag integrity:** Vorbis comments written to FLAC files must include `PERFORMER`, `ARTIST`, `ALBUMARTIST`, `DATE`, `YEAR`, `TRACKNUMBER` and valid picture dimensions detected from cover artwork headers.
 

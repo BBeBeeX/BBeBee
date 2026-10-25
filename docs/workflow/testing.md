@@ -12,7 +12,7 @@ the tooling each layer runs on, plus the device smoke matrix this page owns.
 | Layer | Tool | Notes |
 |---|---|---|
 | **Unit** | Vitest | — |
-| **Conformance** | Vitest (Node) + Detox (device) | Against the shared suite in `@BBeBee/protocol/conformance` ([services/contracts.md §18](../services/contracts.md)) — **the most important layer** |
+| **Conformance** | Vitest (Node) + Detox (device) | Against the shared suite in `@BBeBee/protocol/conformance` ([services/contracts.md §18](../services/contracts.md)) — **the most important layer**. Both implementations of a key run the shared suites in Node, the mobile twins against the `test/stubs/*` native-module shims (the codec and secrets suites on `core-codec-mobile`/`core-secrets-mobile`, the `js` realm suite on `core-js-mobile`, the fs suite plus its exploit and leak suites on `core-fs-mobile`); `core-device-mobile` adds the device service's own suite, and the mobile audio adapter's suite (`apps/mobile/modules/audio-engine`) covers output-device enumeration |
 | **Integration** | Vitest with an in-memory context | — |
 | **Source corpus** | Vitest, responses recorded inline in the tests | Independent source repos run their own validation gates |
 | **Leak test** | Vitest, parameterized over every plugin | The unload-totality claim in [§6](#6-testing-strategy) |

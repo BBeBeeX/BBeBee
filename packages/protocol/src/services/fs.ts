@@ -91,12 +91,30 @@ export interface FsService {
   pickDirectory(): Promise<Uri | undefined>
 
   /**
+   * Ask the user for one or more files through the platform picker.
+   *
+   * User-driven selection, so unlike a scope grant there is nothing for the
+   * capability gate to rule on: the user, not the plugin, chooses what is
+   * handed over, and each picked location then classifies through the usual
+   * `fs:read:*` scoping on first read.
+   *
+   * Optional because not every host can ask — resolves `[]` when the user
+   * cancels, and implementations without a picker either omit the method or
+   * refuse in words rather than answer an empty array, which a caller cannot
+   * tell from a cancel.
+   */
+  pickFiles?(opts?: { multiple?: boolean }): Promise<Array<{ uri: Uri; name?: string; size?: number }>>
+
+  /**
    * Convert a Uri into one a native audio decoder can open.
    *
    * The identity function everywhere except Android, where a user-picked
-   * folder is a SAF `content://` tree URI that decoders cannot read directly.
+   * folder is a SAF `content://` tree URI that decoders cannot read directly,
+   * so the file is copied into app storage. The signal aborts that copy at
+   * the await points (`readBytes`-style `AbortError`); it is advisory —
+   * a copy already in flight natively cannot be interrupted mid-write.
    */
-  toPlayableUri(uri: Uri): Promise<Uri>
+  toPlayableUri(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uri>
 }
 
 declare module 'cordis' {

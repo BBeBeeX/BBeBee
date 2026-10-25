@@ -675,11 +675,11 @@ export interface CodecService {
 Desktop: `music-metadata` in the Node.js sidecar for tags. The service carries no decoder: `decode()` refuses and sends callers to `ctx.audio`, whose playback engine does the decoding — mpv handles ALAC, 24/32-bit hi-res, and the audiophile formats (APE, WavPack, DSF) where they are played. There is no separate FFmpeg decode bridge.
 Desktop also provides `transcode` via `core-codec-desktop` and the host IPC bridge (`audio:transcode`), executing system/embedded FFmpeg for lossless and lossy conversion (FLAC, MP3, AAC/M4A, Opus, WAV).
 Expo: `decode()` is implemented here — `react-native-audio-api`'s `decodeAudioData`, the same decoder desktop reaches through `ctx.audio` except behind an import rather than behind the graph — plus a native tag reader (`music-metadata`, inherited from `core-codec-desktop`).
-Mobile adds three native-seam overrides in `core-codec-mobile` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the field subset is the desktop ENGINE path's — format, bitrate, rate, channels, trim; `vbr`/fades/gain remain desktop-local-ffmpeg features, and a caller that sends them on mobile gets one `logger.warn` naming every field the engine path will ignore — parity is not silence), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use.
+Mobile adds three native-seam overrides in `core-codec-mobile` (`bbebeeNativeCodec`, installed by the audio-engine Expo module — see [docs/audio/engine.md](../audio/engine.md) "The codec seam"): `readArtworkBatch` runs through a `MediaMetadataRetriever` worker pool entirely off the JS thread (positional, `undefined` per miss; any seam failure falls back to the inherited in-process parse), `transcode` runs the engine's libav pipeline through a polled JNI job registry (`content://` URIs staged through the app cache; the full option surface — including `bitDepth`, `vbr`/`vbrQuality`, `volumeGainDb` and the fades — is forwarded to the native layer verbatim, and the start answer's `unsupported` list names any field the linked engine build cannot apply, which the JS side echoes as one `logger.warn`: the ruling belongs to the engine, not to a guessed drop list), and `getEncoderCapabilities` reports the encoders the linked libavcodec actually carries over the shared vocabulary both platforms use. `supportedFormats()` defaults to the same 15-format list as the desktop engine on both platforms: the phone runs the same bundled libmpv/libavcodec build, so its decode capability is the engine's, not the OS version's.
 
 > Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
-> ⚠️ `supportedFormats()` differs by platform and OS version. On desktop, FFmpeg integration covers ALAC, APE, WavPack, DSF, DFF, WMA alongside standard formats. The scanner records what it could not decode instead of silently skipping, so the user can see why a file did not import.
+> ⚠️ `supportedFormats()` is the bundled engine's decode capability, not the OS version's — and it is one list on both platforms: `DEFAULT_FORMATS`, exported from `core-codec-desktop` and inherited unchanged by `core-codec-mobile` (`mp3`, `flac`, `m4a`, `m4b`, `aac`, `wav`, `ogg`, `opus`, `aiff`, `alac`, `wma`, `ape`, `wv`, `dsf`, `dff` — ALAC, APE, WavPack, DSD and WMA included, because the phone runs the same bundled libmpv/libavcodec build the desktop native engine does). A shell that knows its build shipped without the engine may still configure a narrower list. The scanner records what it could not decode instead of silently skipping, so the user can see why a file did not import.
 
 > `getEncoderCapabilities()` reports what a probe can see, never optimism: when no local FFmpeg answers (React Native, or a desktop without FFmpeg on PATH) every encoder is reported unavailable — unless the native-engine transcode bridge is present, in which case a desktop build keeps reporting the engine's bundled encoders. A converter UI built on this list must not promise a transcode the platform cannot run.
 
@@ -740,7 +740,7 @@ sandboxed renderer. Each has bitten real projects.
 | **Node builtins** | `cordis` imports none. If a dependency of a *core* plugin does, it belongs in `main`, not the renderer, and never in the mobile bundle |
 | **`ReadableStream` / `WritableStream`** | Used by `ctx.fs` and `ctx.http`. Available in the renderer; on RN 0.86 verify presence and polyfill with `web-streams-polyfill` in the mobile entry if absent |
 | **`structuredClone`** | Used by the desktop IPC bridge. Available in Node 22+ & modern webview; not needed on mobile |
-| **A second JS engine** | `ctx.js` (§19) embeds QuickJS: a WASM build in the renderer, a native module on mobile. It is a native dependency, so mobile needs a dev-client rebuild when it lands, and the WASM asset must be bundled rather than fetched — the CSP forbids fetching it |
+| **A second JS engine** | `ctx.js` (§19) is a second, isolated interpreter: on desktop QuickJS compiled to WASM in the renderer — the WASM asset must be bundled rather than fetched, the CSP forbids fetching it — and on mobile a pure-JS interpreter (`@nyariv/sandboxjs`) that Hermes runs as ordinary module code, since Hermes implements neither `WebAssembly` nor `eval`/`new Function`. No WASM asset and no native module on mobile, so nothing there is tied to a dev-client rebuild |
 
 ---
 
@@ -748,8 +748,10 @@ sandboxed renderer. Each has bitten real projects.
 
 Every core service ships with a **shared conformance suite** in
 `packages/protocol/src/conformance/`, exported as a function taking a service factory. Each
-implementation runs it — `core-fs-desktop` under Vitest in Node, `core-fs-mobile` under a Detox/device
-test on a real simulator.
+implementation runs it — `core-fs-desktop` under Vitest in Node, `core-fs-mobile` under Vitest
+too: `expo-file-system` is aliased to a `node:fs`-backed stub that reproduces the SDK 54+ surface's
+refusals, and what is genuinely of the device (SAF `content://` trees, the pickers, the OS
+permission model) stays in the device-side tests.
 
 ```ts
 // packages/core/core-fs-desktop/test/conformance.test.ts
@@ -775,6 +777,14 @@ The HTTP suite now runs against both transports too. `core-http-mobile` executes
 sign-in behavior in §2.1; its cookie-jar regression stores a scoped session through the aliased
 `expo-secure-store` stub and replays it across a restart.
 
+The rest of the core closed the same gap: the `js`, `secrets` and `codec` suites now execute
+against the mobile twins (`core-js-mobile`, `core-secrets-mobile`, `core-codec-mobile`), and
+`core-fs-mobile` carries the desktop leak and exploit suites over the Expo implementations. The fs
+suite also gained two checks both platforms must answer — an aborted read rejects with the
+node-shaped abort error (`name: 'AbortError'` / `code: 'ABORT_ERR'`), and `pickFiles` either
+answers the contract shape or refuses in words, never a bare `[]` from a host that has nobody to
+ask.
+
 ---
 
 ## 19. `ctx.js` — the sandboxed evaluator
@@ -792,6 +802,37 @@ Not `node:vm`, and the difference is the whole point: `vm` shares an object grap
 so a script reaching `this.constructor.constructor` is out, and every published mitigation for
 that is a blocklist someone eventually walks around. QuickJS is a separate interpreter — there is
 no host object graph to reach, because there are no host objects in it.
+
+**Mobile (`core-js-mobile`)** cannot run that build — Hermes implements neither `WebAssembly` nor
+`eval`/`new Function` — so it interprets instead: `@nyariv/sandboxjs` parses the script into an
+intermediate tree and executes it against a prototype whitelist, a separate object graph reached
+only as data, with acorn (a spec-faithful ES2022 parser) as the grammar gate in front of the
+engine's own lenient one. Same `JsRealm` contract; the shared `jsConformance` suite runs against
+both implementations. What a single-threaded host with no interpreter boundary cannot honour, the
+implementation says so rather than faking it:
+
+- **`memoryBytes` is accepted and never enforced.** There is no allocator to fail, so no
+  `JsMemoryError` on mobile — an allocation blow-up is still stopped, but by the tick quota that
+  bounds loops, and it surfaces as `JsTimeoutError`. `maxResultBytes` still caps what crosses out.
+- **`timeoutMs` is a tick quota, not a wall clock** (`quota = timeoutMs × 500` ticks, clamped). A
+  synchronous stretch cannot be interrupted from a single-threaded host, so the quota bounds the
+  overshoot: late arrivals land within roughly one deadline past the expiry, inside the 5 s the
+  conformance check allows. `budgetMs` remains a true wall clock, enforced host-side with the same
+  retire-the-realm semantics as the desktop build.
+- **Async work the script neither returns nor awaits is unobservable.** The desktop realm pumps its
+  job queue and reports unhandled rejections; on mobile a fire-and-forget promise's failure is never
+  linked to the caller (the source runtime's rules always await, so this is an authoring-error path
+  only).
+- **A language subset.** `class` declarations/expressions and `get`/`set` accessors in object
+  literals fail as `JsScriptError` naming the syntax — the realm stays usable. `eval` and
+  `Function` inside the realm resolve to the engine's sandboxed replacements and evaluate *inside*
+  the realm, so the constructor chain escapes nothing.
+
+Two whitelist widenings over the engine defaults exist for the source runtime's own shim
+(`SRC_SHIM`): the string/Map/Set iterator prototypes (so `for…of` over a page of titles does not
+die halfway), and the `Object` statics `freeze`/`isFrozen`/`assign`. `console` is removed — the
+desktop realm has none either. The authoritative text is the package header and README
+(`packages/core/core-js-mobile`).
 
 ⚠️ **`js` is an optional injection.** A build without a sandbox still runs every document that
 needs no scripting, and derives the affected capabilities as *absent* for the rest rather than
@@ -843,12 +884,13 @@ export class JsTimeoutError extends Error {}
 export class JsMemoryError extends Error {}
 ```
 
-| | Desktop (`core-js-quickjs-desktop`) | Expo (QuickJS JSI via shell) |
+| | Desktop (`core-js-quickjs-desktop`) | Expo (`core-js-mobile`) |
 |---|---|---|
-| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | A QuickJS JSI module (`react-native-quick-js`) |
-| Isolation | A separate WASM instance per realm | A separate `JSRuntime` per realm |
-| Interrupts | QuickJS interrupt handler, checked on backward jumps | Same |
-| Async | Host functions may return promises; the realm's job queue is driven by the host | Same |
+| Backing | `quickjs-emscripten-core` with a single-file WASM variant, embedded in the webview bundle | `@nyariv/sandboxjs` interpreted by Hermes (acorn grammar gate in front) — no WASM, no native module |
+| Isolation | A separate WASM instance per realm | A whitelist-guarded interpreter instance per realm; values cross in both directions only as cloned data |
+| Interrupts | QuickJS interrupt handler, checked on backward jumps | An execution tick quota sized from `timeoutMs`; the `budgetMs` timer halts the engine host-side |
+| Async | Host functions may return promises; the realm's job queue is driven by the host | Host functions may return promises; a promise the script neither returns nor awaits is unobservable |
+| Limits | All four honoured by the engine | `memoryBytes` unenforced (allocation blow-ups surface as `JsTimeoutError`); `maxResultBytes`, `timeoutMs` (as a tick quota) and `budgetMs` enforced |
 
 Rules the contract is built around, each of which a naive embedding gets wrong:
 
@@ -871,9 +913,9 @@ Rules the contract is built around, each of which a naive embedding gets wrong:
   memory-capped and can only be killed, losing the diagnostic.
 - **A realm is disposable and cheap.** One per source, disposed with that source's fiber. A leaked
   realm is a leaked native handle, so it is registered through `ctx.effect()` like any other.
-- **`engine` is reported** so a rule can branch on it and a trace can record it. Two QuickJS
-  builds are not identical, and a source that works on desktop and not on mobile must be
-  debuggable rather than mysterious.
+- **`engine` is reported** so a rule can branch on it and a trace can record it. Two engines are
+  not identical — desktop QuickJS and the mobile interpreter least of all — and a source that
+  works on desktop and not on mobile must be debuggable rather than mysterious.
 
 > ⚠️ **The sandbox bounds reach, not intent.** Code in a realm still sees everything the host
 > passes in and can send it wherever the host's exposed functions allow — which is why the source

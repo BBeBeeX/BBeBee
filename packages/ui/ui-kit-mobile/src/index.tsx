@@ -18,13 +18,21 @@ export * from './manifest.js'
 
 export {
   type NativePrimitives,
+  type AppearanceLike,
   configureNative,
   setScheme,
+  getScheme,
+  setPalette,
+  activePalette,
+  onPaletteChange,
   nativePrimitives,
 } from './primitives.js'
 
+export { themeToPalette } from './theme-bridge.js'
+
 export { Button, IconButton } from './components/Button.js'
 export { useI18n, type UseI18nResult } from './hooks/use-i18n.js'
+export { usePalette } from './hooks/use-palette.js'
 export { TextField } from './components/TextField.js'
 export { Text } from './components/Text.js'
 export { Artwork } from './components/Artwork.js'

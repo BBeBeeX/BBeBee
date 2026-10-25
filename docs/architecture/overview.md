@@ -269,8 +269,9 @@ escape hatch produces sources that *almost* work, and the workaround is worse th
   it contains, so the old under-declare/over-declare failure mode is gone
   ([sources/spec.md §1.3](../sources/spec.md#13-capabilities-are-derived-not-declared)).
 - **A real sandbox is now mandatory, not deferred.** Source rules are code from strangers, so
-  `ctx.js` — a separate QuickJS realm with an enumerable host API and a per-source host allowlist
-  — is a core service that ships with the feature
+  `ctx.js` — a separate sandbox realm with an enumerable host API and a per-source host allowlist
+  (QuickJS on desktop; on mobile a pure-JS interpreter realm, `core-js-mobile`, since Hermes has
+  no WebAssembly) — is a core service that ships with the feature
   ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator),
   [sources/runtime.md §8](../sources/runtime.md#8-trust-what-an-imported-source-can-and-cannot-do)). The plugin
   system's own containment gap ([capabilities.md §7](../plugins/capabilities.md#what-this-is-not)) gets its answer

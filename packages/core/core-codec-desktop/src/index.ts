@@ -198,7 +198,15 @@ export interface CodecNodeConfig {
   probeEncoders?: () => Promise<string>
 }
 
-const DEFAULT_FORMATS = [
+/**
+ * What the bundled native engine (libmpv / libavcodec) decodes, as the shell
+ * reports it when no better probe exists.
+ *
+ * Exported so the mobile codec can declare the same list: the phone runs the
+ * same bundled libmpv build, so its engine capability is this engine's, and
+ * two hand-copied lists would drift within a month.
+ */
+export const DEFAULT_FORMATS = [
   'mp3',
   'flac',
   'm4a',

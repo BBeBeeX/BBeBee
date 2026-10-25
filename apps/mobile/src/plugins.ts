@@ -36,6 +36,11 @@ export const BOOTSTRAP_SERVICES = [
   'device',
   'background',
   'mediaSession',
+  // Same position as desktop: the script sandbox sits with the other core
+  // services, ahead of the codec/http/audio features that can depend on it
+  // (plugin-source-runtime's optional `js` resolves through the registry,
+  // but the service itself is a bootstrap entry like its siblings).
+  'js',
   'codec',
   'http',
   'audio',
@@ -47,6 +52,9 @@ export const BOOTSTRAP_SERVICES = [
 
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-theme': {},
+  // The mobile palette driver and the theme management card. Desktop's twin
+  // sits at the same position in its allowlist.
+  '@bbebee/plugin-theme-ui-mobile': {},
   '@bbebee/plugin-ui': {},
   /*
    * No `plugin-log-*` here, deliberately. The logs layer loads from the
@@ -106,6 +114,9 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-now-playing-ui-mobile': {},
   '@bbebee/plugin-lyric-sources': {},
   '@bbebee/plugin-lyrics': {},
+  // The lyrics panel view, contributed into the now-playing page's panel
+  // slot — the mobile twin of `plugin-lyrics-ui-desktop`.
+  '@bbebee/plugin-lyrics-ui-mobile': {},
   '@bbebee/plugin-desktop-lyrics': {},
   '@bbebee/plugin-mini-player': {},
   '@bbebee/plugin-queue': {},
@@ -124,6 +135,7 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-dsp': {},
   '@bbebee/plugin-dsp-ui-mobile': {},
   '@bbebee/plugin-visualizer': {},
+  '@bbebee/plugin-visualizer-ui-mobile': {},
   // The community content index — update checks and installs for sources,
   // lyric sources and themes. Headless on mobile: no plugin installer is
   // set, so plugin-kind installs refuse with a clear error.
@@ -132,6 +144,57 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // inert on mobile — nothing reads it here — but the feature-parity gate
   // (shells.test.ts) counts headless features, so both shells run it.
   '@bbebee/plugin-registry-metadata': {},
+  // The registry's mobile views: the Discover screen and the settings card,
+  // riding along with the service the same way the desktop trio does.
+  '@bbebee/plugin-registry-ui-mobile': {},
   // Headless audio format converter & compressor
   '@bbebee/plugin-audio-converter': {},
+  '@bbebee/plugin-audio-converter-ui-mobile': {},
+  // The plugin manager's mobile views: the plugin list with enable/disable
+  // toggles (persisted-only on mobile — changes apply at next launch).
+  '@bbebee/plugin-manager-ui-mobile': {},
 }
+
+/**
+ * Plugins deferred until after the first frame has rendered — the mobile
+ * mirror of the desktop shell's list (`apps/desktop/renderer/plugins.ts`),
+ * with the mobile view packages standing in for the desktop ones. None of
+ * these is needed for initial screen rendering, and `app.ready(['ui'])` does
+ * not wait for them, so loading them during idle trims startup without
+ * changing the feature set.
+ */
+export const DEFERRED_PLUGIN_IDS = [
+  '@bbebee/plugin-local-scanner',
+  '@bbebee/plugin-local-scanner-ui-mobile',
+  '@bbebee/plugin-download',
+  '@bbebee/plugin-download-ui-mobile',
+  '@bbebee/plugin-audio-converter',
+  '@bbebee/plugin-audio-converter-ui-mobile',
+  '@bbebee/plugin-share',
+  '@bbebee/plugin-share-ui-mobile',
+  '@bbebee/plugin-visualizer',
+  '@bbebee/plugin-visualizer-ui-mobile',
+  '@bbebee/plugin-sleep-timer',
+  '@bbebee/plugin-history',
+  '@bbebee/plugin-history-ui-mobile',
+  // A network-touching service nothing on the first screen reads — its
+  // auto-check runs on its own timer, so it belongs with the other
+  // post-first-frame plugins.
+  '@bbebee/plugin-registry',
+  // Repo stats are read only from the Discover screen's sort controls — never
+  // on the first screen — so it defers with the rest of the registry trio.
+  '@bbebee/plugin-registry-metadata',
+  // The registry's mobile views ride along with the service, exactly as the
+  // desktop pair does.
+  '@bbebee/plugin-registry-ui-mobile',
+  // The manager screen is reached from settings and reads plugin-manager's
+  // manifests — nothing the first screen needs.
+  '@bbebee/plugin-manager-ui-mobile',
+] as const
+
+/** The allowlist minus everything that defers — what `boot()` starts with. */
+export const INITIAL_ENABLED: NonNullable<AppConfig['plugins']> = Object.fromEntries(
+  Object.entries(ENABLED).filter(
+    ([id]) => !DEFERRED_PLUGIN_IDS.includes(id as (typeof DEFERRED_PLUGIN_IDS)[number]),
+  ),
+)

@@ -46,6 +46,20 @@ The headless package works alone. A plugin with no UI package still functions; i
 contributes nothing visible, which is exactly what happens on a target where its view was not
 written.
 
+The pairs keep accruing under the same rule, with ids that must not drift between shells because
+slot consumers resolve contributions by id: `plugin-lyrics-ui-*` (the now-playing lyrics panel,
+`lyrics.panel`, filled into the `now-playing.panel` slot), `plugin-registry-ui-*` (the Discover
+screen, `registry.screen`, plus `registry.settings-card`), `plugin-theme-ui-*` (the
+`theme.settings` card), `plugin-audio-converter-ui-*` (the `audio-converter.view` workbench), and
+`plugin-visualizer-ui-*` (`visualizer.canvas` contributed into `now-playing.visualizer`, plus
+`visualizer.settings`). Where a target's surface genuinely differs, the asymmetry is deliberate:
+`plugin-manager-ui-mobile` has no desktop twin — desktop keeps plugin management inside its
+settings screen's own plugins section — and the mobile theme card omits the glass sub-cards,
+which have no React Native counterpart. Mobile-only entrances that would otherwise strand a
+screen (the converter workbench, the manager list, the Discover route) ship as settings
+link-rows: a `settings` contribution with no `action` renders a row whose button hands the view
+id to `ui.navigate`.
+
 ### 1.1 Package internal organization & component decomposition
 
 To prevent UI packages from turning into monolithic files containing thousands of lines, each UI package is decomposed into single-responsibility submodules — the normative rules (no monolithic single-file packages, kit/menu/screen decomposition, helper hoisting, thin plugin entry) live in [rules/ui.md §1.1](../../rules/ui.md#11-package-internal-organization--single-responsibility-principle-srp) (L2):
@@ -63,6 +77,7 @@ packages/ui/<package>/src/
 
 Docs-side specifics:
 - **UI Kit Component Structure**: Core UI kit packages (`ui-kit-mobile`, `ui-kit-desktop`) isolate theme tokens and styling primitives into `primitives.ts`, component definitions into atomic files under `src/components/*.tsx` (`Button`, `Text`, `TextField`, `Slider`, `Sheet`, `ContextMenu`, `List`, `Artwork`, `TrackRow`, `Toast`, `JsonTree`, `HoverLabel`, `MarqueeText`, `PageMarqueeSync`, plus desktop-only `StickyDetailBar` and `coverTheme`), and barrel re-export through `src/index.tsx`.
+- **Mobile live-palette resolver**: `ui-kit-mobile`'s `primitives.ts` additionally carries the palette the theme system drives — `setPalette` / `activePalette` / `getScheme` / `onPaletteChange`, with `c()` resolving the optional override palette ahead of the static design tokens (existing `palettes.dark` consumers are unchanged; they simply start reading the override once a theme installs one). `theme-bridge.ts` maps a `ThemeDefinition` onto that palette (`themeToPalette` — the mobile counterpart of the desktop's CSS-variable mapping, including the `lightTokens` scheme swap), and `hooks/use-palette.ts` binds it to React through `useSyncExternalStore`. `plugin-theme-ui-mobile`'s palette drive is the writer; see [design-system.md §6.0.2](design-system.md#602-dual-scheme-mode--light-mode-architecture-wcag-aa-gate).
 - **Screen View Decomposition**: Heavy screens with multiple view modes (such as `LibraryScreen`) decouple view renderings into `src/components/views/*` (`CollapsedLibraryView`, `ExpandedLibraryView`, `SidebarFolderView`), action and data hydration into `src/hooks/*` (`useLibraryHydration`, `useLibraryActions`, `useTableSort`), and control bars/modals into `src/components/*`.
 - **Pure Helper Hoisting**: Reusable pure logic that outgrows one feature (such as formatting durations, artwork IDs, and string helpers) belongs in `@BBeBee/toolkit` (Layer 4 pure library), maintaining a single source of truth across desktop and mobile without duplication.
 - **Share UI Modal & Canvas Architecture (`plugin-share-ui-desktop`)**: Modal workflows (`ShareTrackModal`, `SharePlaylistModal`, `ShareAlbumModal`, `ShareLyricsModal`) decouple shared presentation (`ShareModalHeader`, `BackgroundModeSelector`, `LocalSourceWarning`, `DisabledReasonToast`, `ShareActionButtons`) and state (`useShareModalState`). Previews render directly onto a live `<canvas>` using identical rendering functions (`drawTrackCard`, `drawPlaylistCard`, `drawAlbumCard`, `drawLyricsCard`) to ensure 100% pixel-perfect synchronization with exported PNGs, using non-distorting cover scaling (`drawImageCover`) and 3-line text wrapping (`wrapText`).
@@ -262,6 +277,16 @@ export function Slot({ id, context }: { id: SlotId; context: SlotContext }) {
   })}</>
 }
 ```
+
+The mobile shell reads the same slots, resolving each contribution's id against its own
+registry. `plugin-now-playing-ui-mobile` reads `now-playing.actions` (the mini-player's bar
+extras) and `now-playing.panel` — the expanded player's panel band, which
+`plugin-lyrics-ui-mobile` fills with the synchronized-lyrics panel (tap-to-seek on a timed line,
+manual scroll suspending auto-follow). `plugin-visualizer-ui-mobile` registers `visualizer.canvas`
+and contributes it into `now-playing.visualizer` under the desktop twin's ids; the desktop screen
+renders that slot band, and on mobile the canvas currently surfaces through the visualizer
+settings card's live preview — a slot with a contribution and no reader renders nothing, which is
+the missing-view state of [§3](#3-resolving-a-descriptor-to-a-view), not an error.
 
 ---
 
@@ -527,7 +552,7 @@ The shells are thin. Everything below is genuinely platform-specific and belongs
 
 | | `apps/mobile` | `apps/desktop/renderer` |
 |---|---|---|
-| Boot | Create context, register `core-*-expo`, mount inside `ctx.inject(['ui'], …)` | Same with `core-*-node` |
+| Boot | Create context, register the mobile `core-*-mobile` implementations, mount inside `ctx.inject(['ui'], …)` | Same with the desktop `core-*-desktop` / `core-desktop-bridge` set |
 | Chrome | Tab bar, stack headers, safe-area insets | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
 | Player surface | Mini player above the tab bar; expands to full screen | Persistent bottom bar; optional detached mini-player window |
 | Platform-only | Gestures, haptics, pull-to-refresh | Right-click menus, drag-and-drop, keyboard shortcuts, tray, command palette |

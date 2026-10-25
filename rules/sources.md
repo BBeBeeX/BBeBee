@@ -1,6 +1,6 @@
 # Music Sources & Sandbox Rules
 
-Rules governing music source documents, rule engines, QuickJS sandboxing, and authoring in BBeBee.
+Rules governing music source documents, rule engines, sandboxing, and authoring in BBeBee.
 
 > **L2 · When to read**: when writing music-source JSON, modifying the source runtime/sandbox, or touching the third-party registry and install chain.
 > **What goes wrong without it**: credentials written into source documents, the `allowedHosts` disclosure red line breached, sources packaged as plugins, the registry model misunderstood (a four-directory enumeration, not a single-file index).
@@ -26,7 +26,7 @@ Rule prefixes select the execution engine:
 | `@json:` | JSONPath | Queries nested JSON structures |
 | `@css:` | CSS Selector | DOM extraction (stub — parses, but evaluation raises `RuleEngineUnavailableError`) |
 | `@xpath:` | XPath | XML/HTML extraction (stub — parses, but evaluation raises `RuleEngineUnavailableError`) |
-| `@js:` | QuickJS Sandbox | Sandboxed JavaScript evaluation |
+| `@js:` | JS Sandbox | Sandboxed JavaScript evaluation (QuickJS on desktop; pure-JS interpreter on mobile) |
 | `=` | String Literal | Returns constant string |
 | *(bare)* | Inferred | Inferred based on syntax |
 
@@ -34,7 +34,7 @@ Rule prefixes select the execution engine:
 - **Detail Pagination** (`ruleAlbum`, `rulePlaylist`): `getAlbum(id, page?)` and `getPlaylist(id, page?)` accept an optional `PageRequest`. The runtime maps page numbers/cursors to query parameters (`pn`/`page_num`, `ps`/`page_size`) and propagates `hasMore` and `cursor` in `AlbumDetail` / `PlaylistDetail`, enabling infinite scroll without eager bulk fetching.
 - **Multi-P Video & Virtual Album Expansion** (`ruleAlbum.childUrl`): Multi-part videos map to tracks with `<bvid>_p<page>` suffix (defaulting to P1 for plain BVIDs). When `payload.childUrl` is not cached from previous browsing, `ruleAlbum.childUrl` acts as a dynamic URL fallback, allowing direct navigation to albums from tracks ("Go to album"). Multi-P tracks resolve accurate stream audio and lyrics by targeting the page's specific `cid` from cached `pagelist`, and external links append `?p=<page>`.
 - **Recommendations** (`ruleRecommend`, optional `recommendUrl`): one page of curated playlist cards per call — the recommendation shelf renders the first page ("show all" pages through the rest). Rows are browse rows (`kind: 'album'`/`'playlist'` with `childUrl`), so a recommended playlist opens through the same album-detail pipeline a browsed one does. `recommendUrl` is optional: a source whose recommendations are a curated list lets the `@js:` rule build rows from nothing (`result` is `null`). For directory-based backends (such as Subsonic / OpenSubsonic), recommendations yield the library's default playlist or root directory as the first card, followed by randomized collections across other directories.
-- Only `{{@js:...}}` reaches the QuickJS sandbox.
+- Only `{{@js:...}}` reaches the sandbox.
 - Combinators:
   - `||`: First non-empty result
   - `&&`: Concatenate results
@@ -46,9 +46,10 @@ Rule prefixes select the execution engine:
 ## 3. Sandboxing & Security
 
 - **Pure logic**: `packages/feature/source-rules` contains pure parsing/evaluation logic — no Cordis, no platform SDKs, no I/O.
-- **Sandboxed QuickJS**: `ctx.js` runs untrusted scripts in isolated QuickJS realms without ambient Node or DOM globals. Objects cross the boundary by value cloning only.
+- **Sandboxed `ctx.js`, both platforms**: `ctx.js` runs untrusted scripts in isolated realms without ambient Node or DOM globals — QuickJS compiled to WASM on desktop (`core-js-quickjs-desktop`), and on mobile (`core-js-mobile`) the pure-JS interpreter `@nyariv/sandboxjs`, because Hermes has no WebAssembly. Both pass the shared 22-check `jsConformance` suite; the mobile realm enforces a narrower language subset (no `class` syntax, no `get`/`set` accessors in object literals) and reports limit breaches as timeouts rather than memory errors. Objects cross the boundary by value cloning only.
+- **Portable script subset**: `@js:` scripts must stay inside the subset both realms implement — no `class` declarations/expressions, no `get`/`set` accessors in object literals. The author-facing table of what is portable is in [docs/sources/authoring.md §13](../docs/sources/authoring.md#13-writing-a-source-checklist).
 - **Host allowlists**: Outbound HTTP requests from sources are gated against `allowedHosts` declared in the source manifest before and after `http/request` waterfall hooks.
-- **Custom endpoints & dynamic allowlisting**: When a source declares `params` containing `sourceurl`, user modifications to the server endpoint dynamically append the extracted host to the QuickJS sandbox's `allowedHosts` allowlist with zero restart required, preserving preexisting static endpoints.
+- **Custom endpoints & dynamic allowlisting**: When a source declares `params` containing `sourceurl`, user modifications to the server endpoint dynamically append the extracted host to the sandbox's `allowedHosts` allowlist with zero restart required, preserving preexisting static endpoints.
 - **Declarative Configuration UI & Parameter Pruning**: Source configure modals (`SourceConfigureModal` in desktop and mobile) strictly expose parameters declared in `doc.params`, `loginUi`, and `loginType`. Host inputs are omitted on fixed backends; credentials render only declared fields (with `var` hidden unless form-variable login is used); arbitrary undeclared key-value inputs ("Add variable") are prohibited because the sandbox cannot read undeclared variables.
 - **Credentials**: Passwords and tokens must NEVER be hardcoded into source documents. All sensitive values are stored in `ctx.secrets.namespace(sourceId)` which is shared across caller plugins.
 
@@ -71,7 +72,7 @@ Rule prefixes select the execution engine:
 ## 5. Third-Party Lyric Sources & Sandbox
 
 - **Audio Source Attribute**: Each audio source supports `needsLyricSource?: boolean` (defaults to `!ruleLyric`). If enabled, the player queries external lyric sources (`ctx.lyricSources`) with higher priority.
-- **Strict Data Sandbox**: External lyric sources execute in an isolated QuickJS realm or shadowed JS sandbox. They are passed **ONLY** a frozen `{ title, artist, duration }` query — plus a frozen `config` copy when the source defines one — and an `httpFetch` bridge proxied by the host and restricted to the source's `allowedHosts`.
+- **Strict Data Sandbox**: External lyric sources execute in an isolated `ctx.js` realm (QuickJS on desktop, the pure-JS interpreter on mobile) or the shadowed-JS fallback. They are passed **ONLY** a frozen `{ title, artist, duration }` query — plus a frozen `config` copy when the source defines one — and an `httpFetch` bridge proxied by the host and restricted to the source's `allowedHosts`.
 - **Unified Normalization**: All external outputs (standard LRC strings, TTML, LRCLIB JSON, translated dual-line LRCs, line arrays) are parsed and converted into the application standard `Lyrics` contract.
 
 ---

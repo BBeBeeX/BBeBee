@@ -374,6 +374,20 @@ export class FsNode extends Service implements FsService {
     return undefined
   }
 
+  async pickFiles(_opts?: { multiple?: boolean }): Promise<Array<{ uri: Uri; name?: string; size?: number }>> {
+    // The same split as `pickDirectory`: dialogs belong to the shell. Here,
+    // though, "nobody to ask" cannot be the cancel answer `[]` — a caller
+    // cannot tell an empty pick from an unsupported one — so a bare Node host
+    // (the sidecar, a test) refuses in words. The desktop app reaches the real
+    // dialog through the renderer bridge: `FsBridge.pickFiles` routes to the
+    // host's `window.BBeBee.dialog.pickFiles`, over the Tauri
+    // `desktop_dialog_pick_files` command.
+    throw new Error(
+      'fs.pickFiles is not supported in a bare Node host — no host file dialog to ask; ' +
+        'on desktop the renderer bridge routes picks to the host dialog',
+    )
+  }
+
   /** Identity on this platform — a `file://` uri is already playable. */
   async toPlayableUri(uri: Uri): Promise<Uri> {
     return uri

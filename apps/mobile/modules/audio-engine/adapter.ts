@@ -52,6 +52,13 @@ export interface NativeAudioEngine {
   setOutputDevice(id: string): Promise<void>
   setStreamPlayback(playing: boolean): Promise<void>
   setAudioExclusive(exclusive: boolean): Promise<void>
+  /**
+   * mpv's `audio-device-list` shape, as a JSON string: `[{ name, description }]`,
+   * with the system default route reported as `name: 'auto'` — exactly what the
+   * desktop engine supervisor's `audio-devices` payload carries, and what
+   * `core-audio-mpv`'s `listOutputDevices` maps into `OutputDevice`s.
+   */
+  mpvGetAudioDevices(): Promise<string>
   getSpectrum(): Promise<{
     ok: boolean
     frequencyData: number[]
@@ -94,6 +101,13 @@ export interface EngineStatusResult {
   transcodeAvailable?: boolean
 }
 
+/** One entry of the native `mpvGetAudioDevices` answer (mpv's device list). */
+export interface MpvAudioDevice {
+  /** The device id in the engine's vocabulary; `auto` is the default route. */
+  name: string
+  description: string
+}
+
 export interface NativeTranscodeParams {
   jobId?: string
   inputUri: string
@@ -104,12 +118,25 @@ export interface NativeTranscodeParams {
   channels?: number
   startSeconds?: number
   endSeconds?: number
+  /**
+   * The desktop ffmpeg options, forwarded verbatim. The native layer rules on
+   * them: the start answer's `unsupported` names any field the linked engine
+   * build cannot apply, so callers never guess what the engine supports.
+   */
+  bitDepth?: number
+  vbr?: boolean
+  vbrQuality?: number
+  volumeGainDb?: number
+  fadeInSeconds?: number
+  fadeOutSeconds?: number
 }
 
 export interface TranscodeStartAnswer {
   ok: boolean
   jobId?: string
   error?: string
+  /** Fields the linked engine build cannot apply (absent when all were honoured). */
+  unsupported?: string[]
 }
 
 export interface TranscodeState {
@@ -168,6 +195,17 @@ export function buildMpvAdapter(native: NativeAudioEngine) {
       native.setVisualizer(enabled, fftSize ?? 0),
     async mpvEngineStatus() {
       return JSON.parse(await native.engineStatus()) as EngineStatusResult
+    },
+    /**
+     * The mpv-shaped device list. Android has no mpv `audio-device-list` to
+     * copy — the engine runs its own AudioManager — so the Kotlin side maps
+     * its output devices into mpv's `{ name, description }` vocabulary (with
+     * the default route as `auto`) and this parses it like every other JSON
+     * answer. `core-audio-mpv`'s `listOutputDevices` maps `name`→`id` and
+     * flags `auto`/`default` as the default, so no second mapping lives here.
+     */
+    async mpvGetAudioDevices(): Promise<MpvAudioDevice[]> {
+      return JSON.parse(await native.mpvGetAudioDevices()) as MpvAudioDevice[]
     },
     // The recovery seam for a wedged native engine (destroy + re-create the
     // context). Deliberately not called by the adapter itself: when to give

@@ -16,7 +16,7 @@
  * has to know what it is rendering into (docs/08 §1).
  */
 
-import { Platform } from 'react-native'
+import { Appearance, Platform } from 'react-native'
 import {
   ActivityIndicator,
   Image,
@@ -28,8 +28,14 @@ import {
 } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
+import { File, Paths } from 'expo-file-system'
 import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
-import { PLUGIN_MANAGER_ID, type AppSettings } from '@BBeBee/protocol'
+import {
+  isCriticalServiceKey,
+  PLUGIN_MANAGER_ID,
+  type AppSettings,
+  type PluginManifest,
+} from '@BBeBee/protocol'
 import { MOBILE_LAYOUT_MODE_KEY, isMobileLayoutMode, type MobileLayoutMode } from './layout.js'
 import { PathsExpo } from '@bbebee/core-paths-mobile'
 import { FsExpo } from '@bbebee/core-fs-mobile'
@@ -39,6 +45,7 @@ import { SecretsExpo } from '@bbebee/core-secrets-mobile'
 import { DeviceExpo } from '@bbebee/core-device-mobile'
 import { BackgroundExpo } from '@bbebee/core-background-mobile'
 import { MediaSessionRn } from '@bbebee/core-media-session-mobile'
+import { JsSandboxMobile } from '@bbebee/core-js-mobile'
 import { CodecRn } from '@bbebee/core-codec-mobile'
 import { HttpRn } from '@bbebee/core-http-mobile'
 import { AudioMpv } from '@bbebee/core-audio-mpv'
@@ -61,7 +68,7 @@ import logBuffer from '@bbebee/plugin-log-buffer'
 import logConsole from '@bbebee/plugin-log-console'
 import logFile from '@bbebee/plugin-log-file'
 
-import { BOOTSTRAP_SERVICES, ENABLED } from './plugins'
+import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins'
 
 /*
  * The native audio-engine binding, if this build carries it: installs
@@ -160,6 +167,28 @@ configureNative({
   FlashList,
   ActivityIndicator,
   TextInput,
+  /*
+   * The OS light/dark answer, for the theme layer: without it, appearance
+   * mode 'system' degrades to dark even when the phone is set to light.
+   * `plugin-theme-ui-mobile`'s palette drive reads it back and subscribes to
+   * its change events, so the scheme follows the OS toggle live.
+   *
+   * Adapted rather than passed raw: RN's `getColorScheme` also types
+   * `undefined` into its answer, and the kit's `AppearanceLike` contract
+   * (deliberately narrower) promises `null` for "unset".
+   */
+  Appearance: {
+    // RN also answers 'unspecified'; the kit's contract narrows that to null.
+    getColorScheme: () => {
+      const scheme = Appearance.getColorScheme()
+      return scheme === 'light' ? 'light' : scheme === 'dark' ? 'dark' : null
+    },
+    addChangeListener: (listener) =>
+      Appearance.addChangeListener((prefs) => {
+        // Same narrowing on the change stream.
+        listener({ colorScheme: prefs.colorScheme === 'light' ? 'light' : prefs.colorScheme === 'dark' ? 'dark' : null })
+      }),
+  },
 })
 
 /**
@@ -183,19 +212,195 @@ async function startAudioSession(background: BackgroundExpo): Promise<void> {
   }
 }
 
+// =============================================================================
+// Pre-boot store read & plugin enablement
+// =============================================================================
+
+interface PreloadedStore {
+  storeData?: Record<string, unknown>
+  /** The persisted audio exclusive-mode flag, for the audio service's seed. */
+  audioExclusive?: boolean
+}
+
+/**
+ * Read `store.json` before the app starts — the mobile counterpart of
+ * desktop's `preloadPreferences`.
+ *
+ * Three consumers, one disk read: `StoreFs` is seeded via `initialData` (so
+ * its first `get` does not race the plugin graph), `computeEnabledPlugins`
+ * needs the persisted plugin-manager records *before* the config is built —
+ * a plugin the user disabled must not start, not even for the span of one
+ * boot — and the audio service's exclusive-mode seed comes from the settings
+ * document. Read through `expo-file-system` directly rather than `FsExpo`:
+ * the service needs a live context, and this is exactly the one job the
+ * composition root is allowed to do by hand. Same file, same key layout as
+ * desktop — `StoreFs` namespacing puts every plugin's keys under its
+ * manifest id.
+ */
+async function preloadStore(): Promise<PreloadedStore> {
+  try {
+    const uri = `${Paths.document.uri.replace(/\/$/, '')}/store.json`
+    const file = new File(uri)
+    if (!file.exists) return {}
+    const raw = await file.text()
+    if (typeof raw !== 'string' || !raw) return {}
+    const data = JSON.parse(raw) as Record<string, unknown>
+    const result: PreloadedStore = { storeData: data }
+    // The settings plugin's own namespace, then the bare legacy key — the
+    // same lookup order desktop's preload uses.
+    const prefs = (
+      data['@bbebee/plugin-settings:preferences'] ?? data['preferences']
+    ) as { audioExclusive?: boolean } | undefined
+    if (typeof prefs?.audioExclusive === 'boolean') result.audioExclusive = prefs.audioExclusive
+    return result
+  } catch (err) {
+    console.warn('[boot] failed to preload store:', err)
+    return {}
+  }
+}
+
+/**
+ * Map a legacy `@BBeBee/` plugin id to its current `@bbebee/` form, so
+ * persisted records written before the manifest-id rename still apply.
+ * Same rule as desktop's boot and `core-store-fs`'s namespace migration;
+ * new ids pass through.
+ */
+function currentPluginId(id: string): string {
+  return id.startsWith('@BBeBee/') ? `@bbebee/${id.slice('@BBeBee/'.length)}` : id
+}
+
+/**
+ * Which provider wins a service key claimed by more than one plugin.
+ *
+ * Mirrors `resolveActiveProviders` in `apps/desktop/renderer/dynamic-loader.ts`
+ * — duplicated rather than shared because that module also carries the Vite
+ * glob registry, which Metro must never see. Mobile has no external installs
+ * today, so `npmInstalledIds` is always empty here and the built-in provider
+ * wins; the shape is kept identical so a future mobile installer flips the
+ * semantics in one place.
+ */
+function resolveActiveProviders(
+  providersByKey: ReadonlyMap<string, readonly string[]>,
+  selection: Readonly<Record<string, string>> | undefined,
+  npmInstalledIds: ReadonlySet<string>,
+  isCriticalKey: (key: string) => boolean,
+): Map<string, string> {
+  const active = new Map<string, string>()
+  for (const [key, providers] of providersByKey) {
+    if (providers.length < 2 || isCriticalKey(key)) continue
+    const chosen = selection?.[key]
+    const winner =
+      chosen && providers.includes(chosen)
+        ? chosen
+        : (providers.find((id) => !npmInstalledIds.has(id)) ?? providers[0]!)
+    active.set(key, winner)
+  }
+  return active
+}
+
+/**
+ * Compute effective plugin enablement (initial + user overrides + provider
+ * arbitration) — the mobile mirror of desktop's `computeEnabledPlugins`.
+ *
+ * Overrides are the `enabled` map plugin-manager persists under its own
+ * store namespace (`@bbebee/plugin-manager:enabled`), written by
+ * `setEnabled`. Arbitration holds off every provider of a contended
+ * non-critical service key except the user's chosen (or the built-in) one —
+ * Cordis refuses duplicate service registrations, so without this a second
+ * provider would wedge the graph at boot.
+ */
+function computeEnabledPlugins(
+  storeData: Record<string, unknown> | undefined,
+  manifests: Record<string, PluginManifest>,
+): typeof INITIAL_ENABLED {
+  const effective = { ...INITIAL_ENABLED }
+  const rawOverrides = (
+    storeData?.['@bbebee/plugin-manager:enabled'] ??
+    storeData?.['plugin-manager:enabled']
+  ) as Record<string, boolean> | undefined
+  // Remap legacy override keys to the renamed ids (new keys win on clash).
+  const overrides = rawOverrides
+    ? Object.fromEntries(
+        Object.entries(rawOverrides).map(([id, enabled]) => [currentPluginId(id), enabled]),
+      )
+    : undefined
+
+  if (overrides) {
+    for (const [id, enabled] of Object.entries(overrides)) {
+      if (enabled === false && effective[id]) {
+        effective[id] = { ...effective[id], enabled: false }
+      } else if (enabled === true) {
+        effective[id] = { ...(effective[id] ?? {}), enabled: true }
+      }
+    }
+  }
+
+  // Provider arbitration: a non-critical key with several providers may only
+  // start ONE of them. Judged against the whole generated registry (not just
+  // the enablement map) so a disabled provider still counts as a contender
+  // the way desktop's does.
+  const providersByKey = new Map<string, string[]>()
+  for (const m of Object.values(manifests)) {
+    if (!m.entry?.main) continue
+    for (const key of m.contributes?.services ?? []) {
+      const arr = providersByKey.get(key) ?? []
+      arr.push(m.id)
+      providersByKey.set(key, arr)
+    }
+  }
+  if ([...providersByKey.values()].some((ps) => ps.length > 1)) {
+    const rawSelection = storeData?.['@bbebee/plugin-manager:service-providers'] as
+      | Record<string, string>
+      | undefined
+    const selection = rawSelection
+      ? Object.fromEntries(
+          Object.entries(rawSelection).map(([key, provider]) => [key, currentPluginId(provider)]),
+        )
+      : undefined
+    const active = resolveActiveProviders(providersByKey, selection, new Set(), isCriticalServiceKey)
+    for (const [key, providers] of providersByKey) {
+      const winner = active.get(key)
+      if (!winner) continue
+      for (const id of providers) {
+        if (id !== winner && effective[id] && effective[id].enabled !== false) {
+          effective[id] = { ...effective[id], enabled: false }
+        }
+      }
+    }
+  }
+  return effective
+}
+
+/** The manifests behind the generated registry, keyed by plugin id. */
+function bundledManifests(): Record<string, PluginManifest> {
+  return Object.fromEntries(
+    Object.entries(bundled)
+      .map(([id, entry]) => [id, entry.manifest] as const)
+      .filter((entry): entry is [string, PluginManifest] => Boolean(entry[1])),
+  )
+}
+
 export async function boot(): Promise<App> {
+  // The persisted store, read once before anything else: it seeds `StoreFs`
+  // and decides which plugins the first boot starts at all.
+  const prefs = await preloadStore()
+  const manifests = bundledManifests()
+  const enabledPlugins = computeEnabledPlugins(prefs.storeData, manifests)
+
   const app = createApp({
     target: Platform.OS === 'ios' ? 'ios' : 'android',
     bootstrap: [
       PathsExpo,
       FsExpo,
-      StoreFs,
+      [StoreFs, { initialData: prefs.storeData }],
       DbExpo,
       // The keychain. Cookie jars are envelope-encrypted under a key that
       // lives here, so it comes before `HttpRn` (docs/04 §2.1).
       SecretsExpo,
 
-      [DeviceExpo, { appVersion: '0.0.0' }],
+      // `appVersion` reads the native bundle through expo-application inside
+      // the service; overriding it here would pin every build to a lie.
+      DeviceExpo,
       BackgroundExpo,
       MediaSessionRn,
 
@@ -209,6 +414,9 @@ export async function boot(): Promise<App> {
        * dependent can be switched off from the wrong end, and the symptom is a
        * fiber sitting PENDING with no obvious cause.
        */
+      // The script sandbox — ctx.js for the source runtime, since Hermes has
+      // neither WebAssembly nor eval for the desktop QuickJS build.
+      JsSandboxMobile,
       CodecRn,
       HttpRn,
       /*
@@ -220,6 +428,12 @@ export async function boot(): Promise<App> {
         {
           mpvPlugin: AudioMpv,
           createContext: () => new AudioContext(),
+          // Applied at engine mount (desktop seeds its wrapper the same way),
+          // so bit-perfect exclusive output is in force from the first load,
+          // not from the first settings change.
+          ...(prefs.audioExclusive !== undefined
+            ? { initialAudioExclusive: prefs.audioExclusive }
+            : {}),
         },
       ],
 
@@ -240,7 +454,7 @@ export async function boot(): Promise<App> {
         : ([[logFile, { level: 2 }]] as const)),
     ],
     registry: bundled,
-    config: { plugins: ENABLED },
+    config: { plugins: enabledPlugins },
     // Capability grants live in the db DbExpo provides; the kernel
     // resolves them after bootstrap and before every dynamic load, so
     // the loader's gate sees the user's recorded approvals (W1). Mobile
@@ -271,20 +485,50 @@ export async function boot(): Promise<App> {
   await app.ready([...BOOTSTRAP_SERVICES], { timeoutMs: 15_000 })
 
   /*
-   * The configured `User-Agent`, applied once settings exist and kept in step
-   * from then on. Same contract as desktop: the header goes out on the next
-   * request, an empty value restores the built-in default, and a source
-   * document's own `header` rule still wins. ⚠️ `http` must be in the inject
-   * list — the scoped proxy refuses anything not listed, and a throw in a
-   * `settings/changed` listener aborts the synchronous emit for everyone after
-   * it.
+   * The configured settings, applied once they exist and kept in step from
+   * then on. The mobile slice of desktop's `wireSettingsSync`: the header and
+   * the audio-output preferences have the same meaning on both shells, while
+   * `closeToTray`, `glass.window`, `proxy` and `audioOutputEngine` are
+   * desktop-only concepts (a tray, window material, an OS proxy and a second
+   * engine do not exist on this platform — mobile's `switchEngine` is a
+   * documented no-op). Same contract as desktop: an empty value restores the
+   * built-in default, and a source document's own `header` rule still wins.
+   * ⚠️ `http`/`audio` must be in the inject list — the scoped proxy refuses
+   * anything not listed, and a throw in a `settings/changed` listener aborts
+   * the synchronous emit for everyone after it.
    */
-  app.ctx.inject(['settings', 'http'], (scoped) => {
-    const syncUserAgent = (s: AppSettings | undefined) => {
-      if (s?.userAgent !== undefined) scoped.http?.setUserAgent?.(s.userAgent)
+  app.ctx.inject(['settings', 'http', 'audio'], (scoped) => {
+    const sync = (s: AppSettings | undefined) => {
+      if (!s) return
+      if (s.userAgent !== undefined) scoped.http?.setUserAgent?.(s.userAgent)
+      if (s.audioOutputDeviceId) {
+        void scoped.audio?.setOutputDevice?.(s.audioOutputDeviceId).catch((err) => {
+          app.ctx.logger.warn(`boot: applying audio output device failed: ${String(err)}`)
+        })
+      }
+      if (s.audioExclusive !== undefined) {
+        void scoped.audio?.setAudioExclusive?.(s.audioExclusive).catch((err) => {
+          app.ctx.logger.warn(`boot: applying audio exclusive mode failed: ${String(err)}`)
+        })
+      }
     }
-    void scoped.settings.get().then(syncUserAgent)
-    scoped.on('settings/changed', syncUserAgent)
+    void scoped.settings.get().then(sync)
+    scoped.on('settings/changed', sync)
+  })
+
+  /*
+   * The plugin manifests, handed to plugin-manager through the same channel
+   * desktop's `wirePluginManager` uses. Without this the service knows no
+   * plugins: `list()` is empty, the enable/disable records it persists cannot
+   * be aimed at anything, and the deferred-load pass in `App.tsx` could not
+   * honour a user's disabled choice. No lifecycle bridge and no installer
+   * here — mobile has no dynamic plugin loading (docs/plugins/loading.md §6).
+   */
+  app.ctx.inject(['plugin-manager'], (scoped) => {
+    const pm = (scoped as unknown as { 'plugin-manager'?: { registerManifests(m: Record<string, PluginManifest>): void } })[
+      'plugin-manager'
+    ]
+    pm?.registerManifests(manifests)
   })
 
   /*

@@ -38,6 +38,11 @@ function fakeNative(overrides: Partial<NativeAudioEngine> = {}): NativeAudioEngi
     setOutputDevice: async () => {},
     setStreamPlayback: async () => {},
     setAudioExclusive: async () => {},
+    mpvGetAudioDevices: async () =>
+      JSON.stringify([
+        { name: 'auto', description: 'System default audio route' },
+        { name: 'android/bt_a2dp', description: 'Pixel Buds (Bluetooth audio)' },
+      ]),
     getSpectrum: async () => ({ ok: true, frequencyData: [0, 255], timeDomainData: [1, 254] }),
     transcode: async () => JSON.stringify({ ok: true, jobId: 'j1' }),
     cancelTranscode: async () => true,
@@ -118,6 +123,22 @@ describe('buildMpvAdapter', () => {
     const mpv = buildMpvAdapter(fakeNative({ reinit: async () => false }))
     expect(await mpv.mpvReinit()).toBe(false)
   })
+
+  it('parses the mpv-shaped device list the shared engine maps into OutputDevices', async () => {
+    /*
+     * `core-audio-mpv`'s `listOutputDevices` calls `mpvGetAudioDevices` on the
+     * bridge and maps `{ name, description }` rows — `auto`/`default` flagged
+     * as the default — into `OutputDevice`s. The adapter's whole job is the
+     * JSON parse; the shape assertion is what stops a field rename here from
+     * quietly falling back to the one synthesized "default" device.
+     */
+    const mpv = buildMpvAdapter(fakeNative())
+    const devices = await mpv.mpvGetAudioDevices()
+    expect(devices).toHaveLength(2)
+    expect(devices[0]).toEqual({ name: 'auto', description: 'System default audio route' })
+    expect(devices[1]).toMatchObject({ name: 'android/bt_a2dp' })
+    expect(devices[1]!.description).toContain('Bluetooth audio')
+  })
 })
 
 describe('buildCodecAdapter', () => {
@@ -150,6 +171,44 @@ describe('buildCodecAdapter', () => {
     // The record crosses as-is: defaulting to the C++ side's conventions
     // happens in the native module, not twice.
     expect(seen[0]).toEqual({ inputUri: "a", outputUri: "b", format: "flac" })
+  })
+
+  it('forwards the desktop-only transcode options and the unsupported report', async () => {
+    const seen: Record<string, unknown>[] = []
+    const codec = buildCodecAdapter(
+      fakeNative({
+        transcode: async (options) => {
+          seen.push(options as unknown as Record<string, unknown>)
+          return JSON.stringify({
+            ok: true,
+            jobId: 'j10',
+            unsupported: ['volumeGainDb', 'fadeInSeconds'],
+          })
+        },
+      }),
+    )
+    const answer = await codec.transcode({
+      inputUri: 'a',
+      outputUri: 'b',
+      format: 'mp3',
+      bitDepth: 24,
+      vbr: true,
+      vbrQuality: 2,
+      volumeGainDb: -3,
+      fadeInSeconds: 0.5,
+      fadeOutSeconds: 1,
+    })
+    // The record crosses verbatim — the native layer rules on it, not the
+    // adapter — and the engine's `unsupported` ruling survives the parse.
+    expect(seen[0]).toMatchObject({
+      bitDepth: 24,
+      vbr: true,
+      vbrQuality: 2,
+      volumeGainDb: -3,
+      fadeInSeconds: 0.5,
+      fadeOutSeconds: 1,
+    })
+    expect(answer.unsupported).toEqual(['volumeGainDb', 'fadeInSeconds'])
   })
 
   it('parses transcode state and capabilities verbatim', async () => {

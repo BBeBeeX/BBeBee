@@ -86,6 +86,14 @@ class BbebeeAudioEngineModule : Module() {
             BBeBeeAudioEngine.nativeSetOutputDevice(id)
         }
 
+        // mpv's `audio-device-list` in Android vocabulary ({name, description}
+        // rows, `auto` first) — what `core-audio-mpv`'s `listOutputDevices`
+        // maps into OutputDevices. Enumeration only; route-change publishing
+        // belongs to the shell (see AudioDevices.kt).
+        AsyncFunction("mpvGetAudioDevices") {
+            AudioDevices.listJson(appContext.reactContext)
+        }
+
         AsyncFunction("setStreamPlayback") { playing: Boolean ->
             BBeBeeAudioEngine.nativeSetStreamPlayback(playing)
         }
@@ -125,6 +133,15 @@ class BbebeeAudioEngineModule : Module() {
                 (options["channels"] as? Number)?.toInt() ?: 0,
                 (options["startSeconds"] as? Number)?.toDouble() ?: 0.0,
                 (options["endSeconds"] as? Number)?.toDouble() ?: 0.0,
+                // The desktop ffmpeg options, forwarded for the native layer to
+                // rule on (NativeCodecBridge reports what this engine build
+                // cannot apply in the start answer's `unsupported` list).
+                (options["bitDepth"] as? Number)?.toInt(),
+                options["vbr"] as? Boolean,
+                (options["vbrQuality"] as? Number)?.toDouble(),
+                (options["volumeGainDb"] as? Number)?.toDouble(),
+                (options["fadeInSeconds"] as? Number)?.toDouble(),
+                (options["fadeOutSeconds"] as? Number)?.toDouble(),
             )
         }
 

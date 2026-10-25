@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from 'cordis'
 import { fsConformance, fsScopeConformance, pathsConformance } from '@BBeBee/protocol/conformance'
-import type { FsService, PathsService } from '@BBeBee/protocol'
+import type { FsService, PathsService, Uri } from '@BBeBee/protocol'
 import { scopeContext } from '@BBeBee/kernel'
 import { PathsExpo } from '@bbebee/core-paths-mobile'
 import { tempDir } from '@BBeBee/kernel/testing'
@@ -99,6 +99,94 @@ describe('core-fs-mobile specifics', () => {
 
     expect(await fs().readFile(to)).toBe('fresh')
     expect(await fs().exists(from)).toBe(false)
+  })
+
+  it('aborts a read with the desktop abort error shape', async () => {
+    /*
+     * The shared suite pins this too, but the shape is worth naming from the
+     * mobile side: `name: 'AbortError'`, `code: 'ABORT_ERR'` — the error
+     * `node:fs` throws, so a caller branching on the class branches the same
+     * way on both platforms.
+     */
+    const scratch = pathToFileURL(await mkdtemp(join(root, 'abort-'))).href.replace(/\/$/, '')
+    const uri = fs().join(scratch, 'song.mp3')
+    await fs().writeFile(uri, 'payload')
+
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(fs().readBytes(uri, { signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+      code: 'ABORT_ERR',
+    })
+    await expect(
+      fs().readFile(uri, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    // The base64 encoding path shares the checks.
+    await expect(
+      fs().readFile(uri, { encoding: 'base64', signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('lets a read that was never aborted resolve normally', async () => {
+    const scratch = pathToFileURL(await mkdtemp(join(root, 'signal-'))).href.replace(/\/$/, '')
+    const uri = fs().join(scratch, 'song.mp3')
+    await fs().writeFile(uri, 'payload')
+    const controller = new AbortController()
+    await expect(fs().readBytes(uri, { signal: controller.signal })).resolves.toBeInstanceOf(
+      Uint8Array,
+    )
+    expect(await fs().readFile(uri, { signal: controller.signal })).toBe('payload')
+  })
+
+  it('refuses a toPlayableUri copy that was aborted before it started', async () => {
+    // The content:// uri never reaches the filesystem: the abort check runs
+    // before the copy is staged, so no scratch file is needed.
+    const content = `content://media/external/audio/${Date.now()}` as Uri
+    const controller = new AbortController()
+    controller.abort()
+    await expect(fs().toPlayableUri(content, { signal: controller.signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+  })
+
+  it('pickFiles maps the picker answer and treats cancel as an empty array', async () => {
+    /*
+     * The system sheet itself is device work; what the adapter owes the
+     * contract is the shape: positional assets in, `{ uri, name, size }` out,
+     * `canceled` in, `[]` out — and `multiple` reaching the module.
+     */
+    const picker = (await import('expo-document-picker')) as unknown as {
+      __setResultForTests: (result?: unknown) => void
+      __lastOptions: { value: { multiple?: boolean; copyToCacheDirectory?: boolean } | undefined }
+      __resetForTests: () => void
+    }
+    try {
+      picker.__setResultForTests({
+        canceled: false,
+        assets: [
+          { uri: 'file:///cache/picked/Song.mp3', name: 'Song.mp3', size: 42, mimeType: 'audio/mpeg' },
+          { uri: 'file:///cache/picked/Other.flac', name: 'Other.flac', size: 7 },
+        ],
+      })
+      // FsExpo always carries the method; the non-null assertion is the test
+      // pinning that.
+      const pick = fs().pickFiles!.bind(fs())
+      const picked = await pick({ multiple: true })
+      expect(picker.__lastOptions.value?.multiple).toBe(true)
+      expect(picker.__lastOptions.value?.copyToCacheDirectory).toBe(true)
+      expect(picked).toEqual([
+        { uri: 'file:///cache/picked/Song.mp3', name: 'Song.mp3', size: 42 },
+        { uri: 'file:///cache/picked/Other.flac', name: 'Other.flac', size: 7 },
+      ])
+
+      // Single pick by default, and a cancel is an empty array, not an error.
+      picker.__setResultForTests()
+      expect(await pick()).toEqual([])
+      expect(picker.__lastOptions.value?.multiple).toBe(false)
+    } finally {
+      picker.__resetForTests()
+    }
   })
 })
 

@@ -9,6 +9,7 @@
  */
 
 import { Directory, File, Paths } from 'expo-file-system'
+import * as DocumentPicker from 'expo-document-picker'
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
 import { assertFs, capabilityConfigOf } from '@BBeBee/kernel'
@@ -28,6 +29,27 @@ import type {
 type Scope = 'own' | 'media' | 'cache' | 'downloads' | 'logs' | 'all'
 
 const trim = (uri: string): Uri => uri.replace(/\/$/, '')
+
+/**
+ * The abort error every read on this platform throws.
+ *
+ * ⚠️ Deliberately the *same shape* `node:fs` throws when `core-fs-desktop`'s
+ * reads are handed an aborted signal — `name: 'AbortError'`,
+ * `code: 'ABORT_ERR'`, message "This operation was aborted" — so a caller
+ * branching on the error class branches identically on both platforms. The
+ * shared conformance suite pins the shape.
+ */
+function abortError(): Error {
+  const error = new Error('This operation was aborted')
+  error.name = 'AbortError'
+  ;(error as NodeJS.ErrnoException).code = 'ABORT_ERR'
+  return error
+}
+
+/** Check before an await and again after it: the abort can land either side. */
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw abortError()
+}
 
 export class FsExpo extends Service implements FsService {
   static inject = ['paths']
@@ -269,13 +291,21 @@ export class FsExpo extends Service implements FsService {
 
   async readFile(uri: Uri, opts?: ReadOptions): Promise<string> {
     this.check(uri, 'read')
+    throwIfAborted(opts?.signal)
     const file = new File(uri)
-    return opts?.encoding === 'base64' ? file.base64() : file.text()
+    const text = opts?.encoding === 'base64' ? await file.base64() : await file.text()
+    // The await above is the one place an abort can land mid-read; without
+    // this check an aborted read would resolve as if it had been wanted.
+    throwIfAborted(opts?.signal)
+    return text
   }
 
-  async readBytes(uri: Uri): Promise<Uint8Array> {
+  async readBytes(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uint8Array> {
     this.check(uri, 'read')
-    return new File(uri).bytes()
+    throwIfAborted(opts?.signal)
+    const bytes = await new File(uri).bytes()
+    throwIfAborted(opts?.signal)
+    return bytes
   }
 
   async readRange(uri: Uri, start: number, end: number): Promise<Uint8Array> {
@@ -413,6 +443,41 @@ export class FsExpo extends Service implements FsService {
   }
 
   /**
+   * The system document picker.
+   *
+   * ⚠️ Why the manifest gains no capability for this. The rules/plugins §5
+   * grammar has no token for "may open a picker", and it does not need one:
+   * picking is *user-driven* — the user, not the plugin, chooses what is
+   * handed over — so there is nothing to gate up front. Every uri a pick
+   * returns classifies through `scopeOf` like any other on first read (a
+   * picked file lands as `media`), so the existing `fs:read:*` grants rule
+   * exactly as they rule on a uri the caller learned any other way. Widening
+   * the manifest for a user gesture would widen nothing and say much.
+   *
+   * On Android `copyToCacheDirectory: true` (kept explicit here, it is also
+   * the default) has the module copy a SAF `content://` selection into the
+   * app cache and hand back a `file://` uri — the same move `toPlayableUri`
+   * makes for a picked *folder's* children — so every returned uri is one
+   * `ctx.fs` can read and a decoder can open. iOS answers security-scoped
+   * `file://` uris, which `scopeOf` classifies as `media`. Cancel is `[]`,
+   * as the contract spells it.
+   */
+  async pickFiles(
+    opts?: { multiple?: boolean },
+  ): Promise<Array<{ uri: Uri; name?: string; size?: number }>> {
+    const result = await DocumentPicker.getDocumentAsync({
+      multiple: opts?.multiple ?? false,
+      copyToCacheDirectory: true,
+    })
+    if (result.canceled) return []
+    return (result.assets ?? []).map((asset) => ({
+      uri: trim(asset.uri) as Uri,
+      ...(asset.name ? { name: asset.name } : {}),
+      ...(typeof asset.size === 'number' ? { size: asset.size } : {}),
+    }))
+  }
+
+  /**
    * ⚠️ The sharpest leak in the abstraction.
    *
    * On Android a user-picked folder is a SAF `content://` tree uri, which a
@@ -430,10 +495,11 @@ export class FsExpo extends Service implements FsService {
    * cannot silently play the wrong file and an edited source is re-copied
    * rather than served stale.
    */
-  async toPlayableUri(uri: Uri): Promise<Uri> {
+  async toPlayableUri(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uri> {
     if (!uri.startsWith('content://')) return uri
     // Copying is a read of the source; the gate must rule on it.
     this.check(uri, 'read')
+    throwIfAborted(opts?.signal)
 
     const source = new File(uri)
     const stamp = `${uri}\x00${source.size}\x00${source.lastModified ?? 0}`
@@ -452,10 +518,28 @@ export class FsExpo extends Service implements FsService {
     }
 
     await this.mkdir(dir, { recursive: true })
+    throwIfAborted(opts?.signal)
     // Copy via a temp name and move into place, so a concurrent caller either
     // sees the old complete file or the new one — never a half-written copy.
+    // ⚠️ `copySync` is a synchronous native hand-off: the signal cannot cut a
+    // copy that is already running, only stop the one not yet started — the
+    // check below is between the staging steps, which is what the contract's
+    // "advisory" wording buys.
     const tmp = `${cached}.${Date.now()}.part`
-    source.copySync(new File(tmp))
+    try {
+      source.copySync(new File(tmp))
+      throwIfAborted(opts?.signal)
+    } catch (error) {
+      // An abort (or failure) between staging and the move must not leave the
+      // half-copy behind; the sidecar-style cleanup the watchdog does on the
+      // happy path has no owner here.
+      try {
+        new File(tmp).delete()
+      } catch {
+        // Already gone.
+      }
+      throw error
+    }
     const target = new File(cached)
     if (target.exists) target.delete()
     new File(tmp).moveSync(target)

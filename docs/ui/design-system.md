@@ -148,8 +148,8 @@ The active theme maps its own `ColorTokens` on top of this core palette: the pla
   - Large text & key UI borders contrast $\ge 3.0:1$
   - Tested across both `dark` and `light` schemes in CI parity suites.
 - **Component Tokenization & Contrast Preservation Rule**: see the spec at [rules/ui.md §4](../../rules/ui.md#4-visual-design-language--color-system) (L2) — no hardcoded `#FFFFFF`/`#000000` foregrounds (semantic CSS variables only); fixed black containers keep light foregrounds / on-color tokens (Fixed Dark Container Exception).
-- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes.
-- **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme`):
+- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes. On mobile there is no DOM to write and no `matchMedia`, so the contract is mirrored rather than shared: `plugin-theme-ui-mobile`'s palette drive owns scheme resolution (explicit modes pass straight through; `'system'` asks the `Appearance` primitive the shell injects) and applies the resolved `ThemeDefinition` kit-wide through `themeToPalette` + `setPalette`.
+- **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme` — the desktop writer; mobile's single writer is `plugin-theme-ui-mobile`'s palette drive, which installs one resolved palette at a time via `setPalette`):
   - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `emerald-green`)
   - `data-color-scheme="{effectiveScheme}"` (`dark` or `light`)
   - `target.style.colorScheme = effectiveScheme`
@@ -218,6 +218,8 @@ The desktop theme settings card organises packs into four categories (persisted 
 - **Browse (`registry`)**: packs offered by the registry repository — listed from the generated `themes/index.json` summaries and installed as packs (every variant must pass the WCAG AA gate, or the whole pack is rejected). The registry's seed packs are `deepmono` and `tokyo-night`; Catppuccin is listed here as a third-party pack (its npm plugin entry is a separate channel).
 
 The card's current-theme label always resolves through pack/variant names with id fallbacks — it never renders `undefined`.
+
+The mobile twin (`plugin-theme-ui-mobile`'s theme management card, filling `theme.settings`) mirrors the same four categories; **Browse** links into the registry's Discover route (`registry.screen`) rather than duplicating the registry UI, and the glass sub-cards are desktop-only — React Native has no counterpart for either glass layer — so the mobile card omits them. The card also drives the live palette: its selection flows through the palette drive described in §6.0.2, not through DOM variables.
 
 #### Dynamic Cover Theme
 
@@ -485,7 +487,7 @@ Ownership of the contributed domains is normative in [rules/ui.md §5](../../rul
 | Section | Contributed by | Shape |
 |---|---|---|
 | `general` — User profile | `plugin-library` (`library.profile`) | card, view in `plugin-library-ui-desktop` |
-| `general` — Theme management / Appearance mode | `plugin-theme` (`theme.settings`) | card (view in `plugin-theme-ui-desktop`) |
+| `general` — Theme management / Appearance mode | `plugin-theme` (`theme.settings`) | card (view in `plugin-theme-ui-desktop` / `plugin-theme-ui-mobile`) |
 | `general` — Language, closeToTray | settings service (kept rows) / composition root | kept row + `fields` |
 | `playback` — Now-playing style templates | `plugin-now-playing` (`now-playing.styles`) | card, view in `plugin-now-playing-ui-desktop` |
 | `playback` — Transition & crossfade | `plugin-player` (`player.transition`) | `fields` (gapless, crossfade, pause-on-unplug) |
@@ -498,7 +500,7 @@ Ownership of the contributed domains is normative in [rules/ui.md §5](../../rul
 | `sources` — Music sources, import, local folders | `plugin-sources` / `plugin-local-scanner` | link rows (already contributed) |
 | `storage` — Downloads directory | `plugin-download` | `fields` (`directory`) |
 | `storage` — Cache directory & usage | `plugin-cache` | `fields` (`directory` + `action` with outcome feedback) |
-| `plugins` — Plugin management | `plugin-manager` (`manager.view`) | card, view in `plugin-manager-ui-desktop` |
+| `plugins` — Plugin management | desktop: the settings screen's own `PluginsSection`, reading `ctx['plugin-manager']`; mobile: link-row contributed by `plugin-manager-ui-mobile` | desktop card in `plugin-settings-ui-desktop`; mobile plugin list with enable/disable toggles in `plugin-manager-ui-mobile` (`plugin-manager.screen`; persisted changes apply at next launch — no mobile lifecycle bridge) |
 | `shortcuts` — Global shortcuts | `plugin-settings` itself (`settings.shortcuts`) | card, view in `plugin-settings-ui-desktop` |
 
 Domain behaviours that stay with their owners even after the move:

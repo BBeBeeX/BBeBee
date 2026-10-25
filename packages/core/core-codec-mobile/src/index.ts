@@ -63,22 +63,18 @@ export interface CodecRnConfig extends CodecNodeConfig {
   /**
    * Formats the device can decode.
    *
-   * ⚠️ Not a guess. iOS decodes ALAC and refuses Vorbis; Android's list moves
-   * with the OS version and the vendor. The shell configures this from what it
-   * knows about its engine, and the scanner *reports* what it could not
-   * decode rather than skipping it silently (docs/04 §13).
+   * ⚠️ Left unset, the default is `CodecNode`'s own list — the 15 formats the
+   * bundled native engine decodes — and that is the honest answer here: the
+   * mobile engine *is* the same bundled libmpv/libavcodec build the desktop
+   * native engine runs (staged by `with-audio-engine` from the same release
+   * artifacts), so its decode capability is the desktop engine's. The old
+   * hand-picked six under-declared it, and a track in one of the missing
+   * containers (ogg, opus, wma, ape, wv, dsf, dff, m4b) imported as an error
+   * the file did not deserve. The shell may still configure a narrower list
+   * for a build it knows shipped without the engine.
    */
   supportedFormats?: string[]
 }
-
-/**
- * What both mobile platforms decode without an extra codec.
- *
- * The intersection, deliberately: reporting a format one platform lacks means
- * a track that imports and then will not play, which is the worse of the two
- * errors. `ogg`/`vorbis` is absent because iOS has never shipped it.
- */
-const MOBILE_FORMATS = ['mp3', 'flac', 'm4a', 'aac', 'wav', 'aiff']
 
 /**
  * The `bbebeeNativeCodec` seam — installed by
@@ -98,7 +94,17 @@ interface NativeCodecSeam {
     channels?: number
     startSeconds?: number
     endSeconds?: number
-  }): Promise<{ ok: boolean; jobId?: string; error?: string }>
+    // The desktop ffmpeg options, forwarded verbatim. The native layer rules
+    // on them: the start answer's `unsupported` names any field the linked
+    // engine build cannot apply, so this side never has to guess what the
+    // engine supports.
+    bitDepth?: number
+    vbr?: boolean
+    vbrQuality?: number
+    volumeGainDb?: number
+    fadeInSeconds?: number
+    fadeOutSeconds?: number
+  }): Promise<{ ok: boolean; jobId?: string; error?: string; unsupported?: string[] }>
   cancelTranscode(jobId: string): Promise<boolean>
   getTranscodeState(jobId: string): Promise<{
     found: boolean
@@ -137,24 +143,12 @@ function probeNativeCodec(): NativeCodecSeam | undefined {
 /** How often the transcode poll reads the native job registry. */
 const TRANSCODE_POLL_MS = 200
 
-/**
- * Protocol transcode fields the native engine transcoder does not take —
- * the desktop local-ffmpeg spawn implements them, this engine path does
- * not. When a caller sends any of them, the job is announced as partial
- * instead of producing output that silently ignores the request.
- */
-const ENGINE_DROPPED_FIELDS = [
-  'bitDepth',
-  'vbr',
-  'vbrQuality',
-  'volumeGainDb',
-  'fadeInSeconds',
-  'fadeOutSeconds',
-] as const satisfies readonly (keyof TranscodeOptions)[]
-
 export class CodecRn extends CodecNode {
   constructor(ctx: Context, config: CodecRnConfig = {}) {
-    super(ctx, { supportedFormats: config.supportedFormats ?? MOBILE_FORMATS })
+    // No format override: the default is the bundled libmpv engine's list
+    // (`CodecNode`'s own), which is what the phone actually decodes. See
+    // `CodecRnConfig.supportedFormats`.
+    super(ctx, config)
   }
 
   /**
@@ -227,15 +221,16 @@ export class CodecRn extends CodecNode {
    * caller's `onProgress`, cancellation through the same cooperative flag
    * the desktop engine honours.
    *
-   * The native transcoder takes the field subset the desktop ENGINE path
-   * takes (format, bitrate, rate, channels, trim) — `vbr`, fades and gain
-   * are accepted by the protocol but only the desktop local-ffmpeg spawn
-   * ever implemented them, so this is engine-path parity, not a regression.
-   * Parity is not silence: a caller that sends the unsupported subset gets
-   * one `logger.warn` naming the ignored fields before the job starts,
-   * rather than an output file that quietly lacks the requested gain, fades
-   * or VBR. A cancelled or failed job leaves any partial output in place;
-   * the converter layer owns its temp path cleanup, same as on desktop.
+   * The full `TranscodeOptions` surface is forwarded to the seam verbatim —
+   * `bitDepth`, `vbr`/`vbrQuality`, `volumeGainDb` and the fades included.
+   * The native layer rules on them: the start answer carries an
+   * `unsupported` list naming any field the linked engine build cannot
+   * apply, and this side turns that report into one `logger.warn` before
+   * the job runs — parity is not silence, but the ruling belongs to the
+   * engine, not to a guessed field list that drifts the moment the engine
+   * grows a receiver. A cancelled or failed job leaves any partial output
+   * in place; the converter layer owns its temp path cleanup, same as on
+   * desktop.
    */
   override async transcode(options: TranscodeOptions): Promise<TranscodeResult> {
     const seam = probeNativeCodec()
@@ -260,19 +255,8 @@ export class CodecRn extends CodecNode {
       return super.transcode(options)
     }
 
-    // One line per call, not per field: the native job will run without
-    // these, and the caller is owed knowing that before the file lands.
-    const dropped = ENGINE_DROPPED_FIELDS.filter(
-      (field) => options[field] !== undefined,
-    )
-    if (dropped.length > 0) {
-      this.ctx.logger.warn(
-        `transcode: native engine path does not implement ${dropped.join(', ')} — output will ignore them (only the desktop local-ffmpeg path supports these)`,
-      )
-    }
-
     const jobId = `rn-tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    let started: { ok: boolean; jobId?: string; error?: string }
+    let started: { ok: boolean; jobId?: string; error?: string; unsupported?: string[] }
     try {
       started = await seam.transcode({
         jobId,
@@ -284,6 +268,12 @@ export class CodecRn extends CodecNode {
         channels: options.channels,
         startSeconds: options.startTimeSeconds,
         endSeconds: options.endTimeSeconds,
+        bitDepth: options.bitDepth,
+        vbr: options.vbr,
+        vbrQuality: options.vbrQuality,
+        volumeGainDb: options.volumeGainDb,
+        fadeInSeconds: options.fadeInSeconds,
+        fadeOutSeconds: options.fadeOutSeconds,
       })
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
@@ -292,6 +282,16 @@ export class CodecRn extends CodecNode {
     if (!started.ok || !started.jobId) {
       return { ok: false, error: started.error ?? 'Native transcoder refused the job' }
     }
+
+    // The engine's own ruling on the extended options, echoed once. Fields it
+    // did apply produce no warning at all — this is the seam's answer, not a
+    // hard-coded drop list.
+    if (started.unsupported && started.unsupported.length > 0) {
+      this.ctx.logger.warn(
+        `transcode: native engine cannot apply ${started.unsupported.join(', ')} in this build — output will ignore them (only the desktop local-ffmpeg path honours these today)`,
+      )
+    }
+
     const nativeJobId = started.jobId
 
     // The poll loop nudges the cancel flag as long as the signal stays

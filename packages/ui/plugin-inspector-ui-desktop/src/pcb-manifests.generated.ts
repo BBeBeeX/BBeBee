@@ -724,6 +724,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "http"
   },
+  "@bbebee/core-js-mobile": {
+    "id": "@bbebee/core-js-mobile",
+    "name": "@bbebee/core-js-mobile",
+    "displayName": "Script sandbox",
+    "description": "ctx.js — a sandboxed pure-JS interpreter realm per source, for iOS and Android.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "js"
+      ]
+    },
+    "effect": "js"
+  },
+  "core-js-mobile": {
+    "id": "@bbebee/core-js-mobile",
+    "name": "@bbebee/core-js-mobile",
+    "displayName": "Script sandbox",
+    "description": "ctx.js — a sandboxed pure-JS interpreter realm per source, for iOS and Android.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "js"
+      ]
+    },
+    "effect": "js"
+  },
   "@bbebee/core-js-quickjs-desktop": {
     "id": "@bbebee/core-js-quickjs-desktop",
     "name": "@bbebee/core-js-quickjs-desktop",
@@ -3304,6 +3360,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@bbebee/plugin-audio-converter-ui-mobile": {
+    "id": "@bbebee/plugin-audio-converter-ui-mobile",
+    "name": "@bbebee/plugin-audio-converter-ui-mobile",
+    "displayName": "Audio Converter UI (Mobile)",
+    "description": "Mobile React Native views for @bbebee/plugin-audio-converter (Audio Converter workbench).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-audio-converter"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "storage",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-audio-converter-ui-mobile": {
+    "id": "@bbebee/plugin-audio-converter-ui-mobile",
+    "name": "@bbebee/plugin-audio-converter-ui-mobile",
+    "displayName": "Audio Converter UI (Mobile)",
+    "description": "Mobile React Native views for @bbebee/plugin-audio-converter (Audio Converter workbench).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-audio-converter"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "storage",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
   "@bbebee/plugin-desktop-lyrics-ui-desktop": {
     "id": "@bbebee/plugin-desktop-lyrics-ui-desktop",
     "name": "@bbebee/plugin-desktop-lyrics-ui-desktop",
@@ -4006,6 +4116,114 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@bbebee/plugin-lyrics-ui-mobile": {
+    "id": "@bbebee/plugin-lyrics-ui-mobile",
+    "name": "@bbebee/plugin-lyrics-ui-mobile",
+    "displayName": "Lyrics UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-lyrics (Lyrics Panel).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lyrics"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "lyrics",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-lyrics-ui-mobile": {
+    "id": "@bbebee/plugin-lyrics-ui-mobile",
+    "name": "@bbebee/plugin-lyrics-ui-mobile",
+    "displayName": "Lyrics UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-lyrics (Lyrics Panel).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lyrics"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "lyrics",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@bbebee/plugin-manager-ui-mobile": {
+    "id": "@bbebee/plugin-manager-ui-mobile",
+    "name": "@bbebee/plugin-manager-ui-mobile",
+    "displayName": "Plugin Manager UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-manager: the plugin list with enable/disable toggles (changes apply at next launch — no mobile lifecycle bridge).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-manager"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "plugins",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-manager-ui-mobile": {
+    "id": "@bbebee/plugin-manager-ui-mobile",
+    "name": "@bbebee/plugin-manager-ui-mobile",
+    "displayName": "Plugin Manager UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-manager: the plugin list with enable/disable toggles (changes apply at next launch — no mobile lifecycle bridge).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-manager"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "plugins",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
   "@bbebee/plugin-mini-player-ui-desktop": {
     "id": "@bbebee/plugin-mini-player-ui-desktop",
     "name": "@bbebee/plugin-mini-player-ui-desktop",
@@ -4322,6 +4540,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "registry",
     "platforms": [
       "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@bbebee/plugin-registry-ui-mobile": {
+    "id": "@bbebee/plugin-registry-ui-mobile",
+    "name": "@bbebee/plugin-registry-ui-mobile",
+    "displayName": "Registry UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-registry (the Discover screen and the registry settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-registry"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "registry",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-registry-ui-mobile": {
+    "id": "@bbebee/plugin-registry-ui-mobile",
+    "name": "@bbebee/plugin-registry-ui-mobile",
+    "displayName": "Registry UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-registry (the Discover screen and the registry settings card).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-registry"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "registry",
+    "platforms": [
+      "mobile"
     ],
     "entry": {
       "main": "./dist/index.js"
@@ -4708,6 +4980,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "contributes": {},
     "effect": null
   },
+  "@bbebee/plugin-theme-ui-mobile": {
+    "id": "@bbebee/plugin-theme-ui-mobile",
+    "name": "@bbebee/plugin-theme-ui-mobile",
+    "displayName": "Theme UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-theme (theme management settings card and the mobile palette driver).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-theme"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "theme",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-theme-ui-mobile": {
+    "id": "@bbebee/plugin-theme-ui-mobile",
+    "name": "@bbebee/plugin-theme-ui-mobile",
+    "displayName": "Theme UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-theme (theme management settings card and the mobile palette driver).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-theme"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "theme",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
   "@bbebee/plugin-visualizer-ui-desktop": {
     "id": "@bbebee/plugin-visualizer-ui-desktop",
     "name": "@bbebee/plugin-visualizer-ui-desktop",
@@ -4754,6 +5080,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "moduleId": "dsp",
     "platforms": [
       "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@bbebee/plugin-visualizer-ui-mobile": {
+    "id": "@bbebee/plugin-visualizer-ui-mobile",
+    "name": "@bbebee/plugin-visualizer-ui-mobile",
+    "displayName": "Visualizer UI (Mobile)",
+    "description": "Mobile React Native views for @bbebee/plugin-visualizer (Audio Visualizer).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-visualizer"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "dsp",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-visualizer-ui-mobile": {
+    "id": "@bbebee/plugin-visualizer-ui-mobile",
+    "name": "@bbebee/plugin-visualizer-ui-mobile",
+    "displayName": "Visualizer UI (Mobile)",
+    "description": "Mobile React Native views for @bbebee/plugin-visualizer (Audio Visualizer).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-visualizer"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "dsp",
+    "platforms": [
+      "mobile"
     ],
     "entry": {
       "main": "./dist/index.js"

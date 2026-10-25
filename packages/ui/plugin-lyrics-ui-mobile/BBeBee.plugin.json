@@ -1,0 +1,27 @@
+{
+  "id": "@bbebee/plugin-lyrics-ui-mobile",
+  "name": "@bbebee/plugin-lyrics-ui-mobile",
+  "displayName": "Lyrics UI (Mobile)",
+  "description": "React Native views for @bbebee/plugin-lyrics (Lyrics Panel).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [
+    "@bbebee/plugin-ui",
+    "@bbebee/plugin-lyrics"
+  ],
+  "systemId": "layer-5",
+  "moduleId": "lyrics",
+  "platforms": [
+    "mobile"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}
