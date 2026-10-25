@@ -888,6 +888,9 @@ importers:
 
   packages/core/core-secrets-expo:
     dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol

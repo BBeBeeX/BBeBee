@@ -22,6 +22,7 @@
 
 import * as SecureStore from 'expo-secure-store'
 import { Service } from 'cordis'
+import { storageNamespace } from '@BBeBee/kernel'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import type { SecretsService } from '@BBeBee/protocol'
@@ -86,10 +87,76 @@ export class SecretsExpo extends Service implements SecretsService {
   }
 
   async get(key: string): Promise<string | undefined> {
-    return (await this.read(key)) ?? undefined
+    const prefix = this.scope()
+    if (!prefix) return this.rawGet(key)
+    const scoped = await this.rawGet(prefix + key)
+    if (scoped !== undefined) return scoped
+    /*
+     * Legacy adoption: before caller scoping existed every gated write landed
+     * under its bare key, so an install that already signed in has its tokens
+     * there. Reading through the new prefix must not read as "signed out".
+     */
+    const legacy = await this.rawGet(key)
+    if (legacy !== undefined) {
+      await this.rawSet(prefix + key, legacy)
+      await this.rawDelete(key)
+    }
+    return legacy
   }
 
   async set(key: string, value: string): Promise<void> {
+    return this.rawSet(this.scope() + key, value)
+  }
+
+  async delete(key: string): Promise<void> {
+    return this.rawDelete(this.scope() + key)
+  }
+
+  async clear(): Promise<void> {
+    const prefix = this.scope()
+    if (prefix) {
+      await this.clearPrefix(prefix)
+      return
+    }
+    const keys = await this.index()
+    for (const key of keys) {
+      await SecureStore.deleteItemAsync(key, this.config.options)
+    }
+    await SecureStore.deleteItemAsync(INDEX_KEY, this.config.options)
+  }
+
+  namespace(ns: string): SecretsService {
+    return new NamespacedSecrets(this, `${safeSegment(ns)}${SEPARATOR}`)
+  }
+
+  /**
+   * The prefix a gated caller is confined to.
+   *
+   * ⚠️ Without this, `secrets:own` and `secrets:all` are the same grant on
+   * mobile: any plugin holding `ctx.secrets` could read — and overwrite —
+   * every other plugin's credentials by naming their key. This is the twin
+   * of the node implementation's `ns/` scope; the segment is sanitised
+   * because SecureStore rejects anything outside `[A-Za-z0-9._-]`, and the
+   * `.` separator cannot be forged from a scope id because `safeSegment`
+   * maps the separator itself to `_`.
+   *
+   * An ungated caller — the kernel, a core service, a test — gets no prefix
+   * and sees the whole store, which is what makes `clear()` on the root work.
+   */
+  private scope(): string {
+    const ns = storageNamespace(this[Service.resolveConfig]())
+    return ns ? `${safeSegment(ns)}${SEPARATOR}` : ''
+  }
+
+  /* ── internals, shared with a namespace ─────────────────────────────── */
+
+  /** @internal */
+  async rawGet(key: string): Promise<string | undefined> {
+    return (await this.read(key)) ?? undefined
+  }
+
+  /** @internal */
+  async rawSet(key: string, value: string): Promise<void> {
     const bytes = new TextEncoder().encode(value).length
     if (bytes > MAX_VALUE_BYTES) {
       throw new Error(
@@ -104,27 +171,13 @@ export class SecretsExpo extends Service implements SecretsService {
     await SecureStore.setItemAsync(key, value, this.config.options)
   }
 
-  async delete(key: string): Promise<void> {
+  /** @internal */
+  async rawDelete(key: string): Promise<void> {
     await SecureStore.deleteItemAsync(key, this.config.options)
     await this.forget(key)
   }
 
-  async clear(): Promise<void> {
-    const keys = await this.index()
-    for (const key of keys) {
-      await SecureStore.deleteItemAsync(key, this.config.options)
-    }
-    await SecureStore.deleteItemAsync(INDEX_KEY, this.config.options)
-  }
-
-  namespace(ns: string): SecretsService {
-    return new NamespacedSecrets(this, `${safeSegment(ns)}${SEPARATOR}`)
-  }
-
-  /* ── internals, shared with a namespace ─────────────────────────────── */
-
-  /** @internal */
-  async read(key: string): Promise<string | null> {
+  private async read(key: string): Promise<string | null> {
     try {
       return await SecureStore.getItemAsync(key, this.config.options)
     } catch {
@@ -205,15 +258,15 @@ class NamespacedSecrets implements SecretsService {
   }
 
   async get(key: string): Promise<string | undefined> {
-    return this.root.get(this.prefix + key)
+    return this.root.rawGet(this.prefix + key)
   }
 
   set(key: string, value: string): Promise<void> {
-    return this.root.set(this.prefix + key, value)
+    return this.root.rawSet(this.prefix + key, value)
   }
 
   delete(key: string): Promise<void> {
-    return this.root.delete(this.prefix + key)
+    return this.root.rawDelete(this.prefix + key)
   }
 
   clear(): Promise<void> {

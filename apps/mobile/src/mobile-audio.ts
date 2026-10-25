@@ -30,7 +30,38 @@ export function createMobileMpvBridge(): (service: string, method: string, args:
   let currentPositionMs = 0
   const durationMs = 180_000
   let isPlaying = false
+  let status: 'idle' | 'playing' | 'paused' | 'ended' = 'idle'
+  let endedCount = 0
+  let pendingNext: { uri: string } | undefined
+  let rolledOverTo: string | undefined
   let timer: ReturnType<typeof setInterval> | undefined
+
+  const stopTimer = () => {
+    if (timer) {
+      clearInterval(timer)
+      timer = undefined
+    }
+  }
+  const startTimer = () => {
+    if (timer) return
+    timer = setInterval(() => {
+      if (!isPlaying) return
+      currentPositionMs += 100
+      if (currentPositionMs < durationMs) return
+      if (pendingNext) {
+        // Gapless handoff: mpv advances inside its own playlist, so the
+        // position rolls over to the appended file instead of ending.
+        currentPositionMs = 0
+        endedCount += 1
+        rolledOverTo = pendingNext.uri
+        pendingNext = undefined
+        return
+      }
+      isPlaying = false
+      status = 'ended'
+      stopTimer()
+    }, 100)
+  }
 
   return async (_service: string, method: string, args: unknown[]) => {
     if (globalMpv && typeof globalMpv[method] === 'function') {
@@ -40,41 +71,62 @@ export function createMobileMpvBridge(): (service: string, method: string, args:
     switch (method) {
       case 'mpvLoad': {
         const uri = String(args[0])
+        // Loading exactly the file the engine just rolled over onto is the
+        // gapless re-bind: the engine is already sounding it, so the load
+        // must not reset the clock.
+        if (rolledOverTo === uri && isPlaying) {
+          rolledOverTo = undefined
+          return { durationMs, uri, resumed: true, endedCount }
+        }
         currentPositionMs = 0
         isPlaying = false
-        if (timer) clearInterval(timer)
-        return { durationMs, uri }
+        status = 'idle'
+        endedCount = 0
+        pendingNext = undefined
+        rolledOverTo = undefined
+        stopTimer()
+        return { durationMs, uri, endedCount: 0 }
       }
       case 'mpvPlay': {
         const atMs = args[0] as number | undefined
         if (atMs !== undefined && atMs >= 0) currentPositionMs = atMs
+        if (status === 'ended') currentPositionMs = 0
         isPlaying = true
-        if (timer) clearInterval(timer)
-        timer = setInterval(() => {
-          if (isPlaying) {
-            currentPositionMs += 100
-            if (currentPositionMs >= durationMs) {
-              isPlaying = false
-              clearInterval(timer)
-            }
-          }
-        }, 100)
+        status = 'playing'
+        startTimer()
         return undefined
       }
       case 'mpvPause': {
         isPlaying = false
-        if (timer) clearInterval(timer)
+        status = 'paused'
+        stopTimer()
         return undefined
       }
       case 'mpvStop': {
         isPlaying = false
         currentPositionMs = 0
-        if (timer) clearInterval(timer)
+        status = 'idle'
+        pendingNext = undefined
+        rolledOverTo = undefined
+        stopTimer()
         return undefined
       }
       case 'mpvSeek': {
-        currentPositionMs = Number(args[0] ?? 0)
+        currentPositionMs = Math.max(0, Math.min(durationMs, Number(args[0] ?? 0)))
+        if (status === 'ended' && currentPositionMs < durationMs) status = 'paused'
         return undefined
+      }
+      case 'mpvAppend': {
+        pendingNext = { uri: String(args[0]) }
+        return undefined
+      }
+      case 'mpvGetState': {
+        return { positionMs: currentPositionMs, durationMs, status, endedCount }
+      }
+      case 'mpvEngineStatus': {
+        // The simulation is not the native engine; report honestly so the
+        // visualizer falls back to the Web Audio analyser.
+        return { running: false, mpvAvailable: false, pcmTapAvailable: false }
       }
       case 'mpvSetVolume': {
         currentVolume = Number(args[0] ?? 0.8)
@@ -134,6 +186,14 @@ export class MobileAudioService extends Service implements AudioService {
   private currentVolume = 0.8
   private currentMuted = false
   private currentDeviceId = 'default'
+  private lastNativeDsp?: {
+    af: string
+    replaygain?: string
+    replaygainClip?: boolean
+    replaygainPreamp?: string
+    replaygainFallback?: string
+  }
+  private bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
 
   private readonly interruptionListeners = new Set<(e: InterruptionEvent) => void>()
   private readonly routeListeners = new Set<(e: RouteChangeEvent) => void>()
@@ -146,6 +206,14 @@ export class MobileAudioService extends Service implements AudioService {
   }
 
   async [Service.init]() {
+    // Same native-DSP push as the desktop shell: the lavfi chain the engine
+    // evaluates lives behind the bridge, so a `dsp/af-changed` emission has
+    // to be forwarded there to be heard at all.
+    this.ctx.on('dsp/af-changed', (e) => {
+      this.lastNativeDsp = e
+      this.pushNativeDsp()
+    })
+
     await this.mountEngine('mpv')
 
     return async () => {
@@ -188,6 +256,14 @@ export class MobileAudioService extends Service implements AudioService {
 
   get currentDeviceLabel(): string | undefined {
     return (this.activeEngine as unknown as { currentDeviceLabel?: string }).currentDeviceLabel
+  }
+
+  get preloadNext(): AudioService['preloadNext'] {
+    return this.activeEngine?.preloadNext?.bind(this.activeEngine)
+  }
+
+  get lastPreloadStatus(): AudioService['lastPreloadStatus'] {
+    return this.activeEngine?.lastPreloadStatus
   }
 
   get outputLatencyMs(): number {
@@ -240,6 +316,28 @@ export class MobileAudioService extends Service implements AudioService {
     await this.activeEngine.setOutputDevice(id)
   }
 
+  async setAudioExclusive(exclusive: boolean): Promise<void> {
+    const engine = this.activeEngine as unknown as { setAudioExclusive?: (e: boolean) => Promise<void> }
+    await engine.setAudioExclusive?.(exclusive).catch(() => undefined)
+  }
+
+  async setVisualizer(enabled: boolean, fftSize?: number): Promise<void> {
+    const engine = this.activeEngine as unknown as { setVisualizer?: (e: boolean, s?: number) => Promise<void> }
+    await engine.setVisualizer?.(enabled, fftSize).catch(() => undefined)
+  }
+
+  async getEngineStatus(): Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }> {
+    const engine = this.activeEngine as unknown as {
+      getEngineStatus?: () => Promise<{ running: boolean; mpvAvailable: boolean; pcmTapAvailable: boolean }>
+    }
+    try {
+      if (engine.getEngineStatus) return await engine.getEngineStatus()
+    } catch {
+      // fall through to the honest "not running" answer
+    }
+    return { running: false, mpvAvailable: false, pcmTapAvailable: false }
+  }
+
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable {
     this.interruptionListeners.add(cb)
     return () => {
@@ -284,6 +382,12 @@ export class MobileAudioService extends Service implements AudioService {
     }
   }
 
+  private pushNativeDsp(): void {
+    if (this.lastNativeDsp && this.bridgeCall) {
+      void this.bridgeCall('audio', 'mpvSetDspConfig', [this.lastNativeDsp]).catch(() => undefined)
+    }
+  }
+
   private async mountEngine(engineKey: 'mpv'): Promise<void> {
     const hasNativeBridge = Boolean(
       (globalThis as unknown as { bbebeeMobileMpv?: unknown }).bbebeeMobileMpv,
@@ -299,9 +403,10 @@ export class MobileAudioService extends Service implements AudioService {
 
     let fiber: Fiber
     try {
+      this.bridgeCall = this.config.bridgeCall ?? createMobileMpvBridge()
       const mpvConfig = {
         createContext: this.config.createContext,
-        bridgeCall: this.config.bridgeCall ?? createMobileMpvBridge(),
+        bridgeCall: this.bridgeCall,
         emitContextInterruptions: false,
       }
       fiber = await scoped.plugin(this.config.mpvPlugin, mpvConfig)
@@ -327,6 +432,9 @@ export class MobileAudioService extends Service implements AudioService {
       throw new Error('mobile-audio: mounted engine did not provide the audio service')
     }
     this.activeEngine = impl.value
+    // The engine mounted after any `dsp/af-changed` that already fired; push
+    // the current chain so it starts in step with the Web Audio graph.
+    this.pushNativeDsp()
   }
 
   async switchEngine(targetEngine: 'mpv' | 'wasapi'): Promise<void> {

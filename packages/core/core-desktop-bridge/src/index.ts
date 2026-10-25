@@ -320,29 +320,26 @@ export class FsBridge extends Service implements FsService {
   }
 
   /**
-   * Buffered, then written in one call.
+   * Chunked over IPC: every chunk becomes one appending `writeFile` call, so
+   * a large write never materialises in renderer memory — the same shape the
+   * read side has had all along.
    *
-   * ⚠️ Unlike the read side this is not chunked, so a very large write is held
-   * in renderer memory first. M0 has no such writer; the download plugin (M3)
-   * will need a chunked counterpart before it lands.
+   * The first chunk of a fresh stream creates (or truncates) the file; every
+   * later chunk — and every chunk of an appending stream — appends. An empty
+   * stream still creates the file, matching the one-shot write this replaced
+   * and what the mobile implementation does.
    */
   createWriteStream(uri: Uri, opts?: { append?: boolean }): WritableStream<Uint8Array> {
     this.check(uri, 'write')
-    const chunks: Uint8Array[] = []
-    const write = (data: Uint8Array) => this.writeFile(uri, data, { append: opts?.append ?? false })
+    const appendAll = opts?.append === true
+    let wrote = false
     return new WritableStream<Uint8Array>({
-      write(chunk) {
-        chunks.push(chunk)
+      write: async (chunk) => {
+        await this.writeFile(uri, chunk, { append: appendAll || wrote })
+        wrote = true
       },
-      async close() {
-        const total = chunks.reduce((n, c) => n + c.length, 0)
-        const merged = new Uint8Array(total)
-        let offset = 0
-        for (const c of chunks) {
-          merged.set(c, offset)
-          offset += c.length
-        }
-        await write(merged)
+      close: async () => {
+        if (!wrote) await this.writeFile(uri, new Uint8Array(0), { append: appendAll })
       },
     })
   }
@@ -358,6 +355,26 @@ export class FsBridge extends Service implements FsService {
 }
 
 /* ── ctx.db ────────────────────────────────────────────────────────────── */
+
+/**
+ * A migration's `up` may be a function in the contract — but not over this
+ * bridge: the transport is JSON (Tauri invoke → NDJSON), which drops a
+ * function property silently, so the runner in main would receive
+ * `up: undefined`, take the string branch, and fail inside `expandNs` with a
+ * `TypeError` wrapped in a `MigrationError` that names neither the cause nor
+ * the fix. Refusing the shape here is the only place the error can say both.
+ */
+function assertPortableMigrations(namespace: string, migrations: Migration[]): void {
+  for (const m of migrations) {
+    if (typeof m.up === 'function' || typeof m.down === 'function') {
+      throw new Error(
+        `db: migration v${m.version} in "${namespace}" carries a function \`up\`/\`down\`, ` +
+          'which cannot cross the desktop IPC bridge — on this platform write migrations ' +
+          'as SQL strings (or arrays of them).',
+      )
+    }
+  }
+}
 
 export class DbBridge extends Service implements DbService {
   private readonly bridge: BridgeApi
@@ -407,6 +424,7 @@ export class DbBridge extends Service implements DbService {
   }
   async defineSchema(namespace: string, migrations: Migration[]) {
     assertOwnNamespace(this[Service.resolveConfig](), namespace)
+    assertPortableMigrations(namespace, migrations)
     await this.call('defineSchema', [namespace, migrations])
   }
 
@@ -433,6 +451,7 @@ export class DbBridge extends Service implements DbService {
         exec: (sql, params = []) => (this.guard(sql), this.call('exec', [sql, params], token)),
         defineSchema: async (ns, migrations) => {
           assertOwnNamespace(this[Service.resolveConfig](), ns)
+          assertPortableMigrations(ns, migrations)
           await this.call('defineSchema', [ns, migrations], token)
         },
         transaction: <U>(inner: (tx: DbService) => Promise<U>) => inner(view),

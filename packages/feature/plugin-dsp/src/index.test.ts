@@ -173,6 +173,26 @@ describe('plugin-dsp', () => {
     await fiber.dispose()
   })
 
+  it('skips an effect the platform cannot build instead of dropping the whole chain', async () => {
+    // react-native-audio-api has no DynamicsCompressorNode, so the
+    // default-enabled limiter throws inside build() on every mobile boot.
+    // That used to abort the rebuild and leave chainInput dangling.
+    const ctx = await harness()
+    const audio = ctx.audio as unknown as FakeAudioService
+    delete (audio.context as Record<string, unknown>).createDynamicsCompressor
+
+    const fiber = await ctx.plugin(DspPlugin)
+
+    const limiterEntry = ctx.dsp.chain.find((c) => c.effectId === 'limiter')
+    expect(limiterEntry?.enabled, 'the entry stays enabled — only the build failed').toBe(true)
+    expect(
+      audio.chainInput.outputs.has(audio.chainOutput),
+      'the chain fell back to pass-through wiring',
+    ).toBe(true)
+
+    await fiber.dispose()
+  })
+
   it('serializes the enabled chain into dsp/af-changed for the native engine', async () => {
     const ctx = await harness()
     const afEvents: string[] = []

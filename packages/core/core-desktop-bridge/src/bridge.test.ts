@@ -360,6 +360,51 @@ describe('bridge specifics', () => {
     await expect(ctx.fs.exists(subUri)).resolves.toBe(false)
   })
 
+  it('writes a large stream in chunks rather than one buffered message', async () => {
+    const dir = await mkdtemp(join(root, 'wchunk-'))
+    const { ctx } = await makeBridge(dir)
+    const cache = await ctx.fs.dir('cache')
+    const scratch = pathToFileURL(
+      await mkdtemp(join(fileURLToPath(cache!), 'big-')),
+    ).href.replace(/\/$/, '')
+    const uri = ctx.fs.join(scratch, 'out.bin')
+
+    // A stale file from an earlier run must not survive a fresh stream's
+    // first chunk — that chunk creates (or truncates), the rest append.
+    await ctx.fs.writeFile(uri, new Uint8Array([9, 9, 9, 9, 9, 9]))
+
+    const writer = ctx.fs.createWriteStream(uri).getWriter()
+    const first = new Uint8Array(200_000).map((_, i) => i % 251)
+    const second = new Uint8Array(50_000).map((_, i) => (i + 7) % 251)
+    await writer.write(first)
+    await writer.write(second)
+    await writer.close()
+
+    expect((await ctx.fs.stat(uri)).size).toBe(first.length + second.length)
+    const readBack = await ctx.fs.readBytes(uri)
+    expect(readBack.length).toBe(first.length + second.length)
+    expect([...readBack.slice(0, 5)]).toEqual([...first.slice(0, 5)])
+    expect([...readBack.slice(first.length, first.length + 5)]).toEqual([...second.slice(0, 5)])
+
+    // An empty stream still creates the file, matching the one-shot write
+    // this path replaced and what the mobile implementation does.
+    const emptyUri = ctx.fs.join(scratch, 'empty.bin')
+    await ctx.fs.createWriteStream(emptyUri).getWriter().close()
+    expect((await ctx.fs.stat(emptyUri)).size).toBe(0)
+  })
+
+  it('refuses a function migration before it can be silently dropped by IPC', async () => {
+    // The transport is JSON: a function `up` arrives in main as `undefined`,
+    // and the runner dies inside `expandNs` with an error naming neither the
+    // cause nor the fix. The renderer-side refusal is where both can be said.
+    const { ctx } = await makeBridge(await mkdtemp(join(root, 'fnmig-')))
+    await expect(
+      ctx.db.defineSchema('ns', [
+        { version: 1, up: async () => {} },
+      ] as never),
+    ).rejects.toThrow(/cannot cross the desktop IPC bridge/)
+  })
+
   it('serializes errors over CH.call in a BridgeEnvelope without rejecting IPC handle', async () => {
     const dir = await mkdtemp(join(root, 'err-env-'))
     const { ctx } = await makeBridge(dir)

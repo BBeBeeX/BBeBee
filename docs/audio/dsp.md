@@ -117,6 +117,12 @@ on every EQ slider drag would be audible.
 Rebuilds are also ramped: `ctx.audio.dipVolume(20)` dips master gain over 20 ms, the graph is re-wired,
 and gain returns. Without this, toggling or reordering an effect mid-playback clicks.
 
+An effect the platform cannot build is **skipped with a warning, not fatal to the chain**: one
+effect's `build()` throwing (react-native-audio-api has no `DynamicsCompressorNode`, so the
+default-enabled limiter throws on mobile) used to abort the whole rebuild and leave `chainInput`
+disconnected — silent audio on the degraded path. The remaining effects wire, and if none can
+build, the chain falls back to pass-through.
+
 Chain ordering, per-effect enabled states, and effect parameters are automatically persisted in `ctx.store`
 under the `'dsp'` namespace. Both desktop and mobile shells provide a dedicated DSP chain editor
 (`@bbebee/plugin-dsp-ui-*`, registering `dsp.view`). To avoid redundant UI controls and keep the settings center clean,

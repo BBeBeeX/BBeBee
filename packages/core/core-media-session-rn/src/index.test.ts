@@ -186,19 +186,10 @@ describe(`${mediaSessionConformance.service} conformance — core-media-session-
       const h = await harness()
       await check.run({
         service: h.service,
-        published: () => {
-          // The service's own intent, not the fake's confirmation: the native
-          // calls are queued, and the contract is synchronous. `visible` is
-          // what makes `clear()` observable as "the surface is gone" rather
-          // than as "the fields happen to be empty".
-          const view = h.service.published()
-          if (!view.visible) return undefined
-          return {
-            ...(view.nowPlaying ? { nowPlaying: view.nowPlaying } : {}),
-            state: view.state,
-            commands: view.supported,
-          }
-        },
+        // The service's own intent, not the fake's confirmation: the native
+        // calls are queued, and the contract is synchronous. `published()`
+        // already answers in the conformance's shape.
+        published: () => h.service.published(),
         press: (command) => {
           switch (command.type) {
             case 'seek':

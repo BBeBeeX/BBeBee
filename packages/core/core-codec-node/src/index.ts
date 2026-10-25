@@ -141,6 +141,13 @@ export interface CodecNodeConfig {
    * (docs/04 §13).
    */
   supportedFormats?: string[]
+  /**
+   * Test seam / embedder override: the raw `ffmpeg -encoders` stdout that
+   * `getEncoderCapabilities` parses. Empty string stands for "no local
+   * ffmpeg answered", which is the React Native reality and a desktop
+   * without ffmpeg on PATH.
+   */
+  probeEncoders?: () => Promise<string>
 }
 
 const DEFAULT_FORMATS = [
@@ -161,14 +168,34 @@ const DEFAULT_FORMATS = [
   'dff',
 ]
 
-export class CodecNode extends Service implements CodecService {
-  static inject = ['fs']
+/** The default local probe: `ffmpeg -encoders` stdout, or empty when nothing answers. */
+async function probeLocalFfmpegEncoders(): Promise<string> {
+  let stdout = ''
+  try {
+    const { spawn } = await import('node:child_process')
+    await new Promise<void>((resolve) => {
+      const proc = spawn('ffmpeg', ['-encoders'])
+      proc.stdout?.on('data', (d) => {
+        stdout += d.toString()
+      })
+      proc.on('close', () => resolve())
+      proc.on('error', () => resolve())
+    })
+  } catch {
+    // No `node:child_process` at all (React Native) — the empty stdout says so.
+  }
+  return stdout
+}
+
+export class CodecNode extends Service implements CodecService {  static inject = ['fs']
 
   private readonly formats: string[]
+  private readonly probeEncoders: () => Promise<string>
 
   constructor(ctx: Context, config: CodecNodeConfig = {}) {
     super(ctx, 'codec')
     this.formats = (config.supportedFormats ?? DEFAULT_FORMATS).map((f) => f.toLowerCase())
+    this.probeEncoders = config.probeEncoders ?? probeLocalFfmpegEncoders
   }
 
   async readMetadata(uri: Uri): Promise<AudioMetadata> {
@@ -409,25 +436,34 @@ export class CodecNode extends Service implements CodecService {
 
     const encoderMap: Record<string, { name: string; description: string; available: boolean }> = {}
     let stdout = ''
-
     try {
-      const { spawn } = await import('node:child_process')
-      await new Promise<void>((resolve) => {
-        const proc = spawn('ffmpeg', ['-encoders'])
-        proc.stdout?.on('data', (d) => {
-          stdout += d.toString()
-        })
-        proc.on('close', () => resolve())
-        proc.on('error', () => resolve())
-      })
+      stdout = await this.probeEncoders()
     } catch {
-      // fallback if spawn fails
+      // No local ffmpeg answered — handled below like an empty probe.
     }
+
+    /*
+     * An empty probe means no local ffmpeg exists — React Native (where the
+     * `node:child_process` import throws on the Metro stub) or a desktop
+     * without ffmpeg on PATH. Reporting every encoder as available then is a
+     * lie the converter UI repeats to the user as a promise the very next
+     * transcode cannot keep. The one honest exception is the native-engine
+     * bridge: a desktop build without local ffmpeg still transcodes through
+     * the engine, whose bundled encoders this probe cannot see.
+     */
+    const hasNativeEngine = () => {
+      const exposed = (globalThis as unknown as {
+        window?: { BBeBee?: { audio?: { transcode?: unknown } } }
+      }).window
+      return typeof exposed?.BBeBee?.audio?.transcode === 'function'
+    }
+    const probeFailed = stdout.length === 0
+    const fallbackAvailable = hasNativeEngine()
 
     const supportedOutputFormats = new Set<string>()
     for (const item of knownEncoders) {
       const regex = new RegExp(`\\b${item.key}\\b`, 'i')
-      const available = stdout.length > 0 ? regex.test(stdout) : true
+      const available = probeFailed ? fallbackAvailable : regex.test(stdout)
       encoderMap[item.key] = {
         name: item.name,
         description: item.description,

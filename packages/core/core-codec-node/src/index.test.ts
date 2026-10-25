@@ -574,13 +574,40 @@ describe('core-codec-node', () => {
     expect(res?.error).toBeDefined()
   })
 
-  it('detects encoder capabilities dynamically', async () => {
+  it('parses encoder capabilities from the local ffmpeg probe', async () => {
     const h = await harness()
-    const caps = await h.codec.getEncoderCapabilities?.()
+    const scoped = h.ctx.isolate('codec')
+    await scoped.plugin(plugin, {
+      probeEncoders: async () =>
+        ' A..... flac  FLAC and aac and libmp3lame lines\n A..... libmp3lame',
+    })
+    await tick()
+
+    const caps = await scoped.codec.getEncoderCapabilities?.()
     expect(caps).toBeDefined()
     expect(caps?.supportedInputFormats).toContain('mp3')
-    expect(caps?.supportedOutputFormats.length).toBeGreaterThan(0)
-    expect(caps?.encoders).toBeDefined()
+    expect(caps?.encoders['libmp3lame']?.available).toBe(true)
+    expect(caps?.encoders['flac']?.available).toBe(true)
+    // An encoder absent from the probe output is reported unavailable —
+    // the parse never falls back to optimism.
+    expect(caps?.encoders['libopus']?.available).toBe(false)
+    expect(caps?.supportedOutputFormats).not.toContain('opus')
+  })
+
+  it('reports no encoders when the probe cannot run and no engine bridge exists', async () => {
+    // The React Native reality: the child_process import throws, the probe is
+    // empty, and there is no window bridge to transcode through. Reporting
+    // every encoder as available here told the converter UI a promise the
+    // very next transcode could not keep.
+    const h = await harness()
+    const scoped = h.ctx.isolate('codec')
+    await scoped.plugin(plugin, { probeEncoders: async () => '' })
+    await tick()
+
+    const caps = await scoped.codec.getEncoderCapabilities?.()
+    expect(caps).toBeDefined()
+    expect(Object.values(caps?.encoders ?? {}).every((e) => !e.available)).toBe(true)
+    expect(caps?.supportedOutputFormats).toEqual([])
   })
 
   it('respects abort signal when transcoding', async () => {

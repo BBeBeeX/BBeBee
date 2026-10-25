@@ -23,7 +23,15 @@ async function setupHarness() {
   const ctx = new Context()
   await ctx.plugin(PathsNode, { root })
   await ctx.plugin(FsNode)
-  await ctx.plugin(CodecNode)
+  // A deterministic encoder probe: the machine this runs on may have no
+  // ffmpeg, and an honest empty probe means no output formats — the
+  // capabilities test asserts parsing, not whatever PATH happens to hold.
+  await ctx.plugin(CodecNode, {
+    probeEncoders: async () =>
+      ' A..... flac                 FLAC (Free Lossless Audio Codec)\n' +
+      ' A..... libmp3lame           LAME (MP3) encoder\n' +
+      ' A..... libopus              Opus encoder\n',
+  })
   return { ctx, root }
 }
 

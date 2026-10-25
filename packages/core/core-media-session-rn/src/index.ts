@@ -96,15 +96,6 @@ export class MediaSessionRn extends Service implements MediaSessionService {
   private nowPlaying?: NowPlaying
   private playbackState: 'playing' | 'paused' | 'stopped' = 'stopped'
   private supported: TransportCommand['type'][] = ['play', 'pause', 'next', 'previous']
-  /*
-   * Whether a surface is *meant* to be up.
-   *
-   * Intent, not confirmation. `update()` and `clear()` are synchronous by
-   * contract while the native calls are not, so a flag that waited for the
-   * round trip would make `published()` answer "nothing yet" immediately after
-   * a caller published something — which is not what the caller did.
-   */
-  private visible = false
 
   /*
    * The native calls are serialised.
@@ -146,7 +137,6 @@ export class MediaSessionRn extends Service implements MediaSessionService {
 
   update(np: NowPlaying): void {
     this.nowPlaying = np
-    this.visible = true
     this.enqueue(() => this.publish())
   }
 
@@ -180,12 +170,11 @@ export class MediaSessionRn extends Service implements MediaSessionService {
   }
 
   clear(): void {
-    this.nowPlaying = undefined
-    this.playbackState = 'stopped'
-    // Marked hidden *now*, not when the native call lands: `published()` is
+    // Dropped *now*, not when the native call lands: `published()` is
     // synchronous and a caller that just cleared must not be told the surface
     // is still up. The queued `hide()` catches the native side up.
-    this.visible = false
+    this.nowPlaying = undefined
+    this.playbackState = 'stopped'
     // A disabled `plugin-player` must leave no ghost notification behind.
     this.enqueue(async () => {
       await this.notifications?.hide().catch(() => undefined)
@@ -193,23 +182,17 @@ export class MediaSessionRn extends Service implements MediaSessionService {
   }
 
   /**
-   * What was published, as this service understands it.
-   *
-   * For the conformance suite and the inspector. `visible` is the intent flag
-   * rather than a native round trip, so a caller that has just published gets
-   * back what it published instead of "not yet".
+   * What was published, in the shape the conformance suite and the inspector
+   * agree on — the same one `core-media-session-tauri` returns. Nothing
+   * published answers `undefined`, so a caller cannot tell which shell it
+   * asked.
    */
-  published(): {
-    visible: boolean
-    nowPlaying: NowPlaying | undefined
-    state: 'playing' | 'paused' | 'stopped'
-    supported: TransportCommand['type'][]
-  } {
+  published(): { nowPlaying?: NowPlaying; state?: string; commands?: string[] } | undefined {
+    if (!this.nowPlaying) return undefined
     return {
-      visible: this.visible,
       nowPlaying: this.nowPlaying,
       state: this.playbackState,
-      supported: [...this.supported],
+      commands: [...this.supported],
     }
   }
 

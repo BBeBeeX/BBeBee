@@ -322,6 +322,13 @@ export interface DbService {
    * plugin is uninstalled with "remove data" selected. See [data-model/migrations.md §6](../data-model/migrations.md#plugin-owned-schemas).
    */
   defineSchema(namespace: string, migrations: Migration[]): Promise<void>
+
+  /**
+   * Execute multiple statements in one transaction. Optional; both
+   * implementations provide it, and on desktop it also amortizes the IPC
+   * round trip a statement would otherwise pay.
+   */
+  execBatch?(statements: Array<{ sql: string; params?: SqlValue[] }>): Promise<Array<{ changes: number; lastInsertRowid: number }>>
 }
 
 export interface Migration {
@@ -331,6 +338,12 @@ export interface Migration {
   down?: string | string[]
 }
 ```
+
+> ⚠️ **`MigrationFn` does not cross the desktop bridge.** The contract allows `up` to be a
+> function, and both in-process implementations run it — but the desktop renderer reaches the
+> runner over JSON IPC (Tauri invoke → sidecar NDJSON), which drops a function property
+> silently. `DbBridge.defineSchema` refuses the shape in the renderer with an error that says
+> so; on desktop, write migrations as SQL strings (or arrays of them).
 
 | | Desktop (`core-db-node`) | Expo (`core-db-expo`) |
 |---|---|---|
@@ -388,9 +401,9 @@ line. Each source gets `ctx.secrets.namespace(sourceId)`, and the capability gra
 has no `secrets:all` ([plugins/capabilities.md §7](../plugins/capabilities.md#7-capability-model)).
 
 ### Scoped Root Secrets vs Cross-Plugin Namespaces
-- **Caller-Scoped Root Secrets (`ctx.secrets.get/set/delete`):** Unnamespaced calls prepend the caller plugin's Cordis ID (`this.scope()`) to isolate private secrets between plugins.
+- **Caller-Scoped Root Secrets (`ctx.secrets.get/set/delete`):** Unnamespaced calls prepend the caller plugin's Cordis ID (`this.scope()`) to isolate private secrets between plugins. Both implementations do this: the node twin prefixes `ns/`, the expo twin sanitises the scope into a SecureStore-legal segment (`@BBeBee/a` → `_BBeBee_a.`) — without it, `secrets:own` confined callers on desktop and confined nothing on mobile.
 - **Cross-Plugin Explicit Namespaces (`ctx.secrets.namespace(ns)`):** Explicit namespaces represent domain entities (e.g. music source credentials or account sessions) and are shared across plugins without attaching caller scope prefixes. This ensures credentials configured by UI packages (e.g. `@bbebee/plugin-settings-ui-desktop`) can be read by sandboxed runtimes (e.g. `@bbebee/plugin-source-runtime`).
-- **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-node` transparently migrates it to the un-scoped namespace key and removes the legacy entry.
+- **Automatic Migration:** When reading an explicit namespace key, if a legacy key with a caller-scoped prefix (`@BBeBee/plugin-*/<namespace>:<key>`) is found, `core-secrets-node` transparently migrates it to the un-scoped namespace key and removes the legacy entry. The expo twin performs the matching adoption for keys written before caller scoping existed: a first scoped read of a bare legacy key adopts it into the caller's scope and removes the bare entry, so an install that signed in before the split does not read as signed out.
 
 ---
 
@@ -644,6 +657,8 @@ Expo: `react-native-audio-api`'s `AudioDecoder` for PCM plus a native tag reader
 > Tag reads are I/O-bounded, not file-sized. The parse runs as close to the disk as the platform allows: on desktop, the renderer loads `CodecBridge`, which forwards tag reads to a `CodecNode` in the Node sidecar over direct fs — one bridge round trip per file, not one per range. The sidecar-side parse still goes through a seekable tokenizer over `ctx.fs` range reads (64 KB pages fetched on demand, 1 MB read-ahead on sequential access, each via the single-round-trip `fs.readRange` rather than a stream handshake), so the parser seeks to what it needs — an ID3v2 header declares its length, a tail `moov` is seeked to — instead of guessing a head window. Each parse gets a cumulative I/O budget (256 KB first; a parse that comes back empty with the budget exhausted retries once up to 8 MB), which doubles as the backstop against parsers that drain a file looking for data that is not there. `AbortSignal` cannot cross IPC: the desktop bridge drops the signal, and the bridge's 30s call timeout is the hang backstop.
 
 > ⚠️ `supportedFormats()` differs by platform and OS version. On desktop, FFmpeg integration covers ALAC, APE, WavPack, DSF, DFF, WMA alongside standard formats. The scanner records what it could not decode instead of silently skipping, so the user can see why a file did not import.
+
+> `getEncoderCapabilities()` reports what a probe can see, never optimism: when no local FFmpeg answers (React Native, or a desktop without FFmpeg on PATH) every encoder is reported unavailable — unless the native-engine transcode bridge is present, in which case a desktop build keeps reporting the engine's bundled encoders. A converter UI built on this list must not promise a transcode the platform cannot run.
 
 ---
 

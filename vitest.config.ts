@@ -33,6 +33,17 @@ export default defineConfig({
       'expo-file-system': fileURLToPath(
         new URL('./test/stubs/expo-file-system.ts', import.meta.url),
       ),
+      /*
+       * And for the keychain. The caller-scoping the node twin carries has to
+       * be shown to hold on the expo twin too — a `secrets:own` that confines
+       * on one platform and not the other is not a grant. The stub is a real
+       * map, minus the real SDK's `[A-Za-z0-9._-]` key constraint; the
+       * sanitising that constraint forces is the service's job and is tested
+       * as such.
+       */
+      'expo-secure-store': fileURLToPath(
+        new URL('./test/stubs/expo-secure-store.ts', import.meta.url),
+      ),
     },
   },
   test: {

@@ -79,6 +79,30 @@ describe('core-db-expo specifics', () => {
     expect(rows.map((r) => r.n)).toEqual(Array.from({ length: 20 }, (_, i) => i))
   })
 
+  it('executes a batch in one transaction — all of it or none of it', async () => {
+    // The mobile twin of the node batch path: no IPC to amortize, but the
+    // same all-or-nothing semantics for bulk writes.
+    const ctx = await freshDb()
+    await ctx.db.exec('CREATE TABLE t (n INTEGER)')
+
+    const results = await ctx.db.execBatch?.([
+      { sql: 'INSERT INTO t VALUES (?)', params: [1] },
+      { sql: 'INSERT INTO t VALUES (?)', params: [2] },
+    ])
+    expect(results?.map((r) => r.changes)).toEqual([1, 1])
+
+    // A batch whose second statement is refused runs none of it: the guard
+    // pass rejects before the transaction is ever entered.
+    await expect(
+      ctx.db.execBatch?.([
+        { sql: 'INSERT INTO t VALUES (?)', params: [3] },
+        { sql: 'CREATE TABLE a (x TEXT); CREATE TABLE b (y TEXT)' },
+      ]),
+    ).rejects.toThrow(/statement/i)
+    const rows = await ctx.db.query<{ n: number }>('SELECT n FROM t ORDER BY n')
+    expect(rows.map((r) => r.n)).toEqual([1, 2])
+  })
+
   it('closes the database when the plugin unloads', async () => {
     const ctx = new Context()
     const fiber = await ctx.plugin(DbExpo, {

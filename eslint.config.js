@@ -176,7 +176,9 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         // Config files — and the test stubs the vitest config aliases to —
-        // belong to no package tsconfig program.
+        // belong to no package tsconfig program. The Metro stubs are the
+        // same kind of standalone script: loaded by metro.config.js, part
+        // of no package's program.
         projectService: {
           allowDefaultProject: [
             '*.ts',
@@ -184,6 +186,7 @@ export default tseslint.config(
             'apps/*/*.config.ts',
             'test/stubs/*.ts',
             'apps/*/scripts/*.js',
+            'apps/*/metro-stubs/*.js',
             'scripts/*.mjs',
             'packages/*/*/scripts/*.mjs',
           ],
@@ -195,6 +198,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+
+  {
+    // Plain CommonJS the bundler loads by path: the Metro stubs. `no-undef`
+    // has no module system to read `module.exports` from, and the file is
+    // one on purpose — a Proxy stub, not code that should grow.
+    files: ['apps/*/metro-stubs/*.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { module: 'writable' },
     },
   },
 

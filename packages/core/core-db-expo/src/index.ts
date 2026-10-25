@@ -146,6 +146,30 @@ export class DbExpo extends Service implements DbService {
   }
 
   /**
+   * Execute multiple statements in one transaction, in a single call.
+   *
+   * The mobile twin of `core-db-node`'s batch path. There is no IPC to
+   * amortize here, but the contract is the same all-or-nothing semantics —
+   * a bulk write the scanner or a library import can issue without holding
+   * the queue once per statement.
+   */
+  async execBatch(
+    statements: Array<{ sql: string; params?: SqlValue[] }>,
+  ): Promise<Array<{ changes: number; lastInsertRowid: number }>> {
+    // Every statement gated before the first one runs: a batch refused
+    // mid-transaction rolls back, but refusing before any work is done is
+    // cheaper still and cannot leave a caller wondering how far it got.
+    for (const s of statements) this.guard(s.sql)
+    return this.transaction(async () => {
+      const results: Array<{ changes: number; lastInsertRowid: number }> = []
+      for (const s of statements) {
+        results.push(await this.execNow(s.sql, s.params ?? []))
+      }
+      return results
+    })
+  }
+
+  /**
    * Run `fn` atomically.
    *
    * Deliberately NOT `withTransactionAsync`: that helper issues a plain

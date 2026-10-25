@@ -47,6 +47,45 @@ describe('MobileAudioService (MPV engine)', () => {
     expect(spectrum?.timeDomainData.length).toBe(64)
   })
 
+  it('advances position through mpvGetState, so progress and natural end work', async () => {
+    const { service } = await harness()
+    const handle = await service.load('file:///music/mobile_track.flac', { strategy: 'stream' })
+    handle.play(0)
+
+    // The handle polls the bridge every 200ms; give it a poll or two.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(handle.positionMs, 'position advances via the simulated engine clock').toBeGreaterThan(
+      0,
+    )
+  })
+
+  it('rolls over to the preloaded track at the boundary — gapless', async () => {
+    const { service } = await harness()
+    const handle = await service.load('file:///music/a.flac', { strategy: 'stream' })
+    handle.play(0)
+
+    // The engine owns the playlist boundary once handed the next uri.
+    await service.preloadNext?.('file:///music/b.flac')
+    // Jump to just before the (simulated) 180s end and let the clock run out.
+    handle.seek?.(179_500)
+
+    const ended = new Promise<void>((resolve) => handle.onEnded(() => resolve()))
+    await ended
+    // The rollover already happened in the engine: the next load of the same
+    // file re-binds to it instead of restarting the clock.
+    const rebound = await service.load('file:///music/b.flac', { strategy: 'stream' })
+    expect(rebound.durationMs).toBe(180_000)
+  })
+
+  it('reports engine status honestly under the simulation bridge', async () => {
+    const { service } = await harness()
+    const status = await service.getEngineStatus()
+    expect(status.running).toBe(false)
+    expect(status.mpvAvailable).toBe(false)
+    // Must not throw even though the simulated bridge ignores it.
+    await service.setVisualizer(true, 2048)
+  })
+
   it('forwards interruption events to listeners', async () => {
     const { service } = await harness()
     const interruptions: InterruptionEvent[] = []

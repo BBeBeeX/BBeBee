@@ -530,9 +530,23 @@ export class DspPlugin extends Service implements DspService {
         for (const entry of sorted) {
           const def = this.defs.get(entry.effectId)!
           const params = this.getParams(entry.effectId)
-          const seg = def.build(this.ctx.audio.context, params as never)
-          this.activeSegments.set(entry.effectId, seg)
-          segments.push(seg)
+          try {
+            const seg = def.build(this.ctx.audio.context, params as never)
+            this.activeSegments.set(entry.effectId, seg)
+            segments.push(seg)
+          } catch (err) {
+            /*
+             * One effect the platform cannot build must not unhook the whole
+             * chain. `react-native-audio-api` has no DynamicsCompressorNode,
+             * so the default-enabled limiter threw here on every mobile boot,
+             * the catch below swallowed it, and `chainInput` stayed
+             * disconnected — silent audio on the degraded path. Skip the
+             * effect, say so, and let the rest of the chain wire.
+             */
+            this.ctx.logger.warn(
+              `plugin-dsp: effect ${entry.effectId} unavailable on this platform, skipped: ${err}`,
+            )
+          }
         }
 
         // Waterfall hook for other plugins to contribute or intercept segments
@@ -560,7 +574,8 @@ export class DspPlugin extends Service implements DspService {
 
       this.emitChainChanged()
     } catch (err) {
-      this.ctx.logger.error(`plugin-dsp: graph rebuild error: ${err}`)
+      const stack = err instanceof Error ? err.stack : undefined
+      this.ctx.logger.error(`plugin-dsp: graph rebuild error: ${err}${stack ? `\n${stack}` : ''}`)
     } finally {
       // Restore master volume ramp
       restoreVolume()
