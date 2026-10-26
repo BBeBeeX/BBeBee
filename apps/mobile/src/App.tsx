@@ -23,7 +23,11 @@ import { ActivityIndicator, BackHandler, Image, Pressable, Text, useWindowDimens
  */
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
-import type { StoreService } from '@BBeBee/protocol'
+import type {
+  LifecycleService,
+  QuickActionsService,
+  StoreService,
+} from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { useI18n, usePalette, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
 import { renderBootErrorMessage } from './boot-error'
@@ -340,6 +344,26 @@ function Shell({ ctx }: { ctx: Context }) {
     })
     return () => void off()
   }, [ctx, navigateTo])
+
+  /*
+   * The first-frame system handoffs, in one effect that runs after the
+   * navigate subscription above: reveal the app under the splash now that
+   * there is something to show, and replay the home-screen quick action that
+   * launched the app (a cold start via long-press → Recently Played). The
+   * service emits `ui/navigate` for known action ids, so ordering the two is
+   * what makes a cold-launch shortcut land on its screen instead of vanishing
+   * with the splash.
+   */
+  useEffect(() => {
+    void serviceOf<LifecycleService>(ctx, 'lifecycle')?.hideSplash().catch(() => {})
+    try {
+      serviceOf<QuickActionsService>(ctx, 'quickActions')?.consumeInitial()
+    } catch {
+      // The service is absent or degraded; nothing to replay.
+    }
+    // First frame only: the splash reveals once, and a consumed quick action
+    // must not re-fire its events on later renders.
+  }, [])
 
   const currentItem: HistoryItem | undefined =
     navState.history[navState.index] ?? (defaultTab ? { id: defaultTab.id } : undefined)

@@ -21,6 +21,7 @@ import type {
   AppSettings,
   AudioSourceHandle,
   Disposable,
+  LiveActivityState,
   NowPlayingMeta,
   PlayHistoryHeatmapDay,
   PlayHistoryStats,
@@ -185,6 +186,18 @@ export class Player extends Service implements PlayerService {
   private deviceCtx?: Context
   /** The scoped context `ctx.codec` arrived on. See `mediaCtx`. */
   private codecCtx?: Context
+  /** The scoped context `ctx.library` arrived on. See `mediaCtx`. */
+  private libraryCtx?: Context
+  /** The scoped context `ctx.liveActivity` arrived on. See `mediaCtx`. */
+  private liveActivityCtx?: Context
+  /**
+   * Whether a Live Activity of ours is on screen, in the same sense as
+   * `published()` on the media session: the surface cannot be read back, so
+   * the player keeps the only record of "start vs update".
+   */
+  private liveActivityUp = false
+  /** The last Live Activity push, deduped to what the card actually shows. */
+  private liveActivityKey?: string
   /** Held while playing, so the machine does not sleep mid-track (MD-6). */
   private wakeLock?: Disposable
   /** An acquire in flight. The status can change before it lands. */
@@ -304,7 +317,19 @@ export class Player extends Service implements PlayerService {
     // makes it testable and what keeps a missing OS surface from being fatal.
     this.ownCtx.inject(['mediaSession'], (scoped) => {
       this.mediaCtx = scoped
-      scoped.mediaSession.setSupportedCommands(['play', 'pause', 'next', 'previous', 'seek'])
+      // Everything the transport can honour from a lock screen: the transport
+      // verbs, the skips, and the heart (`rate`). A surface with no button for
+      // one of these simply draws nothing for it — see each media-session
+      // implementation's control mapping.
+      scoped.mediaSession.setSupportedCommands([
+        'play',
+        'pause',
+        'next',
+        'previous',
+        'seek',
+        'seek-relative',
+        'rate',
+      ])
       this.publishNowPlaying()
       const off = scoped.mediaSession.onCommand((command) => {
         // Info, not debug: a pause that arrives here comes from the OS —
@@ -334,6 +359,9 @@ export class Player extends Service implements PlayerService {
           case 'seek-relative':
             void this.seek(this.transport.positionMs + command.deltaMs)
             break
+          case 'rate':
+            void this.rateCurrentTrack(command.loved)
+            break
           default:
             break
         }
@@ -354,6 +382,43 @@ export class Player extends Service implements PlayerService {
         scoped.mediaSession?.clear()
         this.mediaCtx = undefined
         off()
+      }
+    })
+
+    // Favorites from the OS surface: wherever a rate command can originate —
+    // a notification's heart button, a car surface — it lands on `ctx.library`,
+    // the one owner of "this URN is saved" (docs/07 §2). Optional, because the
+    // transport must play without a library behind it.
+    this.ownCtx.inject(['library'], (scoped) => {
+      this.libraryCtx = scoped
+      return () => {
+        this.libraryCtx = undefined
+      }
+    })
+
+    // The lock-screen Live Activity (iOS ActivityKit). Beside the media
+    // session and optional in the same way: absent on desktop and on devices
+    // without ActivityKit, and never fatal to the transport.
+    this.ownCtx.inject(['liveActivity'], (scoped) => {
+      this.liveActivityCtx = scoped
+      const offTrack = this.ownCtx.on('player/track-changed', () => this.pushLiveActivity())
+      const offState = this.ownCtx.on('player/state-changed', () => this.pushLiveActivity())
+      // The service can arrive after playback did — but a transport that is
+      // merely *restored* paused (a cold launch) lights nothing up: an activity
+      // the user never played into is a ghost card on the lock screen.
+      if (isPlayingLike(this.transport.status) || this.transport.status === 'loading') {
+        this.pushLiveActivity()
+      }
+      return () => {
+        // Taken down with us, exactly as the media session above is: an
+        // activity outliving the player is the Live Activity half of the ghost
+        // §4.9 says a disable must not leave.
+        this.liveActivityCtx = undefined
+        this.liveActivityUp = false
+        this.liveActivityKey = undefined
+        offTrack()
+        offState()
+        void scoped.liveActivity?.end().catch(() => undefined)
       }
     })
 
@@ -1737,6 +1802,110 @@ export class Player extends Service implements PlayerService {
       ...(artworkUrl ? { artworkUrl } : {}),
       durationMs: this.transport.durationMs,
       positionMs,
+    })
+  }
+
+  /* ── favorites from the OS surface ───────────────────────────────── */
+
+  /**
+   * A `rate` command — the notification's heart wherever the OS surface has
+   * one. The command carries the target state rather than a toggle
+   * instruction (`loved: true` saves, `false` unsaves), because a surface
+   * that shows a filled heart means "make it so", not "flip it".
+   */
+  private async rateCurrentTrack(loved: boolean): Promise<void> {
+    const urn = this.transport.trackUrn
+    if (!urn) {
+      // A heart pressed between tracks, or on a queue that never started. Not
+      // an error, and not silent either: this is the line that answers "why
+      // did my press do nothing" without costing the shipped log anything.
+      this.ownCtx.logger.debug('player: rate command with no current track, ignored')
+      return
+    }
+    const library = this.libraryCtx?.library
+    if (!library) {
+      this.ownCtx.logger.warn('player: rate command with no library service, ignored')
+      return
+    }
+    try {
+      await library.setSaved(urn, loved)
+    } catch (error) {
+      this.ownCtx.logger.warn(
+        'player: could not %s favorite for %s: %s',
+        loved ? 'add' : 'remove',
+        urn,
+        String(error),
+      )
+    }
+  }
+
+  /* ── the Live Activity ────────────────────────────────────────────── */
+
+  /**
+   * Publish the transport to the Live Activity: `start` on the first push of
+   * a session, `update` afterwards, `end` when the transport goes idle or
+   * errors.
+   *
+   * ⚠️ No per-tick position pushes. While playing, `player/state-changed`
+   * fires on every refresh (~3 Hz) and the *native side owns the running
+   * clock* — re-sending position would be the once-a-second spam the media
+   * session already had to learn not to do. A push is therefore deduped to
+   * what the card actually shows: track, status, metadata, and position only
+   * while the clock is *not* running forward (a pause, or a seek from
+   * paused, is a discontinuity the native clock cannot know about).
+   */
+  private pushLiveActivity(): void {
+    const live = this.liveActivityCtx?.liveActivity
+    if (!live || !live.supported) return
+
+    const state = this.transport
+    if (state.status === 'idle' || state.status === 'error') {
+      // Only end what we started: an idle transport that never pushed must
+      // not spam `end()` at a card that does not exist.
+      if (!this.liveActivityUp) return
+      this.liveActivityUp = false
+      this.liveActivityKey = undefined
+      live
+        .end()
+        .catch((error) =>
+          this.ownCtx.logger.warn('player: could not end Live Activity: %s', String(error)),
+        )
+      return
+    }
+
+    const meta = state.nowPlaying
+    const key = [
+      state.trackUrn,
+      state.status,
+      meta?.title,
+      meta?.artist,
+      meta?.artworkUri,
+      ...(isPlayingLike(state.status) ? [] : [state.positionMs]),
+    ].join('|')
+    if (this.liveActivityUp && key === this.liveActivityKey) return
+    this.liveActivityKey = key
+
+    const payload: LiveActivityState = {
+      // Never the URN (see publishNowPlaying); an unresolved row says loading.
+      title: meta?.title ?? 'Loading…',
+      ...(meta?.artist ? { artist: meta.artist } : {}),
+      ...(meta?.artworkUri ? { artworkUri: meta.artworkUri } : {}),
+      // `stalled` is a starved `playing` (docs/05 §2): the card keeps showing
+      // playback, exactly as the lock screen does.
+      status: isPlayingLike(state.status) ? 'playing' : 'paused',
+      positionMs: state.positionMs,
+      durationMs: state.durationMs,
+    }
+
+    const verb = this.liveActivityUp ? 'update' : 'start'
+    this.liveActivityUp = true
+    live[verb](payload).catch((error) => {
+      // Never thrown into the player: a missing entitlement or a widget the
+      // user dismissed is a lost card, not a lost transport. Reset, so the
+      // next transition retries from `start` rather than updating one that
+      // never began.
+      this.liveActivityUp = false
+      this.ownCtx.logger.warn('player: could not %s Live Activity: %s', verb, String(error))
     })
   }
 

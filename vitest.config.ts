@@ -72,6 +72,19 @@ export default defineConfig({
         new URL('./test/stubs/expo-application.ts', import.meta.url),
       ),
       /*
+       * And the system-integration surfaces: haptics (call recording is the
+       * whole test — the kind of cue is the contract), quick actions (scripted
+       * OS deliveries plus the cold-launch pose) and the splash (the
+       * prevented-before-hidden ordering the boot sequence guarantees).
+       */
+      'expo-haptics': fileURLToPath(new URL('./test/stubs/expo-haptics.ts', import.meta.url)),
+      'expo-quick-actions': fileURLToPath(
+        new URL('./test/stubs/expo-quick-actions.ts', import.meta.url),
+      ),
+      'expo-splash-screen': fileURLToPath(
+        new URL('./test/stubs/expo-splash-screen.ts', import.meta.url),
+      ),
+      /*
        * And the transport itself. `expo/fetch` binds the native network stack
        * through `ExpoFetchModule`, so Node cannot load it — but the stub is
        * expo-*shaped*, not Node-shaped: its `Headers` is React Native's

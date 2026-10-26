@@ -63,6 +63,12 @@ const EVENT_TO_COMMAND: Record<string, TransportCommand['type']> = {
   playbackNotificationSeekTo: 'seek',
   playbackNotificationSkipForward: 'seek-relative',
   playbackNotificationSkipBackward: 'seek-relative',
+  // Android only: the user swiped the notification away. That is the surface
+  // being removed, not a request for silence with the speakers left on — the
+  // honest response is `stop` (`plugin-player` clears the transport to idle
+  // and the session with it), not playing into a notification that no longer
+  // exists.
+  playbackNotificationDismissed: 'stop',
 }
 
 /** Which native controls a contract command turns on. */
@@ -74,7 +80,12 @@ const COMMAND_TO_CONTROLS: Record<TransportCommand['type'], PlaybackControlName[
   previous: ['previousTrack'],
   seek: ['seekTo'],
   'seek-relative': ['skipForward', 'skipBackward'],
-  // Not a transport control on either OS surface; the app rates in its own UI.
+  // `react-native-audio-api` (0.13.x) exposes no like/heart control and no
+  // event for one — `PlaybackControlName` is the eight transport controls
+  // above. So `rate` enables no button here, and no OS event can produce it;
+  // the command is still *recorded* by `setSupportedCommands` (and answered by
+  // `published()`), because the contract is what the app supports, and the
+  // player handles `{ type: 'rate', loved }` from whichever surface grows one.
   rate: [],
 }
 

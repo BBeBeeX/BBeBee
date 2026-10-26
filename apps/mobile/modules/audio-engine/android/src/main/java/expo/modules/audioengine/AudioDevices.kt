@@ -41,7 +41,7 @@ object AudioDevices {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "earpiece"
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "speaker_safe"
-        AudioDeviceInfo.TYPE_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired_headphones"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired_headphones"
         AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired_headset"
         AudioDeviceInfo.TYPE_USB_HEADSET -> "usb_headset"
         AudioDeviceInfo.TYPE_USB_DEVICE -> "usb_device"
@@ -65,7 +65,7 @@ object AudioDevices {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Built-in speaker"
         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "Built-in speaker (safe)"
-        AudioDeviceInfo.TYPE_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired headphones"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired headphones"
         AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired headset"
         AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
         AudioDeviceInfo.TYPE_USB_DEVICE -> "USB device"
@@ -105,7 +105,7 @@ object AudioDevices {
             val seen = HashMap<String, Int>()
             audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
                 .filter { it.isSink }
-                .sortedBy { typeTag(it.type) to it.id } // deterministic across calls
+                .sortedWith(compareBy({ typeTag(it.type) }, { it.id })) // deterministic across calls
                 .forEach { device ->
                     val base = "android/${typeTag(device.type)}"
                     // `merge` returns the new count: the first of a type keeps

@@ -1,0 +1,18 @@
+{
+  "id": "@bbebee/core-lifecycle-mobile",
+  "name": "@bbebee/core-lifecycle-mobile",
+  "displayName": "Lifecycle",
+  "description": "ctx.lifecycle for iOS and Android — AppState phases and the splash screen.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": { "BBeBee": "^0.1.0" },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": ["mobile"],
+  "entry": { "main": "./dist/index.js" },
+  "capabilities": [],
+  "contributes": { "services": ["lifecycle"] },
+  "effect": "lifecycle"
+}

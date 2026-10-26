@@ -1,0 +1,18 @@
+{
+  "id": "@bbebee/plugin-car-mode-ui-mobile",
+  "name": "@bbebee/plugin-car-mode-ui-mobile",
+  "displayName": "Car Mode UI (Mobile)",
+  "description": "React Native views for @bbebee/plugin-car-mode — the driving screen.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": { "BBeBee": "^0.1.0" },
+  "enabled": true,
+  "dependencies": ["@bbebee/plugin-ui", "@bbebee/plugin-car-mode"],
+  "systemId": "layer-5",
+  "moduleId": "playback",
+  "platforms": ["mobile"],
+  "entry": { "main": "./dist/index.js" },
+  "capabilities": [],
+  "contributes": {},
+  "effect": null
+}

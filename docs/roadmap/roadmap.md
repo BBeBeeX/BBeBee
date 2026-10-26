@@ -272,6 +272,47 @@ a valid outcome**, and the shelf design in
 
 ---
 
+### M5.1 — Mobile system integration
+
+The surfaces where the player meets the OS outside its own windows, delivered as the
+system-integration quartet plus car mode — all behind the same seam discipline as `ctx.fs`:
+contracts in `packages/protocol/src/services/integration.ts`, mobile implementations in Layer 2,
+every consumer treating the service as optional so desktop boots unchanged
+([services/contracts.md §28](../services/contracts.md#28-system-integration-services-mobile)).
+
+**Delivered**
+- `ctx.haptics` (`core-haptics-mobile`) — expo-haptics cues with an enabled toggle and event
+  triggers (track change, play-mode change); favourites stay a button-level `tap()` because
+  `library/changed` cannot tell a heart-tap from a scan batch.
+- `ctx.quickActions` (`core-quick-actions-mobile`) — the long-press home-screen menu
+  (Recently Played / Search) with cold-launch replay wired in `apps/mobile/src/App.tsx`.
+- `ctx.lifecycle` (`core-lifecycle-mobile`) — AppState phases, cold-vs-resume, and the splash
+  prevent/hide ordering.
+- `ctx.liveActivity` (`core-live-activity-mobile`) — the Dynamic Island / Live Activity service
+  with the native contract pinned (`BBeBeeLiveActivity` start/update/end), plus the push wiring
+  in `plugin-player`.
+- `ctx.carMode` (`plugin-car-mode` + `plugin-car-mode-ui-mobile`) — trigger-matched driving mode
+  with charging auto-detection and the ≥64dp driving screen; headless on desktop for feature
+  parity.
+- Notification-bar quick actions: `rate` (favourite) handled end-to-end in `plugin-player` via
+  `ctx.library.setSaved`, supported-commands widened; interruption resume policy (`shouldResume`
+  gated on `pausedByInterruption`) verified and pinned by tests.
+- The two audit leftovers closed: Android's notification swipe-away maps to `stop`
+  (`playbackNotificationDismissed` → `{ type: 'stop' }`), and the audio session now deactivates
+  on clean shutdown — `boot.ts`'s teardown disposer releases the OS session and flips
+  `canRunInBackground()` honest, instead of deactivating only on the failure path.
+- The favourite haptic loop closed: the mini-player bar's heart calls `ctx.haptics.tap()` in its
+  press handler (row hearts and track context menus remain unwired, by scope).
+
+**Open — the honest half**
+- The Live Activity **native Swift module** is not written; JS degrades to `supported: false`
+  until it lands. Same for home-screen **widgets** (native-only) and **CarPlay / Android Auto**
+  proper (media-browser/CarScene delegates); `ctx.carMode` is the seam they plug into.
+- `react-native-audio-api` 0.13.3 renders no heart button, so the notification's `rate` command
+  stays dormant until the library grows one — the protocol and player halves are already wired.
+
+---
+
 ### Beyond M5
 
 Not scheduled, but designed for and not blocked by anything above:

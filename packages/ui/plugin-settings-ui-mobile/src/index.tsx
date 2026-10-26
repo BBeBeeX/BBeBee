@@ -119,10 +119,28 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       style: {
         flex: 1,
         backgroundColor: p().bg.base,
-        padding: tokens.space[4],
       },
       accessibilityLabel: t('settings:mobile.settings'),
     },
+    /*
+     * The screen outgrew the fold the moment settings contributions could
+     * arrive from any plugin — a flat View here meant everything past the
+     * fold (Layout mode, Play history, Car mode, the whole Playback and
+     * Storage sections) existed in the tree and could never be reached. So
+     * the screen scrolls, and the content's bottom padding clears the two
+     * floating surfaces the shell layers above it (the mini-player bar and
+     * the tab bar, ~320dp together) so the last row can scroll into view
+     * rather than stopping behind them.
+     */
+    h(
+      native.ScrollView as never,
+      {
+        style: { flex: 1 },
+        contentContainerStyle: {
+          padding: tokens.space[4],
+          paddingBottom: 320,
+        },
+      },
     // Screen Title
     h(
       native.View as never,
@@ -284,6 +302,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
             children: t('settings:mobile.restoreDefaults'),
           }),
     ]),
+    ),
   )
 }
 

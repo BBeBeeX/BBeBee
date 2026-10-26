@@ -1,0 +1,29 @@
+{
+  "name": "@bbebee/core-haptics-mobile",
+  "version": "0.0.0",
+  "description": "ctx.haptics for iOS and Android, over expo-haptics.",
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "expo-haptics": "~57.0.2",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@BBeBee/kernel": "workspace:*"
+  }
+}

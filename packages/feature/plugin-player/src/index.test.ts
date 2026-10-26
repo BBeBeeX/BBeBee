@@ -17,10 +17,12 @@ import { NetworkError, NotFoundError, AuthError } from '@BBeBee/protocol'
 import type {
   Capabilities,
   DbService,
+  LiveActivityState,
   MediaProvider,
   NowPlaying,
   StreamHandle,
   Track,
+  TransportCommand,
 } from '@BBeBee/protocol'
 import plugin, { type Player } from './index.js'
 
@@ -89,6 +91,13 @@ interface SessionLog {
   states: ('playing' | 'paused' | 'stopped')[]
   updates: NowPlaying[]
   cleared: number
+  /** The last `setSupportedCommands`, which is what the OS offers as buttons. */
+  supported: TransportCommand['type'][]
+}
+
+/** The stub's surface beyond the contract: drive a press, as the OS would. */
+interface PressableMediaSession {
+  press(command: TransportCommand): void
 }
 
 /**
@@ -100,6 +109,8 @@ interface SessionLog {
  */
 function mediaSessionStub(log: SessionLog) {
   class MediaSessionStub extends Service {
+    private readonly listeners = new Set<(c: TransportCommand) => void>()
+
     constructor(ctx: Context) {
       super(ctx, 'mediaSession')
     }
@@ -109,15 +120,78 @@ function mediaSessionStub(log: SessionLog) {
     setPlaybackState(state: 'playing' | 'paused' | 'stopped') {
       log.states.push(state)
     }
-    onCommand() {
-      return () => {}
+    onCommand(cb: (c: TransportCommand) => void) {
+      this.listeners.add(cb)
+      return () => void this.listeners.delete(cb)
     }
-    setSupportedCommands() {}
+    setSupportedCommands(types: TransportCommand['type'][]) {
+      log.supported = [...types]
+    }
     clear() {
       log.cleared++
     }
+    press(command: TransportCommand) {
+      for (const listener of [...this.listeners]) listener(command)
+    }
   }
   return MediaSessionStub
+}
+
+/** What was saved or unsaved, in order — the slice of `ctx.library` used. */
+interface LibraryLog {
+  saved: { urn: string; saved: boolean }[]
+}
+
+/** A minimal `ctx.library`, so a heart-press lands somewhere observable. */
+function libraryStub(log: LibraryLog) {
+  class LibraryStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'library')
+    }
+    async isSaved() {
+      return false
+    }
+    async setSaved(urn: string, saved: boolean) {
+      log.saved.push({ urn, saved })
+    }
+  }
+  return LibraryStub
+}
+
+/** What the Live Activity was told, in order. */
+interface LiveActivityLog {
+  started: LiveActivityState[]
+  updated: LiveActivityState[]
+  ended: number
+  /** False models a device without ActivityKit, where every call is skipped. */
+  supported?: boolean
+  /** True models a missing entitlement, where every call rejects. */
+  reject?: boolean
+}
+
+/** A minimal `ctx.liveActivity`. */
+function liveActivityStub(log: LiveActivityLog) {
+  class LiveActivityStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'liveActivity')
+    }
+    get supported() {
+      return log.supported ?? true
+    }
+    async start(state: LiveActivityState) {
+      if (log.reject) throw new Error('not entitled')
+      log.started.push(state)
+    }
+    async update(state: LiveActivityState) {
+      if (log.reject) throw new Error('not entitled')
+      log.updated.push(state)
+    }
+    async end() {
+      if (log.reject) throw new Error('not entitled')
+      log.ended++
+    }
+  }
+  return LiveActivityStub
 }
 
 /** What the host was asked to keep awake, and whether it still is. */
@@ -187,6 +261,8 @@ interface Harness {
   root: string
   session: SessionLog
   wake: WakeLog
+  library: LibraryLog
+  live: LiveActivityLog
   restart(): Promise<Harness>
 }
 
@@ -197,6 +273,10 @@ async function harness(
     config?: Record<string, unknown>
     mediaSession?: boolean
     background?: boolean | { refuse?: boolean; gate?: () => Promise<void> }
+    /** Mount `ctx.library`, for the rate-command tests. */
+    library?: boolean
+    /** Mount `ctx.liveActivity`; the object models an unsupported/rejecting one. */
+    liveActivity?: boolean | { supported?: boolean; reject?: boolean }
     /** What a loaded source reports; 0 models a stream that knows no duration. */
     sourceDurationMs?: number
     /** What the catalogue row holds for every URN. */
@@ -208,8 +288,15 @@ async function harness(
   const root = opts.root ?? (await tempDir('bbebee-player'))
   const audio = createMockAudio({ durationMs: opts.sourceDurationMs ?? 200_000 })
   opts.audio?.(audio)
-  const session: SessionLog = { states: [], updates: [], cleared: 0 }
+  const session: SessionLog = { states: [], updates: [], cleared: 0, supported: [] }
   const wake = wakeLog()
+  const library: LibraryLog = { saved: [] }
+  const live: LiveActivityLog = {
+    started: [],
+    updated: [],
+    ended: 0,
+    ...(typeof opts.liveActivity === 'object' ? opts.liveActivity : {}),
+  }
 
   const ctx = new Context()
   const fibers = [
@@ -226,6 +313,8 @@ async function harness(
           ),
         ]
       : []),
+    ...(opts.library ? [await ctx.plugin(libraryStub(library))] : []),
+    ...(opts.liveActivity ? [await ctx.plugin(liveActivityStub(live))] : []),
     await ctx.plugin(sourcesStub(opts.provider ?? localProvider(), opts.trackDurationMs)),
     await ctx.plugin(plugin, { tickMs: 3_600_000, saveThrottleMs: 0, ...opts.config }),
   ]
@@ -239,6 +328,8 @@ async function harness(
     root,
     session,
     wake,
+    library,
+    live,
     restart: async () => {
       // Teardown in reverse, exactly as the kernel does it, so the player
       // flushes its state before the database closes underneath it.
@@ -687,6 +778,180 @@ describe('interruptions and routes', () => {
     audio.interrupt({ type: 'ended', shouldResume: true })
     await tick()
     expect(player.state.status).toBe('paused')
+  })
+
+  it('does not resume when the interruption ends without asking for it', async () => {
+    // `shouldResume` is the OS's judgement (a Siri pause vs a phone call); the
+    // player must not outrank it.
+    const { player, audio } = await harness()
+    await player.playNow([urn('a')])
+
+    audio.interrupt({ type: 'began', shouldResume: false })
+    audio.interrupt({ type: 'ended', shouldResume: false })
+    await tick()
+    expect(player.state.status).toBe('paused')
+  })
+
+  it('does not resume a player that never paused for the interruption', async () => {
+    // Nothing was playing when the call came in, so `ended` must play nothing:
+    // the resume belongs to the pause the interruption itself caused.
+    const { player, audio } = await harness()
+    await player.playNow([urn('a')])
+    player.stop()
+
+    audio.interrupt({ type: 'began', shouldResume: true })
+    audio.interrupt({ type: 'ended', shouldResume: true })
+    await tick()
+    expect(player.state.status).toBe('idle')
+  })
+})
+
+describe('notification quick actions', () => {
+  it('advertises the transport verbs and the heart to the OS surface', async () => {
+    const { session } = await harness({ mediaSession: true })
+
+    // What the player can honour from a lock screen: the transport verbs, the
+    // skips, and a favorite. A surface with no button for one of them draws
+    // nothing for it; that mapping belongs to each media-session package.
+    expect(session.supported).toEqual([
+      'play',
+      'pause',
+      'next',
+      'previous',
+      'seek',
+      'seek-relative',
+      'rate',
+    ])
+  })
+
+  it('a rate command saves the current track, and unsaves it', async () => {
+    const { ctx, player, library } = await harness({ mediaSession: true, library: true })
+    await player.playNow([urn('a'), urn('b')])
+    const session = ctx.mediaSession as unknown as PressableMediaSession
+
+    session.press({ type: 'rate', loved: true })
+    await tick()
+    expect(library.saved).toEqual([{ urn: urn('a'), saved: true }])
+
+    // The command carries the target state, so the next track's press lands on
+    // the next track, whatever the last one was.
+    await player.next()
+    session.press({ type: 'rate', loved: false })
+    await tick()
+    expect(library.saved.at(-1)).toEqual({ urn: urn('b'), saved: false })
+  })
+
+  it('a rate command with no current track is a logged no-op', async () => {
+    const { ctx, library } = await harness({ mediaSession: true, library: true })
+    const session = ctx.mediaSession as unknown as PressableMediaSession
+
+    session.press({ type: 'rate', loved: true })
+    await tick()
+
+    expect(library.saved, 'nothing to save, nothing saved').toEqual([])
+  })
+
+  it('a rate command without a library service changes nothing and breaks nothing', async () => {
+    const { ctx, player } = await harness({ mediaSession: true })
+    await player.playNow([urn('a')])
+    const session = ctx.mediaSession as unknown as PressableMediaSession
+
+    session.press({ type: 'rate', loved: true })
+    await tick()
+
+    expect(player.state.status, 'the transport carries on').toBe('playing')
+  })
+})
+
+describe('the Live Activity', () => {
+  it('starts on the first track, updates on transitions, ends when playback does', async () => {
+    const { player, audio, live } = await harness({ liveActivity: true })
+    await player.playNow([urn('a'), urn('b')])
+    await tick()
+
+    // One activity per session: the loading push starts it, and the metadata
+    // and the first `playing` arrive as updates, not as second activities.
+    expect(live.started).toHaveLength(1)
+    expect(live.updated.length).toBeGreaterThan(0)
+
+    // The position tick publishes nothing: the native side owns the clock.
+    live.updated.length = 0
+    audio.advance(1000)
+    await player.refresh()
+    await tick()
+    expect(live.updated, 'no per-tick position pushes').toEqual([])
+
+    player.pause()
+    expect(live.updated.at(-1)?.status).toBe('paused')
+
+    await player.play()
+    expect(live.updated.at(-1)?.status).toBe('playing')
+
+    player.stop()
+    expect(live.ended).toBe(1)
+  })
+
+  it('updates to the next track rather than starting a second activity', async () => {
+    const { player, audio, live } = await harness({ liveActivity: true })
+    await player.playNow([urn('a'), urn('b')])
+    await tick()
+
+    audio.finish()
+    await tick()
+
+    expect(live.started, 'one activity for the whole queue').toHaveLength(1)
+    expect(live.updated.at(-1)?.status).toBe('playing')
+  })
+
+  it('never starts one for a transport that was only restored paused', async () => {
+    // A cold launch restores paused-with-position; lighting up a lock-screen
+    // card for playback the user never started this session is a ghost.
+    const first = await harness({ liveActivity: true })
+    await first.player.playNow([urn('a')])
+    first.player.pause()
+    await tick()
+
+    const second = await first.restart()
+    await tick()
+
+    expect(second.live.started).toEqual([])
+    expect(second.live.updated).toEqual([])
+  })
+
+  it('publishes nothing where ActivityKit does not exist', async () => {
+    const { player, live } = await harness({ liveActivity: { supported: false } })
+    await player.playNow([urn('a')])
+    player.pause()
+    player.stop()
+    await tick()
+
+    expect(live.started).toEqual([])
+    expect(live.updated).toEqual([])
+    expect(live.ended).toBe(0)
+  })
+
+  it('survives native calls that reject', async () => {
+    // A missing entitlement, a user-dismissed widget: the card is lost, the
+    // transport is not.
+    const { player, live } = await harness({ liveActivity: { reject: true } })
+    await player.playNow([urn('a')])
+    player.pause()
+    player.stop()
+    await tick()
+
+    expect(player.state.status).toBe('idle')
+    expect(live.started).toEqual([])
+    expect(live.ended).toBe(0)
+  })
+
+  it('works with no liveActivity service at all', async () => {
+    const { player } = await harness()
+    await player.playNow([urn('a')])
+    player.pause()
+    player.stop()
+    await tick()
+
+    expect(player.state.status).toBe('idle')
   })
 })
 
@@ -1401,7 +1666,7 @@ describe('lifecycle', () => {
     // the second pass.
     const root = await tempDir('bbebee-player-cycle')
     const audio = createMockAudio()
-    const session: SessionLog = { states: [], updates: [], cleared: 0 }
+    const session: SessionLog = { states: [], updates: [], cleared: 0, supported: [] }
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root })
     await ctx.plugin(FsNode)

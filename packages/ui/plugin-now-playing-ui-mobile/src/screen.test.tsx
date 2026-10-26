@@ -121,6 +121,7 @@ async function harness(
   state: Partial<TransportState> = {},
   queue: QueueItem[] = [],
   catalogue: Record<string, Track> = {},
+  opts: { haptics?: boolean } = {},
 ) {
   const calls: string[] = []
   const transport: TransportState = { ...IDLE, ...state }
@@ -176,6 +177,23 @@ async function harness(
     }
   }
 
+  /**
+   * A `ctx.haptics` double — only what the heart's press cue reads. Registered
+   * just when a test asks for it, so the default harness is the desktop shape:
+   * no haptics service at all, and every read comes back `undefined`.
+   */
+  class HapticsStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'haptics')
+    }
+    enabled = true
+    setEnabled = (on: boolean): void => { void on }
+    impact = (): void => {}
+    notification = (): void => {}
+    selection = (): void => {}
+    tap = (): void => void calls.push('haptics:tap')
+  }
+
   class UiStub extends Service {
     readonly views = new Map<string, unknown>()
     readonly contributions: Contribution[] = []
@@ -218,6 +236,7 @@ async function harness(
   await ctx.plugin(PlayerStub)
   if (Object.keys(catalogue).length > 0) await ctx.plugin(SourcesStub)
   await ctx.plugin(LibraryStub)
+  if (opts.haptics) await ctx.plugin(HapticsStub)
   await ctx.plugin(UiStub)
   await ctx.plugin(NowPlayingStub)
   await ctx.plugin(DefaultI18nStub)
@@ -339,6 +358,64 @@ describe('NowPlayingBar on mobile', () => {
       '[data-label="Remove Solar from favorites"]',
     ) as HTMLElement
     expect(removeHeart).toBeTruthy()
+  })
+
+  it('fires the haptics tap cue exactly once per heart press', async () => {
+    const { ctx, calls } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'paused',
+      },
+      [],
+      { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
+      { haptics: true },
+    )
+    const { container } = render(h(NowPlayingBar, { ctx }))
+
+    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
+    await act(async () => {
+      heart.click()
+    })
+    // The press itself ticked once, and the toggle still ran behind it.
+    expect(calls.filter((call) => call === 'haptics:tap')).toHaveLength(1)
+    expect(calls).toContain('setSaved:BBeBee:local:track:1:true')
+
+    // The `library/changed` the write fired re-reads the saved state; that
+    // re-render must not tick again — the press is the cue's only trigger
+    // (the haptics service's no-favorite-event rule).
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(calls.filter((call) => call === 'haptics:tap')).toHaveLength(1)
+  })
+
+  it('toggles the favorite with no haptics service registered, without throwing', async () => {
+    const { ctx, calls } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'paused',
+      },
+      [],
+      { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
+    )
+    const { container } = render(h(NowPlayingBar, { ctx }))
+
+    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
+    await act(async () => {
+      heart.click()
+    })
+    expect(calls).toContain('setSaved:BBeBee:local:track:1:true')
+
+    // Desktop shape: nothing answered 'haptics', and the press still toggled
+    // the favorite — the optional read is a no-op, never a crash.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(
+      container.querySelector('[data-label="Remove Solar from favorites"]'),
+    ).toBeTruthy()
   })
 })
 

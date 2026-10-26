@@ -150,6 +150,17 @@ declare module 'cordis' {
     'audio-converter/task-completed'(task: ConvertTask): void
     'audio-converter/task-failed'(taskId: string, error: string): void
     'audio-converter/task-cancelled'(taskId: string): void
+
+    /* ── system integration ─────────────────────────── emit ── */
+    /** A home-screen quick action was picked, cold or warm. */
+    'quick-actions/action'(item: QuickActionItem): void
+    /**
+     * The app crossed a foreground/background boundary. `inactive` is the
+     * transient iOS state (control center, notification shade, incoming call
+     * sheet) and must not be treated as backgrounded for checkpoint purposes.
+     */
+    'lifecycle/phase-changed'(phase: LifecyclePhase, previous: LifecyclePhase): void
+    'car-mode/changed'(active: boolean, trigger: CarModeTrigger | undefined): void
   }
 }
 ```
@@ -168,6 +179,7 @@ declare module 'cordis' {
 | `source/imported`, `source/changed`, `source/removed` | **emit** | Notification. The runtime rebuilds the affected fibers; views re-render |
 | `source/rule-failed` | **emit**, coalesced per source | One rotted source can fail a rule per track in a queue; the badge needs the fact, not the volume |
 | `player/position` | **emit**, throttled to 1 Hz | At 60 Hz it would dominate the event bus for no benefit; the UI interpolates between ticks |
+| `quick-actions/action`, `lifecycle/phase-changed`, `car-mode/changed` | **emit** | Mobile system-integration notifications — home-screen shortcuts, AppState boundaries, car-mode transitions ([contracts.md §28](../services/contracts.md#28-system-integration-services-mobile)) |
 
 ---
 

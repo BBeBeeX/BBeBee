@@ -10,6 +10,7 @@
     "audioConverter",
     "background",
     "cache",
+    "carMode",
     "codec",
     "contentRegistry",
     "db",
@@ -18,11 +19,14 @@
     "downloads",
     "dsp",
     "fs",
+    "haptics",
     "http",
     "i18n",
     "inspector",
     "js",
     "library",
+    "lifecycle",
+    "liveActivity",
     "logBuffer",
     "lyricSources",
     "lyrics",
@@ -32,6 +36,7 @@
     "paths",
     "player",
     "plugin-manager",
+    "quickActions",
     "registryMetadata",
     "scanner",
     "secrets",
@@ -79,6 +84,9 @@
     "cache": [
       "@bbebee/plugin-cache"
     ],
+    "carMode": [
+      "@bbebee/plugin-car-mode"
+    ],
     "codec": [
       "@bbebee/core-codec-desktop",
       "@bbebee/core-codec-mobile"
@@ -107,6 +115,9 @@
       "@bbebee/core-desktop-bridge",
       "@bbebee/core-fs-mobile"
     ],
+    "haptics": [
+      "@bbebee/core-haptics-mobile"
+    ],
     "http": [
       "@bbebee/core-http-desktop",
       "@bbebee/core-http-mobile"
@@ -123,6 +134,12 @@
     ],
     "library": [
       "@bbebee/plugin-library"
+    ],
+    "lifecycle": [
+      "@bbebee/core-lifecycle-mobile"
+    ],
+    "liveActivity": [
+      "@bbebee/core-live-activity-mobile"
     ],
     "logBuffer": [
       "@bbebee/plugin-log-buffer"
@@ -152,6 +169,9 @@
     ],
     "plugin-manager": [
       "@bbebee/plugin-manager"
+    ],
+    "quickActions": [
+      "@bbebee/core-quick-actions-mobile"
     ],
     "registryMetadata": [
       "@bbebee/plugin-registry-metadata"

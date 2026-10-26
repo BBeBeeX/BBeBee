@@ -24,7 +24,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { I18nService, LibraryService, NowPlayingStyleId, SourcesService, UiService } from '@BBeBee/protocol'
+import type { HapticsService, I18nService, LibraryService, NowPlayingStyleId, SourcesService, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
@@ -636,6 +636,12 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
   const toggleSaved = () => {
     const urn = state.trackUrn
     if (!urn) return
+    // The one-tap confirmation fires here, on the press itself — never off
+    // `library/changed`, which cannot tell a favorite tap from a scanner's
+    // bulk batch (the haptics service's no-favorite-trigger rule). Read the
+    // same optional way as the stores below: desktop registers no haptics
+    // service, and the absent case is a silent no-op.
+    serviceOf<HapticsService>(ctx, 'haptics')?.tap()
     const sources = serviceOf<SourcesService>(ctx, 'sources')
     const library = serviceOf<LibraryService>(ctx, 'library')
     // Dual-write invariant (rules/ui.md §7): the catalogue's loved flag

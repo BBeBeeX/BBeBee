@@ -37,6 +37,7 @@
     "plugins": [
       "expo-dev-client",
       "expo-background-task",
+      "expo-quick-actions",
       [
         "react-native-audio-api",
         {

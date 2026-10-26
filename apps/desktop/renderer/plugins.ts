@@ -122,6 +122,10 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-source-runtime': {},
   // Covers and remote streams are served from disk, fetched only on a miss.
   '@bbebee/plugin-cache': {},
+  // Car mode, headless on desktop: the state machine runs (trigger matching,
+  // the settings seam), nothing auto-activates it here — no charging, no
+  // docking. Both shells run the feature itself (shells.test.ts parity).
+  '@bbebee/plugin-car-mode': {},
   // Hooks `player/before-resolve`: a file the user downloads is kept under
   // `ctx.paths.downloads`, and every later play opens it. Disabling it leaves
   // playback streaming, with no branch in the player either way.

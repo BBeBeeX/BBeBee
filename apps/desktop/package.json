@@ -35,6 +35,7 @@
     "@bbebee/plugin-audio-converter": "workspace:*",
     "@bbebee/plugin-audio-converter-ui-desktop": "workspace:*",
     "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-car-mode": "workspace:*",
     "@bbebee/plugin-desktop-lyrics": "workspace:*",
     "@bbebee/plugin-desktop-lyrics-ui-desktop": "workspace:*",
     "@bbebee/plugin-desktop-taskbar": "workspace:*",

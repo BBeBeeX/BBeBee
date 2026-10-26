@@ -34,6 +34,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-fs-mobile","name":"@bbebee/core-fs-mobile","displayName":"FS (Expo)","description":"ctx.fs — filesystem implementation for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["fs:read:all","fs:write:all"],"contributes":{"services":["fs"]},"effect":"fs"},
     builtin: true,
   },
+  "@bbebee/core-haptics-mobile": {
+    load: () => import('@bbebee/core-haptics-mobile'),
+    manifest: {"id":"@bbebee/core-haptics-mobile","name":"@bbebee/core-haptics-mobile","displayName":"Haptics","description":"ctx.haptics for iOS and Android, over expo-haptics.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["haptics"]},"effect":"haptics"},
+    builtin: true,
+  },
   "@bbebee/core-http-mobile": {
     load: () => import('@bbebee/core-http-mobile'),
     manifest: {"id":"@bbebee/core-http-mobile","name":"@bbebee/core-http-mobile","displayName":"HTTP","description":"ctx.http for iOS and Android — the M1 slice over expo/fetch.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["net:host/*"],"contributes":{"services":["http"]},"effect":"http"},
@@ -44,6 +49,16 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-js-mobile","name":"@bbebee/core-js-mobile","displayName":"Script sandbox","description":"ctx.js — a sandboxed pure-JS interpreter realm per source, for iOS and Android.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["js"]},"effect":"js"},
     builtin: true,
   },
+  "@bbebee/core-lifecycle-mobile": {
+    load: () => import('@bbebee/core-lifecycle-mobile'),
+    manifest: {"id":"@bbebee/core-lifecycle-mobile","name":"@bbebee/core-lifecycle-mobile","displayName":"Lifecycle","description":"ctx.lifecycle for iOS and Android — AppState phases and the splash screen.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["lifecycle"]},"effect":"lifecycle"},
+    builtin: true,
+  },
+  "@bbebee/core-live-activity-mobile": {
+    load: () => import('@bbebee/core-live-activity-mobile'),
+    manifest: {"id":"@bbebee/core-live-activity-mobile","name":"@bbebee/core-live-activity-mobile","displayName":"Live Activity","description":"ctx.liveActivity for iOS — the Dynamic Island / lock-screen Live Activity surface.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["liveActivity"]},"effect":"liveActivity"},
+    builtin: true,
+  },
   "@bbebee/core-media-session-mobile": {
     load: () => import('@bbebee/core-media-session-mobile'),
     manifest: {"id":"@bbebee/core-media-session-mobile","name":"@bbebee/core-media-session-mobile","displayName":"Media Session","description":"ctx.mediaSession for iOS and Android — lock screen and media notification.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["mediaSession"],"contributes":{"services":["mediaSession"]},"effect":"mediaSession"},
@@ -52,6 +67,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/core-paths-mobile": {
     load: () => import('@bbebee/core-paths-mobile'),
     manifest: {"id":"@bbebee/core-paths-mobile","name":"@bbebee/core-paths-mobile","displayName":"Paths (Expo)","description":"ctx.paths — well-known paths for Expo / React Native.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["paths"]},"effect":"paths"},
+    builtin: true,
+  },
+  "@bbebee/core-quick-actions-mobile": {
+    load: () => import('@bbebee/core-quick-actions-mobile'),
+    manifest: {"id":"@bbebee/core-quick-actions-mobile","name":"@bbebee/core-quick-actions-mobile","displayName":"Quick Actions","description":"ctx.quickActions for iOS and Android, over expo-quick-actions.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["quickActions"]},"effect":"quickActions"},
     builtin: true,
   },
   "@bbebee/core-secrets-mobile": {
@@ -77,6 +97,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-cache": {
     load: () => import('@bbebee/plugin-cache'),
     manifest: {"id":"@bbebee/plugin-cache","name":"@bbebee/plugin-cache","displayName":"Cache","description":"ctx.cache — covers and remote audio streams are served from disk, and fetched only on a miss.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"storage","entry":{"main":"./dist/index.js"},"capabilities":["net:host/*","fs:read:cache","fs:write:cache","db:read:core","db:write:core"],"contributes":{"services":["cache"]},"effect":"cache"},
+    builtin: true,
+  },
+  "@bbebee/plugin-car-mode": {
+    load: () => import('@bbebee/plugin-car-mode'),
+    manifest: {"id":"@bbebee/plugin-car-mode","name":"@bbebee/plugin-car-mode","displayName":"Car Mode","description":"ctx.carMode — driving-optimized mode state, triggers and auto-detection.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["carMode"]},"effect":"carMode"},
     builtin: true,
   },
   "@bbebee/plugin-desktop-lyrics": {
@@ -242,6 +267,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-audio-converter-ui-mobile": {
     load: () => import('@bbebee/plugin-audio-converter-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-audio-converter-ui-mobile","name":"@bbebee/plugin-audio-converter-ui-mobile","displayName":"Audio Converter UI (Mobile)","description":"Mobile React Native views for @bbebee/plugin-audio-converter (Audio Converter workbench).","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-audio-converter"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-car-mode-ui-mobile": {
+    load: () => import('@bbebee/plugin-car-mode-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-car-mode-ui-mobile","name":"@bbebee/plugin-car-mode-ui-mobile","displayName":"Car Mode UI (Mobile)","description":"React Native views for @bbebee/plugin-car-mode — the driving screen.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-car-mode"],"systemId":"layer-5","moduleId":"playback","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
   "@bbebee/plugin-download-ui-mobile": {

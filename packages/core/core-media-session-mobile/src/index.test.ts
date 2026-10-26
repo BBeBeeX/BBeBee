@@ -112,6 +112,20 @@ describe('what reaches the OS', () => {
     expect(h.fake.state.controls.get('skipForward')).toBe(false)
   })
 
+  it('records a rate command without inventing a heart button for it', async () => {
+    const h = await harness()
+    h.service.update({ title: 'Jóga' })
+    h.service.setSupportedCommands(['play', 'pause', 'rate'])
+    await tick()
+
+    // `react-native-audio-api` (0.13.x) has no like control and no event for
+    // one, so advertising the command must light nothing up — while the
+    // contract still records what the app supports, for the surface that
+    // grows a heart later.
+    expect(h.fake.enabled().sort()).toEqual(['pause', 'play'])
+    expect(h.service.published()?.commands?.slice().sort()).toEqual(['pause', 'play', 'rate'])
+  })
+
   it('leaves no notification behind on clear', async () => {
     const h = await harness()
     h.service.update({ title: 'Jóga' })
@@ -168,6 +182,18 @@ describe('what comes back from the OS', () => {
       { type: 'seek-relative', deltaMs: 15_000 },
       { type: 'seek-relative', deltaMs: -15_000 },
     ])
+  })
+
+  it('maps a dismissed notification to stop', async () => {
+    const h = await harness()
+    const seen: TransportCommand[] = []
+    h.service.onCommand((c) => void seen.push(c))
+
+    h.fake.fire('playbackNotificationDismissed')
+    // Swiping the notification away removes the surface. Playing on into a
+    // notification that no longer exists is the ghost surface arriving from
+    // the one direction nobody looks.
+    expect(seen).toEqual([{ type: 'stop' }])
   })
 
   it('stops delivering to a disposed listener', async () => {

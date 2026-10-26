@@ -9,7 +9,7 @@
  * disabled in settings).
  */
 
-export const SERVICE_KEYS: readonly string[] = ["audio","audioConverter","background","cache","codec","contentRegistry","db","desktopLyrics","device","downloads","dsp","fs","http","i18n","inspector","js","library","logBuffer","lyricSources","lyrics","mediaSession","miniPlayer","nowPlaying","paths","player","plugin-manager","registryMetadata","scanner","secrets","securityAudit","settings","share","sleepTimer","sourceLocal","sources","store","theme","ui","visualizer"]
+export const SERVICE_KEYS: readonly string[] = ["audio","audioConverter","background","cache","carMode","codec","contentRegistry","db","desktopLyrics","device","downloads","dsp","fs","haptics","http","i18n","inspector","js","library","lifecycle","liveActivity","logBuffer","lyricSources","lyrics","mediaSession","miniPlayer","nowPlaying","paths","player","plugin-manager","quickActions","registryMetadata","scanner","secrets","securityAudit","settings","share","sleepTimer","sourceLocal","sources","store","theme","ui","visualizer"]
 
 export const CRITICAL_SERVICE_KEYS: readonly string[] = ["audio","codec","contentRegistry","db","downloads","fs","http","js","library","paths","player","plugin-manager","scanner","secrets","securityAudit","settings","store"]
 
@@ -26,6 +26,9 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "cache": [
     "@bbebee/plugin-cache"
+  ],
+  "carMode": [
+    "@bbebee/plugin-car-mode"
   ],
   "codec": [
     "@bbebee/core-codec-desktop",
@@ -55,6 +58,9 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
     "@bbebee/core-desktop-bridge",
     "@bbebee/core-fs-mobile"
   ],
+  "haptics": [
+    "@bbebee/core-haptics-mobile"
+  ],
   "http": [
     "@bbebee/core-http-desktop",
     "@bbebee/core-http-mobile"
@@ -71,6 +77,12 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "library": [
     "@bbebee/plugin-library"
+  ],
+  "lifecycle": [
+    "@bbebee/core-lifecycle-mobile"
+  ],
+  "liveActivity": [
+    "@bbebee/core-live-activity-mobile"
   ],
   "logBuffer": [
     "@bbebee/plugin-log-buffer"
@@ -100,6 +112,9 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "plugin-manager": [
     "@bbebee/plugin-manager"
+  ],
+  "quickActions": [
+    "@bbebee/core-quick-actions-mobile"
   ],
   "registryMetadata": [
     "@bbebee/plugin-registry-metadata"

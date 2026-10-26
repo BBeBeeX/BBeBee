@@ -38,6 +38,10 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.device` | Network status, battery, media keys, platform info | `core-device-desktop`, `core-device-mobile` |
 | `ctx.mediaSession`| OS lock-screen now playing surface and controls | `core-media-session-desktop`, `core-media-session-mobile` |
 | `ctx.background` | Background audio tasks, wake locks, suspend hooks | `core-background-desktop`, `core-background-mobile` |
+| `ctx.haptics` | Haptic feedback cues (impact / notification / selection / tap) with an enabled toggle | `core-haptics-mobile` (mobile only; no desktop twin) |
+| `ctx.quickActions` | Home-screen quick actions (long-press icon), cold-launch replay included | `core-quick-actions-mobile` (mobile only) |
+| `ctx.lifecycle` | AppState phases (`active`/`inactive`/`background`), cold-vs-resume, splash reveal | `core-lifecycle-mobile` (mobile only) |
+| `ctx.liveActivity` | iOS Live Activity / Dynamic Island surface; `supported: false` until the native module lands | `core-live-activity-mobile` (mobile only) |
 | `ctx.js` | Sandboxed evaluator for untrusted scripts (QuickJS/WASM on desktop; a pure-JS interpreter realm on mobile — Hermes implements neither `WebAssembly` nor `eval`) | `core-js-quickjs-desktop` (desktop), `core-js-mobile` (mobile) |
 | `ctx.shell` | Open external URL, directory pickers | Desktop bridge, mobile intent |
 
@@ -63,6 +67,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.share` | Metadata serialization, image steganography, track/playlist/album/lyrics sharing | `plugin-share` |
 | `ctx['plugin-manager']` | Plugin registry, runtime fiber states, dependency graph, and persistent lifecycle management | `plugin-manager` |
 | `ctx.audioConverter` | Audio format transcoding, audio compression, batch queue concurrency, pre-conversion size estimation, and task management | `plugin-audio-converter` |
+| `ctx.carMode` | Driving-optimized mode state: enable gate, trigger matching (`manual`/`charging`/`bluetooth`/`assistant`), charging auto-detection | `plugin-car-mode` (headless on desktop) |
 
 ---
 

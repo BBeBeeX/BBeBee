@@ -25,6 +25,23 @@ export const Platform = {
   } as Record<string, unknown>,
 }
 
+/**
+ * The native-module registry, as the live-activity probe reads it: absent
+ * unless a test links one in, which is exactly the shape under test — a
+ * package whose native half is not built yet must degrade to `supported:
+ * false`, never to a crash.
+ */
+export const NativeModules: Record<string, unknown> = {}
+
+/** Pose as a build with this native module linked. Test-only. */
+export function __linkNativeModule(name: string, module: unknown): void {
+  NativeModules[name] = module
+}
+
+export function __resetNativeModulesForTests(): void {
+  for (const key of Object.keys(NativeModules)) delete NativeModules[key]
+}
+
 /** The statuses the real `AppState` reports; `unknown` is never emitted here. */
 export type AppStateStatus = 'active' | 'inactive' | 'background'
 
@@ -68,4 +85,5 @@ export function __resetForTests(): void {
   Platform.OS = 'android'
   Platform.constants['Model'] = 'Pixel 8'
   __resetAppStateForTests()
+  __resetNativeModulesForTests()
 }

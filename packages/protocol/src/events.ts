@@ -52,6 +52,7 @@ import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
 import type { RegistryTask, RegistryUpdate } from './services/registry.js'
 import type { ConvertTask } from './services/audio-converter.js'
+import type { CarModeTrigger, LifecyclePhase, QuickActionItem } from './services/integration.js'
 import type { UrnKind } from './urn.js'
 
 declare module 'cordis' {
@@ -255,6 +256,17 @@ declare module 'cordis' {
     'audio-converter/task-completed'(task: ConvertTask): void
     'audio-converter/task-failed'(taskId: string, error: string): void
     'audio-converter/task-cancelled'(taskId: string): void
+
+    /* ── system integration ─────────────────────────── emit ── */
+    /** A home-screen quick action was picked, cold or warm. */
+    'quick-actions/action'(item: QuickActionItem): void
+    /**
+     * The app crossed a foreground/background boundary. `inactive` is the
+     * transient iOS state (control center, notification shade, incoming call
+     * sheet) and must not be treated as backgrounded for checkpoint purposes.
+     */
+    'lifecycle/phase-changed'(phase: LifecyclePhase, previous: LifecyclePhase): void
+    'car-mode/changed'(active: boolean, trigger: CarModeTrigger | undefined): void
   }
 }
 
@@ -328,6 +340,9 @@ export const DISPATCH_MODES = {
   'audio-converter/task-completed': 'emit',
   'audio-converter/task-failed': 'emit',
   'audio-converter/task-cancelled': 'emit',
+  'quick-actions/action': 'emit',
+  'lifecycle/phase-changed': 'emit',
+  'car-mode/changed': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

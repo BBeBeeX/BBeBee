@@ -29,6 +29,7 @@
 - [25. `ctx.contentRegistry` — third-party content registry](#25-ctxcontentregistry--third-party-content-registry)
 - [26. `ctx.audioConverter` — audio format conversion & compression service](#26-ctxaudioconverter--audio-format-conversion--compression-service)
 - [27. Where to go next](#27-where-to-go-next)
+- [28. System-integration services (mobile)](#28-system-integration-services-mobile)
 
 > **Scope boundary.** The normative registry of service keys — which keys exist and which package implements each on which platform — lives in [rules/services.md §2](../../rules/services.md#2-standard-service-keys) (L2). This catalog holds the full contracts, platform behavior and rationale.
 
@@ -474,6 +475,18 @@ The service also **republishes metadata only when it changed**: `plugin-player` 
 `update()` on the position tick, and rebuilding `MediaMetadata` per second is a lock-screen
 re-render plus an artwork retry. Position moves through `setPositionState`, which is separate in
 the browser API for exactly this reason.
+
+**Commands.** `plugin-player` advertises `play`, `pause`, `next`, `previous`, `seek`,
+`seek-relative` and `rate`. The `rate` command is the notification-bar favourite: the player
+answers it by toggling the current track's saved state through `ctx.library.setSaved`
+(`loved: true` favourites, `false` removes). ⚠️ `react-native-audio-api` 0.13.3 exposes no
+like/heart control, so on mobile today `rate` is honoured at the protocol and player level but
+no button is rendered for it — the command lights up on any surface that grows one, and
+`core-media-session-mobile`'s `rate: []` mapping is deliberately inert for the same reason
+(desktop's MPRIS/SMTC twin maps it identically). Android's swipe-away
+(`playbackNotificationDismissed` — an Android-only event upstream) maps to `{ type: 'stop' }`:
+the user removed the surface, so the transport clears to idle rather than playing into a
+notification that no longer exists.
 
 ---
 
@@ -1675,5 +1688,31 @@ export interface AudioConverterService {
 
 [05 — Audio & Playback](../audio/playback.md) builds the playback engine and DSP chain on top of
 these services.
+
+---
+
+## 28. System-integration services (mobile)
+
+> **Scope boundary.** `ctx.haptics`, `ctx.quickActions`, `ctx.lifecycle`, `ctx.liveActivity` and `ctx.carMode` are the surfaces where the player meets the OS outside its own windows. All five contracts live in `packages/protocol/src/services/integration.ts`; the mobile implementations are Layer 2 packages under `packages/core/*-mobile` (except `ctx.carMode`, a Layer 4 feature). None has a desktop twin — desktop simply boots without them, and every consumer treats the service as optional (`ctx.inject([...], …)` / `serviceOf(ctx, key)`).
+
+### `ctx.haptics` — `core-haptics-mobile`
+
+Expo Haptics behind an enabled toggle: `impact(style?)`, `notification(type?)`, `selection()`, `tap()`. Every method is a no-op when disabled or once the native layer has proven unavailable (one warn, then silence — a buzz must never crash a tap). Default event triggers live in the service: `player/track-changed` → `selection()`, a repeat/shuffle/play-mode diff on `player/state-changed` → `tap()`. Favorites deliberately have **no** event trigger — `library/changed` cannot distinguish a heart-tap from a 400-file scan batch — so the cue is the press handler's job: the mini-player bar's heart calls `ctx.haptics.tap()` in its own handler (`plugin-now-playing-ui-mobile`, guarded `serviceOf` so a haptics-less build is unchanged).
+
+### `ctx.quickActions` — `core-quick-actions-mobile`
+
+Home-screen quick actions (`expo-quick-actions`), the long-press-on-icon menu: `set(items)` (capped at the OS `maxCount`), `clear()`, `consumeInitial()` for the action that cold-launched the app (exactly-once), `onAction(cb)`. Known action ids emit both `quick-actions/action` and `ui/navigate` (`history.view`, `sources.search`); the shell replays the initial action after its navigation listener is attached (`apps/mobile/src/App.tsx`).
+
+### `ctx.lifecycle` — `core-lifecycle-mobile`
+
+AppState phases as a first-class service: `phase` (`active`/`inactive`/`background` — `inactive` is iOS's transient sheet state and must not be checkpointed as backgrounded), `launchKind` (`cold` until the first return from background, `resume` after), `hideSplash()` (idempotent; awaits the init-time `preventAutoHideAsync` so hide can never overtake prevent), and the `lifecycle/phase-changed` event. `core-background-mobile`'s `onWillSuspend` remains the checkpoint hook; this service is the broadcast surface.
+
+### `ctx.liveActivity` — `core-live-activity-mobile`
+
+The Dynamic Island / lock-screen Live Activity. `supported` is true only on iOS with the native module linked; until then every method is a resolved no-op. **Native contract:** a Swift object `NativeModules.BBeBeeLiveActivity` exposing `start(state)`/`update(state)`/`end()`; state is plain JSON (`LiveActivityState`); the native side owns the running clock and the stale-date — JS pushes discrete state changes only, and a 1 Hz position stream is a contract violation. `plugin-player` pushes on track/state changes through an optional inject; `artworkUri` must be a local Uri (same policy as `NowPlaying`).
+
+### `ctx.carMode` — `plugin-car-mode` (Layer 4)
+
+Driving-optimized mode as a small state machine: an `enabled` gate, `activate(trigger)` / `deactivate(trigger)` with trigger matching (charging ending must not kill a manual session), and `autoOnCharging` — charging state is polled via `ctx.device.battery()` on each return to the foreground, the proxy RN has for "docked in the car". Transitions emit `car-mode/changed(active, trigger)`, persist `{enabled, autoOnCharging}` through `ctx.store`, and fire a haptic via the optional `haptics` inject. The mobile UI twin (`plugin-car-mode-ui-mobile`) owns the ≥64dp driving screen and the settings entry; CarPlay/Android Auto proper need native media-browser/CarScene delegates — this service is the seam they plug into.
 
 

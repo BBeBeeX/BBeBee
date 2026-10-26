@@ -13,7 +13,9 @@ built-in runtime and sandboxed in its own JS realm. Adding a backend is a paste,
 ([ADR-5](./architecture/overview.md#adr-5--music-sources-are-imported-strings-interpreted-by-one-runtime),
 [sources/spec.md](./sources/spec.md)).
 
-> **Status.** M0 – M4 are built — M3 (offline downloads) and M4 (the DSP chain) shipped; see each
+> **Status.** M0 – M4 are built — M3 (offline downloads) and M4 (the DSP chain) shipped — and
+> M5.1 (mobile system integration: haptics, quick actions, lifecycle/splash, Live Activity,
+> car mode) is in; see each
 > milestone's "Where it stands" / "Shipped" notes in [Roadmap & Risks](./roadmap/roadmap.md) for
 > open items — the `@css:`/`@xpath:` rule engines remain stubbed (mobile's script sandbox,
 > `core-js-mobile`, is a pure-JS interpreter since Hermes has no WebAssembly for QuickJS). See the roadmap's
@@ -78,7 +80,7 @@ The architecture documentation is organized into 9 topic directories:
 | **Workflow** | [workflow/structure.md](./workflow/structure.md) | Monorepo layout, layer boundaries, dependency rules, and ESLint architecture guards |
 | | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | Build pipelines (`tsc`, `vite`, `tauri`, `expo`) and version matrix |
 | | [workflow/testing.md](./workflow/testing.md) | Testing strategy (unit, conformance, fiber leak tests) and developer commands |
-| **Roadmap** | [roadmap/roadmap.md](./roadmap/roadmap.md) | Milestones (M0 – M5) with exit criteria, risk register, and architectural validity |
+| **Roadmap** | [roadmap/roadmap.md](./roadmap/roadmap.md) | Milestones (M0 – M5, plus the M5.1 mobile system-integration slice) with exit criteria, risk register, and architectural validity |
 | | [roadmap/archive-m1.md](./roadmap/archive-m1.md) | Historical M1 execution plan and completion verification records |
 
 ---

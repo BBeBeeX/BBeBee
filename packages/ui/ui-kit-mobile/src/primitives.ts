@@ -26,6 +26,20 @@ export interface NativePrimitives {
   ActivityIndicator: unknown
   TextInput: unknown
   /**
+   * React Native's `ScrollView`, for the screens whose content is contributed
+   * rather than fixed — the settings screen grows a row per plugin, so it
+   * outgrew the fold the moment contributions could arrive from anywhere.
+   *
+   * Not `FlashList`: this is unbounded *form* content, not a homogeneous
+   * recycle-friendly list, and mounting it once is the cheap option.
+   *
+   * Optional for the same reason `Appearance` is: added after the kit already
+   * had consumers, so the shells and tests that never render a scrolling
+   * screen typecheck unchanged. The one screen that reads it (the mobile
+   * settings view) runs only under `apps/mobile`, which wires it.
+   */
+  ScrollView?: unknown
+  /**
    * React Native's `Appearance` module, injected like everything else native.
    *
    * Optional — and the only optional member: a shell that does not wire it
@@ -53,6 +67,7 @@ const PLACEHOLDER: NativePrimitives = {
   FlashList: 'FlashList',
   ActivityIndicator: 'ActivityIndicator',
   TextInput: 'TextInput',
+  ScrollView: 'ScrollView',
 }
 
 /**

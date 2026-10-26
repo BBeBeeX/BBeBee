@@ -36,6 +36,15 @@ export const BOOTSTRAP_SERVICES = [
   'device',
   'background',
   'mediaSession',
+  // The system-integration services, in bootstrap-array order: haptics,
+  // quick actions, the AppState/splash lifecycle, and the iOS Live Activity.
+  // Mobile-only — desktop has no twin for these, so they have no "same
+  // position as desktop" note; they sit with the device services they
+  // belong to.
+  'haptics',
+  'quickActions',
+  'lifecycle',
+  'liveActivity',
   // Same position as desktop: the script sandbox sits with the other core
   // services, ahead of the codec/http/audio features that can depend on it
   // (plugin-source-runtime's optional `js` resolves through the registry,
@@ -95,6 +104,12 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
       artworkBatchChunkSize: 32,
     },
   },
+  // Car mode: driving-optimized state (charging auto-detection, trigger
+  // matching) plus the mobile driving screen. Headless on desktop, like
+  // plugin-desktop-lyrics is headless here — the feature-parity gate
+  // (shells.test.ts) counts the feature on both shells.
+  '@bbebee/plugin-car-mode': {},
+  '@bbebee/plugin-car-mode-ui-mobile': {},
   // Hooks `player/before-resolve`: a file the user downloads is kept under
   // `ctx.paths.downloads`, and every later play opens it. Disabling it leaves
   // playback streaming, with no branch in the player either way.
@@ -175,6 +190,10 @@ export const DEFERRED_PLUGIN_IDS = [
   '@bbebee/plugin-visualizer',
   '@bbebee/plugin-visualizer-ui-mobile',
   '@bbebee/plugin-sleep-timer',
+  // Nothing on the first screen needs car mode; the settings row and the
+  // charging auto-detection both arrive post-first-frame.
+  '@bbebee/plugin-car-mode',
+  '@bbebee/plugin-car-mode-ui-mobile',
   '@bbebee/plugin-history',
   '@bbebee/plugin-history-ui-mobile',
   // A network-touching service nothing on the first screen reads — its

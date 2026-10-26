@@ -602,6 +602,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "fs"
   },
+  "@bbebee/core-haptics-mobile": {
+    "id": "@bbebee/core-haptics-mobile",
+    "name": "@bbebee/core-haptics-mobile",
+    "displayName": "Haptics",
+    "description": "ctx.haptics for iOS and Android, over expo-haptics.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "haptics"
+      ]
+    },
+    "effect": "haptics"
+  },
+  "core-haptics-mobile": {
+    "id": "@bbebee/core-haptics-mobile",
+    "name": "@bbebee/core-haptics-mobile",
+    "displayName": "Haptics",
+    "description": "ctx.haptics for iOS and Android, over expo-haptics.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "haptics"
+      ]
+    },
+    "effect": "haptics"
+  },
   "@bbebee/core-http-desktop": {
     "id": "@bbebee/core-http-desktop",
     "name": "@bbebee/core-http-desktop",
@@ -836,6 +892,118 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
+  "@bbebee/core-lifecycle-mobile": {
+    "id": "@bbebee/core-lifecycle-mobile",
+    "name": "@bbebee/core-lifecycle-mobile",
+    "displayName": "Lifecycle",
+    "description": "ctx.lifecycle for iOS and Android — AppState phases and the splash screen.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "lifecycle"
+      ]
+    },
+    "effect": "lifecycle"
+  },
+  "core-lifecycle-mobile": {
+    "id": "@bbebee/core-lifecycle-mobile",
+    "name": "@bbebee/core-lifecycle-mobile",
+    "displayName": "Lifecycle",
+    "description": "ctx.lifecycle for iOS and Android — AppState phases and the splash screen.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "lifecycle"
+      ]
+    },
+    "effect": "lifecycle"
+  },
+  "@bbebee/core-live-activity-mobile": {
+    "id": "@bbebee/core-live-activity-mobile",
+    "name": "@bbebee/core-live-activity-mobile",
+    "displayName": "Live Activity",
+    "description": "ctx.liveActivity for iOS — the Dynamic Island / lock-screen Live Activity surface.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "liveActivity"
+      ]
+    },
+    "effect": "liveActivity"
+  },
+  "core-live-activity-mobile": {
+    "id": "@bbebee/core-live-activity-mobile",
+    "name": "@bbebee/core-live-activity-mobile",
+    "displayName": "Live Activity",
+    "description": "ctx.liveActivity for iOS — the Dynamic Island / lock-screen Live Activity surface.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "liveActivity"
+      ]
+    },
+    "effect": "liveActivity"
+  },
   "@bbebee/core-media-session-desktop": {
     "id": "@bbebee/core-media-session-desktop",
     "name": "@bbebee/core-media-session-desktop",
@@ -1011,6 +1179,62 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "paths"
+  },
+  "@bbebee/core-quick-actions-mobile": {
+    "id": "@bbebee/core-quick-actions-mobile",
+    "name": "@bbebee/core-quick-actions-mobile",
+    "displayName": "Quick Actions",
+    "description": "ctx.quickActions for iOS and Android, over expo-quick-actions.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "quickActions"
+      ]
+    },
+    "effect": "quickActions"
+  },
+  "core-quick-actions-mobile": {
+    "id": "@bbebee/core-quick-actions-mobile",
+    "name": "@bbebee/core-quick-actions-mobile",
+    "displayName": "Quick Actions",
+    "description": "ctx.quickActions for iOS and Android, over expo-quick-actions.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "quickActions"
+      ]
+    },
+    "effect": "quickActions"
   },
   "@bbebee/core-secrets-desktop": {
     "id": "@bbebee/core-secrets-desktop",
@@ -1371,6 +1595,56 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "cache"
+  },
+  "@bbebee/plugin-car-mode": {
+    "id": "@bbebee/plugin-car-mode",
+    "name": "@bbebee/plugin-car-mode",
+    "displayName": "Car Mode",
+    "description": "ctx.carMode — driving-optimized mode state, triggers and auto-detection.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "playback",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "carMode"
+      ]
+    },
+    "effect": "carMode"
+  },
+  "plugin-car-mode": {
+    "id": "@bbebee/plugin-car-mode",
+    "name": "@bbebee/plugin-car-mode",
+    "displayName": "Car Mode",
+    "description": "ctx.carMode — driving-optimized mode state, triggers and auto-detection.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "playback",
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {
+      "services": [
+        "carMode"
+      ]
+    },
+    "effect": "carMode"
   },
   "@bbebee/plugin-desktop-lyrics": {
     "id": "@bbebee/plugin-desktop-lyrics",
@@ -3404,6 +3678,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     ],
     "systemId": "layer-5",
     "moduleId": "storage",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@bbebee/plugin-car-mode-ui-mobile": {
+    "id": "@bbebee/plugin-car-mode-ui-mobile",
+    "name": "@bbebee/plugin-car-mode-ui-mobile",
+    "displayName": "Car Mode UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-car-mode — the driving screen.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-car-mode"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "playback",
+    "platforms": [
+      "mobile"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-car-mode-ui-mobile": {
+    "id": "@bbebee/plugin-car-mode-ui-mobile",
+    "name": "@bbebee/plugin-car-mode-ui-mobile",
+    "displayName": "Car Mode UI (Mobile)",
+    "description": "React Native views for @bbebee/plugin-car-mode — the driving screen.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-car-mode"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "playback",
     "platforms": [
       "mobile"
     ],

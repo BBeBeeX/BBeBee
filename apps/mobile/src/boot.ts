@@ -22,6 +22,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -45,6 +46,10 @@ import { SecretsExpo } from '@bbebee/core-secrets-mobile'
 import { DeviceExpo } from '@bbebee/core-device-mobile'
 import { BackgroundExpo } from '@bbebee/core-background-mobile'
 import { MediaSessionRn } from '@bbebee/core-media-session-mobile'
+import { HapticsExpo } from '@bbebee/core-haptics-mobile'
+import { QuickActionsExpo } from '@bbebee/core-quick-actions-mobile'
+import { LifecycleExpo } from '@bbebee/core-lifecycle-mobile'
+import { LiveActivityIos } from '@bbebee/core-live-activity-mobile'
 import { JsSandboxMobile } from '@bbebee/core-js-mobile'
 import { CodecRn } from '@bbebee/core-codec-mobile'
 import { HttpRn } from '@bbebee/core-http-mobile'
@@ -167,6 +172,7 @@ configureNative({
   FlashList,
   ActivityIndicator,
   TextInput,
+  ScrollView,
   /*
    * The OS light/dark answer, for the theme layer: without it, appearance
    * mode 'system' degrades to dark even when the phone is set to light.
@@ -198,7 +204,8 @@ configureNative({
  * process scheduled for `UIBackgroundModes: audio`, and Android's media
  * notification holds a foreground service. `ctx.background` reports
  * `canRunInBackground()` from this rather than hardcoding it, so the two
- * cannot disagree (docs/11 §4.3).
+ * cannot disagree (docs/11 §4.3). Its counterpart — deactivation on
+ * teardown — is the disposer in the `inject(['audio'])` wiring below.
  */
 async function startAudioSession(background: BackgroundExpo): Promise<void> {
   try {
@@ -403,6 +410,20 @@ export async function boot(): Promise<App> {
       DeviceExpo,
       BackgroundExpo,
       MediaSessionRn,
+
+      /*
+       * The system-integration services: haptic feedback, the home-screen
+       * quick actions (long-press icon), the AppState/splash lifecycle, and
+       * the iOS Live Activity / Dynamic Island surface. Bootstrap entries
+       * rather than registry ones for the same reason as the services above
+       * them: `plugin-player`'s optional `liveActivity` inject and the
+       * quick-action → navigation wiring sit on these keys, and a fiber
+       * PENDING behind a disabled provider is invisible from the UI.
+       */
+      HapticsExpo,
+      QuickActionsExpo,
+      LifecycleExpo,
+      LiveActivityIos,
 
       /*
        * The M1 platform floor.
@@ -630,6 +651,34 @@ export async function boot(): Promise<App> {
     return () => {
       offInterruption?.remove()
       offRouteChange?.remove()
+      /*
+       * And the session's other half, on the way out: deactivate what
+       * `startAudioSession` claimed — release the OS audio session, and stop
+       * letting `canRunInBackground()` speak for a background budget nothing
+       * will spend anymore (docs/11 §4.3). This scope ends when the `audio`
+       * service is disposed, and only `app.stop()`'s bootstrap unwind ever
+       * disposes a bootstrap service, so here "the service died" *is* "the
+       * app is tearing down" — this disposer is the composition root's
+       * teardown hook. (Cordis 4 has no root 'dispose' event, and `stop()`
+       * never disposes the root context, so there is nothing else to hook.)
+       * Both calls guarded: a build without the native module must not throw
+       * during shutdown, and the background service may already be unwound by
+       * the time this runs — degrading silently is the correct failure. The
+       * honest caveat: the OS usually kills a mobile process before any of
+       * this executes. The clean shutdown is for tests, embedded hosts and a
+       * graceful stop — not the common exit.
+       */
+      try {
+        void AudioManager.setAudioSessionActivity(false).catch(() => undefined)
+      } catch {
+        /* not linked in this build */
+      }
+      try {
+        const background = app.ctx.background as BackgroundExpo | undefined
+        background?.setSessionActive(false)
+      } catch {
+        /* already gone */
+      }
     }
   })
 

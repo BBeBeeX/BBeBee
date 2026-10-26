@@ -142,6 +142,11 @@ B_Be_Bee/
 │   │   ├── core-js-quickjs-desktop/   ✅        ctx.js — source sandbox ([services/contracts.md §19](../services/contracts.md#19-ctxjs--the-sandboxed-evaluator))
 │   │   ├── core-js-mobile/            ✅        ctx.js on mobile — pure-JS interpreter realm
 │   │   │                                       (Hermes has no WASM for QuickJS; see README)
+│   │   ├── core-haptics-mobile/       ✅        ctx.haptics / ctx.quickActions / ctx.lifecycle /
+│   │   ├── core-quick-actions-mobile/ ✅        ctx.liveActivity — the mobile system-integration
+│   │   ├── core-lifecycle-mobile/     ✅        quartet, mobile-only (no desktop twin):
+│   │   ├── core-live-activity-mobile/ ✅        haptic cues, home-screen shortcuts, AppState +
+│   │   │                                       splash, iOS Live Activity ([services/contracts.md §28](../services/contracts.md#28-system-integration-services-mobile))
 │   │   ├── core-desktop-bridge/    ✅        renderer↔sidecar JSON-RPC IPC clients + sidecar host.
 │   │   │                                       Layer 2 on both sides of the process boundary
 │   │   └── core-…                            ctx.ws · ctx.notify · ctx.crypto · ctx.shell
@@ -206,6 +211,9 @@ B_Be_Bee/
 │   │   ├── plugin-settings/        ✅        ctx.settings — user preferences and dynamic contribution registry
 │   │   ├── plugin-share/           ✅        ctx.share — metadata serialization, steganography, track sharing
 │   │   ├── plugin-sleep-timer/     ✅        ctx.sleepTimer — countdown sleep timer service
+│   │   ├── plugin-car-mode/        ✅        ctx.carMode — driving-optimized mode state (trigger
+│   │   │                                       matching, charging auto-detection); headless on
+│   │   │                                       desktop, like plugin-desktop-lyrics is here on mobile
 │   │   ├── plugin-theme/           ✅        ctx.theme — theme registry and token DOM/store synchronization
 │   │   ├── plugin-manager/         ✅        ctx['plugin-manager'] — plugin registry and runtime lifecycle
 │   │   ├── plugin-cache/           ✅        ctx.cache — covers and remote streams served from
@@ -275,7 +283,10 @@ B_Be_Bee/
 │   │   │                                       VBR/volumeGain/fades) + a settings link-row entrance
 │   │   ├── plugin-registry-ui-desktop/ ✅    ┐ the Discover screen (`registry.screen`) and settings card:
 │   │   ├── plugin-registry-ui-mobile/  ✅    ┘ browse and install sources, lyric sources and themes
-│   │   └── plugin-manager-ui-mobile/  ✅     the plugin list with enable/disable toggles — persisted changes apply
+│   │   ├── plugin-manager-ui-mobile/  ✅     the plugin list with enable/disable toggles — persisted changes apply
+│   │   └── plugin-car-mode-ui-mobile/  ✅    the driving screen (car-mode.view): ≥64dp transport
+│   │   │                                       controls, settings link-row entrance, auto-opens on
+│   │   │   car-mode activation
 │   │                                           at next launch (no mobile lifecycle bridge); desktop keeps
 │   │                                           management in the settings screen's own plugins section
 │   │
