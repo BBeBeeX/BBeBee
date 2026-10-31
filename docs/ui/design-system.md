@@ -433,14 +433,18 @@ The scale relies on **"weight follows size"**:
     bottom tab bar with exactly four tabs in this order — Home (Recommend), Library (labelled
     音乐库), Settings, Search. The bar is always present: idle shows a “暂无播放” placeholder
     with play/favorite disabled and the queue button still working. A phone in landscape
-    keeps the bottom-tab layout (tablet needs height ≥ 600 dp too).
+    keeps the bottom-tab layout (tablet needs height ≥ 600 dp too). The main header title's
+    left side carries a hamburger icon opening a left navigation drawer: logo + display-mode
+    button (dark / light / auto) on top, the stats page's daily play-count heatmap for the
+    most recent three months below it, then the same four tabs stacked vertically.
   - **Tablet (landscape, height ≥ 600 dp)**: a 240 dp left rail — brand text `B Be Bee` plus
-    the app icon on top, the same four tabs stacked,
-    a now-playing card at the bottom with a queue button opening a right-side drawer — beside
+    the app icon on top, the same four tabs stacked vertically,
+    a spacer, a now-playing card at the bottom with a queue button opening a right-side drawer — beside
     the page content. Portrait tablets fall back to the phone layout.
   - **Foldable**: a 50 / 50 dual pane — the library permanently on the left, the complete phone
     layout on the right — entered by an explicit, persisted user choice, never inferred from
-    width alone.
+    width alone. The right pane's hamburger drawer is rendered in the left pane, not over the
+    right pane.
   - Persistent mini-player showing cover thumbnail, marquee title, artist name, play/pause
     toggle, and a hairline playback progress bar.
   - Full-screen now-playing sheet: Expanding the mini-player slides up an immersive player featuring

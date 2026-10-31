@@ -553,7 +553,7 @@ The shells are thin. Everything below is genuinely platform-specific and belongs
 | | `apps/mobile` | `apps/desktop/renderer` |
 |---|---|---|
 | Boot | Create context, register the mobile `core-*-mobile` implementations, mount inside `ctx.inject(['ui'], …)` | Same with the desktop `core-*-desktop` / `core-desktop-bridge` set |
-| Chrome | Phone: bottom tab bar. Tablet (landscape): left rail. Foldable: dual pane (§7.4). Stack headers, safe-area insets in all three | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
+| Chrome | Phone: bottom tab bar + hamburger-triggered left navigation drawer. Tablet (landscape): left rail. Foldable: dual pane (§7.4), drawer rendered in the left pane. Stack headers, safe-area insets in all three | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
 | Player surface | Phone: mini player above the tab bar. Tablet: mini player at the rail bottom. Foldable: the right pane's mini player. All expand to full screen | Persistent bottom bar; optional detached mini-player window |
 | Platform-only | Gestures, haptics, pull-to-refresh | Right-click menus, drag-and-drop, keyboard shortcuts, tray, command palette |
 | Absent | No keyboard shortcuts, no tray | No gestures, no haptics |
@@ -778,6 +778,30 @@ alphabetical and not placement order.
   (§7.4 foldable below is the one exception: two panes, two stacks). Per-tab
   stacks are explicitly out of scope for the first implementation.
 
+**Left navigation drawer (phone trigger; tablet and foldable host it differently).**
+
+The drawer is shell chrome, not a tab and not a page. It is opened from the
+main interface: the header title's left side carries a three-line
+(hamburger) icon, and tapping it opens the drawer. The drawer open state
+belongs to the shell, like the queue drawer state below.
+
+Drawer content, top to bottom:
+
+1. A header row: the logo on the left, and on its right a display-mode
+   button that switches the display mode among dark / light / auto (auto
+   follows the system scheme). The button shows the current mode.
+2. The play-count heatmap from the stats page: daily play counts rendered
+   by colour depth, for the most recent three months only. This is the
+   stats page's chart and data reused, not a second stats implementation
+   or a second colour scale.
+3. The tab list, stacked vertically, in the same fixed order as the four
+   tabs above. Tapping an entry navigates to that tab and closes the
+   drawer. The drawer list mirrors the four tabs; it does not add tabs,
+   and it does not change their count or order.
+
+Closing: selecting a tab, tapping the backdrop, or Android Back closes the
+drawer (Back closes the drawer before it pops a navigation stack).
+
 **Phone layout (vertical stack, top to bottom).**
 
 1. Page (`flex: 1`, scrollable).
@@ -805,14 +829,24 @@ alphabetical and not placement order.
   is the host, capped at **70% of screen height** with the queue list
   scrolling inside it. Opening the drawer from the fullscreen overlay must layer
   it above the overlay, the same layering rule as desktop (§7.1 item 5).
+- The left navigation drawer on the phone is a left-side overlay over the
+  page, opened by the hamburger icon at the left of the main header title
+  (see the drawer definition above). The vertical stack itself is unchanged:
+  page, floating bar, bottom tab bar. The drawer is an additional way to
+  reach the same four tabs; it does not replace the bottom tab bar.
 
 **Tablet layout (landscape, left rail + content).**
 
 - Row layout: left rail `240 dp` fixed, content `flex: 1`.
 - Rail, top to bottom: brand mark — the text `B Be Bee` plus the existing
   app icon asset (`apps/mobile/assets/icon.png`, reused, no new logo
-  asset) — the four tabs stacked vertically in the fixed order, a spacer,
-  then the rail-bottom now-playing card.
+  asset) — the tab list stacked vertically (the same four fixed tabs, in
+  the same fixed order), a spacer,
+  then the rail-bottom now-playing card. The rail is the tablet's
+  persistent left navigation, so the tablet does not need a separate
+  hamburger-triggered drawer overlay; the display-mode button and the
+  play-count heatmap live in the phone drawer definition above, not as
+  extra rail rows in the first implementation.
 - The second tab is labelled 音乐库, not the screenshot's 我的歌单.
 - Rail-bottom card: cover, title/artist, play/pause, queue button. Tapping
   the card opens the fullscreen overlay (which covers the whole window,
@@ -846,6 +880,15 @@ alphabetical and not placement order.
   right pane's bar is the single player surface. Library rows in the left
   pane play through the shared `ctx.player`, so the right pane's bar
   reflects what the left pane started.
+- Left navigation drawer in foldable mode: the right pane is the complete
+  phone layout verbatim, so it carries the same hamburger icon in its
+  header. When that drawer is opened, it is rendered in the left pane
+  (within the left pane's bounds, overlaying the library temporarily),
+  not as an overlay over the right pane. Selecting a tab in the drawer
+  navigates the right pane to that tab and closes the drawer; the left
+  pane stays the library afterwards. The drawer is a temporary overlay,
+  so it does not break the "left pane has no bottom tabs and no second
+  now-playing bar" rule above.
 - One kernel, one `ctx`, two navigation states — never a second `boot()`
   (the same single-kernel invariant as desktop secondary windows, §7.2).
 - Switching: a persisted layout-mode choice, `mobile.layoutMode` in
