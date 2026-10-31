@@ -780,7 +780,6 @@ export class AudioMpv extends Service implements AudioService {
   }
 
   async setOutputDevice(id: string): Promise<void> {
-    this.selectedDeviceId = id
     const bridge = resolveBridgeCall(this.config.bridgeCall)
     if (bridge) {
       // An id already in the engine's own vocabulary (`<ao>/<device>`, the
@@ -788,14 +787,26 @@ export class AudioMpv extends Service implements AudioService {
       // devices `pipewire/…`, `alsa/…`, `coreaudio/…` and so on — far more
       // prefixes than any hardcoded list can carry. Anything else is a
       // Chromium/WebAudio id and goes through the label-based translation.
+      //
+      // Deliberately NOT `.catch(() => undefined)` here: a bridge rejection
+      // (notably the mobile adapter rejecting an `ios/…` non-`auto` id, which
+      // iOS cannot switch to) must reach the caller, and neither
+      // `selectedDeviceId` nor `activeDeviceLabel` may move on failure —
+      // recording a switch that never happened is exactly the bug this
+      // used to be. Callers already `.catch()` this (desktop settings,
+      // mobile boot) and log it.
       if (id === 'auto' || id.includes('{') || /^[a-z][a-z0-9]*\//i.test(id)) {
-        await bridge('audio', 'setOutputDevice', [id]).catch(() => undefined)
+        await bridge('audio', 'setOutputDevice', [id])
+        this.selectedDeviceId = id
         this.activeDeviceLabel = id
       } else {
         const { nativeId, label } = await resolveNativeOutputDevice({ id, bridge, logger: this.ctx.logger })
+        await bridge('audio', 'setOutputDevice', [nativeId])
+        this.selectedDeviceId = id
         if (label) this.activeDeviceLabel = label
-        await bridge('audio', 'setOutputDevice', [nativeId]).catch(() => undefined)
       }
+    } else {
+      this.selectedDeviceId = id
     }
     const targetId = sanitizeSinkId(id)
     const sink = (this.context as BaseAudioContext & { setSinkId?: (id: string) => Promise<void> }).setSinkId

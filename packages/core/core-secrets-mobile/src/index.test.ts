@@ -114,6 +114,66 @@ describe('scoping', () => {
     expect(await b.secrets.namespace('source-123').get('user')).toBeUndefined()
   })
 
+  it('skips a corrupt index shard instead of stopping enumeration', async () => {
+    const store = (await import('expo-secure-store')) as unknown as {
+      getItemAsync: (key: string) => Promise<string | null>
+      setItemAsync: (key: string, value: string) => Promise<void>
+    }
+    await store.setItemAsync('a.token', 'a-value')
+    await store.setItemAsync('b.token', 'b-value')
+    await store.setItemAsync('__BBeBee_idx_0', JSON.stringify(['a.token']))
+    await store.setItemAsync('__BBeBee_idx_1', 'this is not json')
+    await store.setItemAsync('__BBeBee_idx_2', JSON.stringify(['b.token']))
+
+    const ctx = await harness()
+    await ctx.secrets.clear()
+
+    // Both keys are gone even though shard 1 was corrupt, and the corrupt
+    // shard key itself does not survive the clear.
+    expect(await ctx.secrets.get('a.token')).toBeUndefined()
+    expect(await ctx.secrets.get('b.token')).toBeUndefined()
+    expect(await store.getItemAsync('__BBeBee_idx_1')).toBeNull()
+    expect(await store.getItemAsync('__BBeBee_idx_2')).toBeNull()
+    expect(JSON.parse((await store.getItemAsync('__BBeBee_idx_0'))!)).toEqual([])
+  })
+
+  it('concurrent writes do not lose index entries', async () => {
+    const ctx = await harness()
+    await Promise.all(
+      Array.from({ length: 50 }, (_, i) => ctx.secrets.set(`key-${i}`, `v${i}`)),
+    )
+    const store = (await import('expo-secure-store')) as unknown as {
+      getItemAsync: (key: string) => Promise<string | null>
+    }
+    const seen = new Set<string>()
+    for (let s = 0; ; s++) {
+      const raw = await store.getItemAsync(`__BBeBee_idx_${s}`)
+      if (!raw) break
+      for (const key of JSON.parse(raw) as string[]) seen.add(key)
+    }
+    expect(seen.size).toBe(50)
+    for (let i = 0; i < 50; i++) {
+      expect(await ctx.secrets.get(`key-${i}`)).toBe(`v${i}`)
+    }
+  })
+
+  it('adopts a bare key on first namespaced read', async () => {
+    const store = (await import('expo-secure-store')) as unknown as {
+      setItemAsync: (key: string, value: string) => Promise<void>
+      getItemAsync: (key: string) => Promise<string | null>
+    }
+    await store.setItemAsync('user', 'legacy-admin')
+
+    const ctx = await harness()
+    const a = scopeContext(ctx, { pluginId: '@BBeBee/a', requested: ['secrets:own'] as never })
+    const b = scopeContext(ctx, { pluginId: '@BBeBee/b', requested: ['secrets:own'] as never })
+    expect(await a.secrets.namespace('source-123').get('user')).toBe('legacy-admin')
+
+    // The adoption moved it: the bare key is gone, the namespaced one persists.
+    expect(await store.getItemAsync('user')).toBeNull()
+    expect(await b.secrets.namespace('source-123').get('user')).toBe('legacy-admin')
+  })
+
   it('sanitises the caller scope into a SecureStore-legal key', async () => {
     // SecureStore rejects anything outside [A-Za-z0-9._-]; a plugin id like
     // `@BBeBee/a` must therefore not reach the store verbatim.

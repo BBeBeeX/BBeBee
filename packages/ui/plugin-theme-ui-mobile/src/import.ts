@@ -29,8 +29,36 @@ export class ThemeImportError extends Error {
   }
 }
 
+/**
+ * Every `ColorTokens` leaf is a colour string, and `themeToPalette` assumes
+ * exactly that. A malformed document (`tokens.bg.app = 123`) used to spread
+ * straight through `fillTokens` and only surface later, inside the palette
+ * builder, far from the import that accepted it — so every provided group
+ * and leaf is type-checked here, at the import boundary. A non-object group
+ * or a non-string leaf rejects the whole document; an absent leaf is still
+ * completed from the default theme, as before.
+ */
+function assertStringTokenLeaves(tokens: unknown): void {
+  if (tokens === undefined) return
+  if (!tokens || typeof tokens !== 'object' || Array.isArray(tokens)) {
+    throw new ThemeImportError('theme:themeManagement.importInvalidJson')
+  }
+  for (const group of Object.values(tokens as Record<string, unknown>)) {
+    if (group === undefined) continue
+    if (!group || typeof group !== 'object' || Array.isArray(group)) {
+      throw new ThemeImportError('theme:themeManagement.importInvalidJson')
+    }
+    for (const leaf of Object.values(group as Record<string, unknown>)) {
+      if (leaf !== undefined && typeof leaf !== 'string') {
+        throw new ThemeImportError('theme:themeManagement.importInvalidJson')
+      }
+    }
+  }
+}
+
 /** Completes a partial variant's tokens against the default theme. */
 function fillTokens(partial: Partial<ThemeDefinition>): ThemeDefinition['tokens'] {
+  assertStringTokenLeaves(partial.tokens)
   const base = midnightPurpleTheme.tokens
   const t: Partial<ThemeDefinition['tokens']> = partial.tokens ?? {}
   return {
@@ -53,6 +81,7 @@ function toVariant(raw: Partial<ThemeDefinition>): ThemeDefinition {
     throw new ThemeImportError('theme:themeManagement.importMissingId')
   }
   const id = raw.id.trim()
+  assertStringTokenLeaves(raw.lightTokens)
   return {
     id,
     name: (typeof raw.name === 'string' && raw.name.trim()) || id,

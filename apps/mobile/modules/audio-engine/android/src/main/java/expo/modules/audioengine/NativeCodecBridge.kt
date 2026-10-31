@@ -143,14 +143,22 @@ object NativeCodecBridge {
     }
 
     /**
-     * Resolve a transcode output. Direct-`file` outputs transcode in place;
-     * `content://` destinations (a SAF tree the user picked) are staged in
-     * the cache and streamed to the resolver after the encoder is done.
+     * Resolve a transcode output: the native path, a copy-to-destination
+     * step for a successful job, and a delete-staged step for a failed or
+     * cancelled one. Direct-`file` outputs transcode in place, so both
+     * steps are no-ops there; `content://` destinations (a SAF tree the
+     * user picked) are staged in the cache and streamed to the resolver
+     * only after the encoder succeeds — a failed job must never leave its
+     * partial staged file copied to the destination the user picked.
      */
-    private fun stageOutput(context: Context, uri: String, jobId: String): Pair<String, (String) -> Unit> {
+    private fun stageOutput(
+        context: Context,
+        uri: String,
+        jobId: String,
+    ): Triple<String, (String) -> Unit, () -> Unit> {
         if (uri.startsWith("content://")) {
             val staged = File(context.cacheDir, "bbebee-transcode-out-$jobId")
-            return staged.absolutePath to { stagedPath ->
+            val copyToDestination: (String) -> Unit = { stagedPath ->
                 val stagedFile = File(stagedPath)
                 try {
                     context.contentResolver.openOutputStream(Uri.parse(uri))?.use { output ->
@@ -160,19 +168,24 @@ object NativeCodecBridge {
                     stagedFile.delete()
                 }
             }
+            val deleteStaged: () -> Unit = { staged.delete() }
+            return Triple(staged.absolutePath, copyToDestination, deleteStaged)
         }
         if (uri.startsWith("file://")) {
-            return Uri.parse(uri).path!! to { /* written in place */ }
+            return Triple(Uri.parse(uri).path!!, { /* written in place */ }, { /* nothing staged */ })
         }
-        return uri to { /* written in place */ }
+        return Triple(uri, { /* written in place */ }, { /* nothing staged */ })
     }
 
     /**
      * Register the transcode job with the C++ transcoder and hand back the
      * JSON answer verbatim. A watchdog thread polls the job state — the same
-     * state the JS progress poller reads — and deletes the staged files once
-     * the job settles, so cancellation and failure clean up without the JS
-     * side knowing about the staging.
+     * state the JS progress poller reads — and cleans up once the job
+     * settles, so cancellation and failure clean up without the JS side
+     * knowing about the staging. The staged output is copied to the
+     * destination only when the job reports success; on failure, on
+     * cancellation, or when the job state itself becomes unreadable, the
+     * staged output is deleted instead of copied.
      *
      * The desktop-only options (`bitDepth`, `vbr`/`vbrQuality`,
      * `volumeGainDb`, the fades) are accepted here for the native layer to
@@ -219,7 +232,7 @@ object NativeCodecBridge {
         }
 
         val input: Pair<String, (() -> Unit)?>
-        val output: Pair<String, (String) -> Unit>
+        val output: Triple<String, (String) -> Unit, () -> Unit>
         try {
             input = stageInput(context, inputUri, jobId)
             output = stageOutput(context, outputUri, jobId)
@@ -258,9 +271,20 @@ object NativeCodecBridge {
             }
             val settledJobId = parsed.optString("jobId", jobId)
             Thread {
-                awaitJobSettled(settledJobId)
-                input.second?.invoke()
-                output.second(output.first)
+                // awaitJobSettled never throws: a state that cannot be read
+                // is treated as failure, so this thread always reaches the
+                // cleanup below instead of dying silently with staged files
+                // left behind.
+                val succeeded = awaitJobSettled(settledJobId)
+                try {
+                    input.second?.invoke()
+                } finally {
+                    if (succeeded) {
+                        output.second(output.first)
+                    } else {
+                        output.third()
+                    }
+                }
             }.apply {
                 isDaemon = true
                 name = "bbebee-transcode-watchdog-$settledJobId"
@@ -274,14 +298,26 @@ object NativeCodecBridge {
         return parsed.toString()
     }
 
-    private fun awaitJobSettled(jobId: String) {
+    /**
+     * Poll until the job settles and report whether it succeeded. A job
+     * that is no longer found, a state JSON that cannot be parsed, or an
+     * interrupted wait all count as failure: the caller must delete the
+     * staged output, never copy it. This function never throws, so the
+     * watchdog thread cannot die silently mid-cleanup.
+     */
+    private fun awaitJobSettled(jobId: String): Boolean {
         while (true) {
-            val state = JSONObject(BBeBeeAudioEngine.nativeGetTranscodeState(jobId))
-            if (state.optBoolean("done", false) || !state.optBoolean("found", false)) return
+            val state = try {
+                JSONObject(BBeBeeAudioEngine.nativeGetTranscodeState(jobId))
+            } catch (_: Exception) {
+                return false
+            }
+            if (!state.optBoolean("found", false)) return false
+            if (state.optBoolean("done", false)) return state.optBoolean("ok", false)
             try {
                 Thread.sleep(500)
             } catch (_: InterruptedException) {
-                return
+                return false
             }
         }
     }

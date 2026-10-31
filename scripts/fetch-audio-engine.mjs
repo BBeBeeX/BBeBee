@@ -91,8 +91,14 @@ function loadChecksums() {
     const url = `https://github.com/${repo}/releases/download/${version}/SHA256SUMS`
     console.log(`[fetch-audio-engine] Fetching checksums: ${url}`)
     const dl = spawnSync('curl', ['-fSL', '-o', sumsPath, url], { stdio: 'inherit' })
-    if (dl.status !== 0 && !existsSync(sumsPath)) {
-      console.warn(`[fetch-audio-engine] Warning: Could not download SHA256SUMS from GitHub.`)
+    if (dl.status !== 0) {
+      // Fail-closed, not warn-and-continue: without checksums every asset
+      // below would be used unverified (cached or downloaded), which is
+      // exactly the supply-chain hole a checksum file exists to close. A
+      // failed download may also have left a partial sums file behind, so
+      // it is removed rather than parsed on a later run.
+      try { rmSync(sumsPath, { force: true }) } catch { /* ignore */ }
+      throw new Error(`[fetch-audio-engine] Could not download SHA256SUMS from ${url} — refusing to stage unverified audio-engine assets.`)
     }
   }
 
@@ -106,6 +112,9 @@ function loadChecksums() {
       }
     }
   }
+  if (checksums.size === 0) {
+    throw new Error(`[fetch-audio-engine] No usable checksums in ${sumsPath} — refusing to stage unverified audio-engine assets.`)
+  }
   return checksums
 }
 
@@ -114,22 +123,26 @@ function fetchAsset(filename, checksums) {
   const expectedHash = checksums.get(filename)
 
   if (!isForce && existsSync(cachedFile)) {
-    if (!expectedHash || computeSha256(cachedFile) === expectedHash) {
+    // A cached asset is trusted only against a checksum entry. Without one
+    // it is not "probably fine" — it is unverified, so it is re-fetched
+    // (and then rejected below if still no entry exists for it).
+    if (expectedHash && computeSha256(cachedFile) === expectedHash) {
       console.log(`[fetch-audio-engine] Using cached asset: ${filename}`)
       return cachedFile
     }
-    console.log(`[fetch-audio-engine] Cached asset ${filename} hash mismatch. Re-fetching...`)
+    console.log(`[fetch-audio-engine] Cached asset ${filename} hash mismatch or no checksum entry. Re-fetching...`)
   }
 
   // 1. Try local fallback first
   if (localDistDir && existsSync(join(localDistDir, filename))) {
     console.log(`[fetch-audio-engine] Found local fallback asset in ${localDistDir}: ${filename}`)
     copyFileSync(join(localDistDir, filename), cachedFile)
-    if (expectedHash) {
-      const actualHash = computeSha256(cachedFile)
-      if (actualHash !== expectedHash) {
-        throw new Error(`[fetch-audio-engine] Checksum mismatch for local ${filename}! Expected: ${expectedHash}, Got: ${actualHash}`)
-      }
+    if (!expectedHash) {
+      throw new Error(`[fetch-audio-engine] No checksum entry for local ${filename} — refusing to use an unverified asset.`)
+    }
+    const actualHash = computeSha256(cachedFile)
+    if (actualHash !== expectedHash) {
+      throw new Error(`[fetch-audio-engine] Checksum mismatch for local ${filename}! Expected: ${expectedHash}, Got: ${actualHash}`)
     }
     return cachedFile
   }
@@ -142,13 +155,14 @@ function fetchAsset(filename, checksums) {
     throw new Error(`[fetch-audio-engine] Failed to download ${filename} from ${downloadUrl}`)
   }
 
-  if (expectedHash) {
-    const actualHash = computeSha256(cachedFile)
-    if (actualHash !== expectedHash) {
-      throw new Error(`[fetch-audio-engine] Checksum mismatch for ${filename}! Expected: ${expectedHash}, Got: ${actualHash}`)
-    }
-    console.log(`[fetch-audio-engine] SHA256 verified for ${filename}: ${actualHash}`)
+  if (!expectedHash) {
+    throw new Error(`[fetch-audio-engine] No checksum entry for ${filename} — refusing to use an unverified asset.`)
   }
+  const actualHash = computeSha256(cachedFile)
+  if (actualHash !== expectedHash) {
+    throw new Error(`[fetch-audio-engine] Checksum mismatch for ${filename}! Expected: ${expectedHash}, Got: ${actualHash}`)
+  }
+  console.log(`[fetch-audio-engine] SHA256 verified for ${filename}: ${actualHash}`)
   return cachedFile
 }
 

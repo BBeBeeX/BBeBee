@@ -39,6 +39,11 @@ export type HttpRnConfig = Omit<HttpNodeConfig, 'fetch'> & {
 }
 
 export class HttpRn extends HttpNode {
+  /** True only when the transport is the real expo one (not a test override). */
+  private readonly isExpoTransport: boolean
+  /** The "expo shape changed" warning is logged once per instance, not per response. */
+  private warnedMissingRawHeaders = false
+
   constructor(ctx: Context, config: HttpRnConfig = {}) {
     super(ctx, {
       ...config,
@@ -49,27 +54,40 @@ export class HttpRn extends HttpNode {
       stallTimeoutMs: config.stallTimeoutMs ?? 30_000,
       userAgent: config.userAgent ?? 'BBeBee/0.1 (mobile)',
     })
+    this.isExpoTransport = config.fetch === undefined
   }
 
   /**
    * What the base reads through `Headers`, this transport reads raw.
    *
-   * expo/fetch builds `response.headers` as a fresh WHATWG `Headers` from raw
-   * pairs, through React Native's `whatwg-fetch` polyfill: repeated values are
-   * joined with `", "` on read, and there is no `getSetCookie()`. The base's
-   * fallback would therefore see a login's session and CSRF tokens as one
-   * mangled string — on the one platform where sign-in state has to survive.
-   * The `FetchResponse` keeps what that construction throws away: its
-   * `_rawHeaders` is the native `[name, value][]` list, set-cookie entries
-   * separate and in order. Reading it here, in the one place that knows this
-   * transport, keeps `core-http-desktop` free of expo-shaped knowledge; should
-   * expo ever rename it, `conformance.test.ts` pins the premise and fails
-   * loudly rather than silently taking the joined fallback again.
+   * Order of preference, most reliable first:
    *
-   * A response without `_rawHeaders` is not an expo one — `config.fetch` was
-   * overridden, which tests do — and takes the base's reading.
+   * 1. The standard `Headers.getSetCookie()` when the runtime provides it
+   *    (the base already does this, but it must win over the expo-private
+   *    field below: a future expo that grows `getSetCookie` must not keep
+   *    reading through a private field that may then change shape).
+   * 2. expo's `_rawHeaders`: expo/fetch builds `response.headers` as a
+   *    fresh WHATWG `Headers` from raw pairs, through React Native's
+   *    `whatwg-fetch` polyfill: repeated values are joined with `", "` on
+   *    read, and (on the expo shape this code was written against) there is
+   *    no `getSetCookie()`. The base's fallback would therefore see a
+   *    login's session and CSRF tokens as one mangled string — on the one
+   *    platform where sign-in state has to survive. The `FetchResponse`
+   *    keeps what that construction throws away: its `_rawHeaders` is the
+   *    native `[name, value][]` list, set-cookie entries separate and in
+   *    order. Reading it here, in the one place that knows this transport,
+   *    keeps `core-http-desktop` free of expo-shaped knowledge.
+   * 3. The base's joined-header reading, as a last resort — but never
+   *    silently on the real expo transport: if expo answers with neither
+   *    `getSetCookie` nor `_rawHeaders`, its shape has changed, and a
+   *    warning is logged once (per instance) instead of letting multi-cookie
+   *    sign-ins silently degrade. A response without either field from an
+   *    overridden transport (which tests do) takes the base's reading
+   *    without the warning.
    */
   protected override listSetCookies(response: Response): string[] {
+    const headers = response.headers as Headers & { getSetCookie?(): string[] }
+    if (typeof headers.getSetCookie === 'function') return headers.getSetCookie()
     const raw = (response as { _rawHeaders?: [string, string][] })._rawHeaders
     if (Array.isArray(raw)) {
       const cookies: string[] = []
@@ -77,6 +95,13 @@ export class HttpRn extends HttpNode {
         if (name.toLowerCase() === 'set-cookie') cookies.push(value)
       }
       return cookies
+    }
+    if (this.isExpoTransport && !this.warnedMissingRawHeaders) {
+      this.warnedMissingRawHeaders = true
+      this.ctx.logger?.warn(
+        'core-http-mobile: expo response has neither getSetCookie nor _rawHeaders — ' +
+          'the expo response shape has changed and multi Set-Cookie headers may degrade to a joined fallback',
+      )
     }
     return super.listSetCookies(response)
   }

@@ -98,7 +98,15 @@ export class JsSandboxMobile extends Service implements JsService {
 
   async createRealm(limits: Partial<JsLimits> = {}): Promise<JsRealm> {
     const resolved: JsLimits = { ...DEFAULT_JS_LIMITS, ...this.config.limits, ...limits }
-    const realm = new SandboxJsRealm(resolved)
+    // The callback drops the realm from the live set on dispose: without
+    // it, every realm a long-lived session ever created stayed referenced
+    // here (only service unload iterated the set), a slow wrapper leak.
+    // The closure runs only when dispose() is called, by which time `realm`
+    // is assigned — referencing the binding inside the callback is safe
+    // even though the callback is created as part of its initializer.
+    const realm = new SandboxJsRealm(resolved, () => {
+      this.realms.delete(realm)
+    })
     this.realms.add(realm)
     return realm
   }
@@ -244,6 +252,7 @@ class SandboxJsRealm implements JsRealm {
     return this.sandbox === undefined
   }
   private poison: Poison | undefined
+  private disposedNotified = false
 
   /**
    * Evaluations are serialized per realm. The interpreter's tick counter and
@@ -253,7 +262,10 @@ class SandboxJsRealm implements JsRealm {
    */
   private queue: Promise<unknown> = Promise.resolve()
 
-  constructor(private readonly limits: JsLimits) {
+  constructor(
+    private readonly limits: JsLimits,
+    private readonly onDispose?: () => void,
+  ) {
     this.sandbox = buildRealm(limits)
   }
 
@@ -292,9 +304,16 @@ class SandboxJsRealm implements JsRealm {
 
   dispose(): void {
     // Idempotent by contract: a disposer may legitimately run from a fiber
-    // teardown *and* an explicit call, and the second must not throw.
+    // teardown *and* an explicit call, and the second must not throw. The
+    // callback fires on the first dispose even when the sandbox is already
+    // gone (a poisoned realm): otherwise a poisoned realm would stay in
+    // the service's live set forever, which is the same leak by another
+    // route.
+    if (this.disposedNotified) return
+    this.disposedNotified = true
     this.poison ??= 'disposed'
     this.sandbox = undefined
+    this.onDispose?.()
   }
 
   /* ── internals ──────────────────────────────────────────────────────── */
@@ -379,6 +398,12 @@ class SandboxJsRealm implements JsRealm {
   private poisonWith(reason: Poison): void {
     this.poison = reason
     this.sandbox = undefined
+    // A retired realm is dead even if its owner never calls dispose():
+    // drop it from the service's live set now, not at unload.
+    if (!this.disposedNotified) {
+      this.disposedNotified = true
+      this.onDispose?.()
+    }
   }
 
   /**

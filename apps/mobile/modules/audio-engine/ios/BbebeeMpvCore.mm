@@ -881,6 +881,10 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
   // exposes no alternative devices — an unknown `audio-device` value would
   // make the ao fail to reopen and go silent. Non-`auto` ids from
   // `mpvGetAudioDevices` are accepted here and deliberately not forwarded.
+  // This no-op is only a defensive backstop, not the user-facing contract:
+  // the JS adapter rejects `ios/…` non-`auto` ids before they reach this
+  // method, and `core-audio-mpv` no longer records a switch whose bridge
+  // call failed — so a rejected selection can never again read as success.
   if ([deviceId isEqualToString:@"auto"] || [deviceId isEqualToString:@"default"]) {
     mpv_set_property_string(_mpv, "audio-device", "auto");
   }

@@ -45,11 +45,13 @@ describe('resolveMobileLayout', () => {
     expect(resolveMobileLayout({ width: 400, height: 800, layoutMode: 'foldable' })).toBe('phone')
   })
 
-  it('foldable does not require landscape — wide portrait is still foldable', () => {
-    // The dual-pane foldable layout is a portrait posture; demanding
-    // landscape would forbid the very screens it was chosen for.
-    expect(resolveMobileLayout({ width: 600, height: 900, layoutMode: 'foldable' })).toBe('foldable')
+  it('foldable requires landscape — wide portrait falls back to phone', () => {
+    // Per docs/ui/architecture.md §7.4, foldable applies in landscape /
+    // expanded state only. A portrait wide window cannot host two
+    // side-by-side panes, so the explicit choice degrades to phone.
+    expect(resolveMobileLayout({ width: 600, height: 900, layoutMode: 'foldable' })).toBe('phone')
     expect(resolveMobileLayout({ width: 900, height: 600, layoutMode: 'foldable' })).toBe('foldable')
+    expect(resolveMobileLayout({ width: 1280, height: 800, layoutMode: 'foldable' })).toBe('foldable')
   })
 })
 

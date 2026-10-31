@@ -949,6 +949,28 @@ describe('core-audio-mpv native engine features', () => {
     )
   })
 
+  it('does not record a device switch whose bridge call failed', async () => {
+    // The iOS regression: the bridge used to swallow the failure and the
+    // service still recorded the new device as active, so the UI showed a
+    // switch that never happened. A rejected bridge call must reject here
+    // and leave the previous device label in place.
+    let failSet = false
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'setOutputDevice' && failSet) throw new Error('not switchable')
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    await audio.setOutputDevice('auto')
+    expect(audio.currentDeviceLabel).toBe('auto')
+
+    failSet = true
+    await expect(
+      audio.setOutputDevice('pipewire/alsa_output.pci-0000_02_02.0.analog-stereo'),
+    ).rejects.toThrow(/not switchable/)
+    expect(audio.currentDeviceLabel).toBe('auto')
+  })
+
   it('records the preload outcome for gapless diagnostics', async () => {
     let appendShouldFail = false
     const bridgeCall = async (_service: string, method: string) => {

@@ -18,9 +18,15 @@
 /** mpv takes one `http-header-fields` string: `Key: Value\r\n…`. */
 export function headersToFields(headers?: Record<string, string>): string | null {
   if (!headers) return null
+  // Defensive strip: a CR or LF inside a name or value would split the
+  // `http-header-fields` string into a second, attacker-shaped header line
+  // when mpv parses it. Source scripts can already set arbitrary headers
+  // through the HTTP layer, so the practical exposure is limited — but a
+  // field serializer must never be the place a header injection hides.
+  const stripCrlf = (s: string): string => s.replace(/[\r\n]/g, '')
   const entries = Object.entries(headers).filter(([, v]) => v != null)
   if (entries.length === 0) return null
-  return entries.map(([k, v]) => `${k}: ${v}`).join('\r\n')
+  return entries.map(([k, v]) => `${stripCrlf(k)}: ${stripCrlf(v)}`).join('\r\n')
 }
 
 /**
@@ -162,6 +168,23 @@ export interface TranscodeCapabilities {
  * `docs/audio/engine.md`; nothing may drift from it or the engine's probes
  * start lying.
  */
+/**
+ * iOS has no per-app output sink: the OS owns AVAudioSession routing, and
+ * the iOS engine deliberately does not forward non-`auto` ids to mpv (an
+ * unknown `audio-device` value would make the audiounit ao fail to reopen
+ * and go silent). Rejecting here — before the native call — is what makes
+ * that ignore perceptible instead of silent: callers see a rejected promise
+ * and must not record the device as switched. Android (`android/…`) and
+ * desktop (`<ao>/…`) ids pass through untouched.
+ */
+function assertSwitchableOutputDevice(id: string): void {
+  if (id.startsWith('ios/')) {
+    throw new Error(
+      `output device "${id}" is not switchable: iOS has no per-app output sink, only the system default route ("auto")`,
+    )
+  }
+}
+
 export function buildMpvAdapter(native: NativeAudioEngine) {
   return {
     async mpvLoad(uri: string, opts?: { strategy?: string; headers?: Record<string, string> }) {
@@ -225,10 +248,16 @@ export function buildMpvAdapter(native: NativeAudioEngine) {
         cfg.replaygainPreamp ?? '0',
         cfg.replaygainFallback ?? '0',
       ),
-    mpvSetOutputDevice: (id: string) => native.setOutputDevice(id),
+    mpvSetOutputDevice: async (id: string) => {
+      assertSwitchableOutputDevice(id)
+      await native.setOutputDevice(id)
+    },
     // `shared.ts` probes this plain name (not the `mpv`-prefixed one) when
     // routing output by engine vocabulary.
-    setOutputDevice: (id: string) => native.setOutputDevice(id),
+    setOutputDevice: async (id: string) => {
+      assertSwitchableOutputDevice(id)
+      await native.setOutputDevice(id)
+    },
     mpvSetStreamPlayback: (playing: boolean) => native.setStreamPlayback(playing),
     mpvSetAudioExclusive: (exclusive: boolean) => native.setAudioExclusive(exclusive),
   }

@@ -217,8 +217,10 @@ export class MobileAudioService extends Service implements AudioService {
   async [Service.init]() {
     // Same native-DSP push as the desktop shell: the lavfi chain the engine
     // evaluates lives behind the bridge, so a `dsp/af-changed` emission has
-    // to be forwarded there to be heard at all.
-    this.ctx.on('dsp/af-changed', (e) => {
+    // to be forwarded there to be heard at all. The off function is kept so
+    // dispose actually unsubscribes: without it, a disposed service would
+    // keep pushing DSP config at an engine that is already gone.
+    const offDsp = this.ctx.on('dsp/af-changed', (e) => {
       this.lastNativeDsp = e
       this.pushNativeDsp()
     })
@@ -226,6 +228,7 @@ export class MobileAudioService extends Service implements AudioService {
     await this.mountEngine('mpv')
 
     return async () => {
+      offDsp()
       this.interruptionListeners.clear()
       this.routeListeners.clear()
       if (this.activeFiber) {
@@ -368,8 +371,12 @@ export class MobileAudioService extends Service implements AudioService {
   }
 
   async setOutputDevice(id: string): Promise<void> {
-    this.currentDeviceId = id
+    // Record only on success: a rejected switch (notably an `ios/…`
+    // non-`auto` id, which iOS cannot switch to) must not leave this
+    // service believing the device changed, or the next engine rebuild
+    // would reapply a device that was never actually selected.
     await this.activeEngine.setOutputDevice(id)
+    this.currentDeviceId = id
   }
 
   async setAudioExclusive(exclusive: boolean): Promise<void> {

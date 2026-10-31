@@ -486,25 +486,25 @@ export class CodecNode extends Service implements CodecService {  static inject 
     }
 
     /*
-     * An empty probe means no local ffmpeg exists — React Native (where the
-     * `node:child_process` import throws on the Metro stub) or a desktop
+     * An empty probe means no local ffmpeg answered — React Native (where
+     * the `node:child_process` import throws on the Metro stub) or a desktop
      * without ffmpeg on PATH. Reporting every encoder as available then is a
      * lie the converter UI repeats to the user as a promise the very next
-     * transcode cannot keep. The one honest exception is the native-engine
-     * bridge: a desktop build without local ffmpeg still transcodes through
-     * the engine, whose bundled encoders this probe cannot see.
+     * transcode cannot keep. The desktop bridge does NOT rescue this:
+     * `window.BBeBee.audio.transcode` is a Tauri invoke to the Rust
+     * ffmpeg-CLI transcode path (transcode.rs spawns a system ffmpeg), not
+     * a capability query — no bridge method reports which encoders that
+     * ffmpeg has, and the audio-engine's real `transcode_caps` probe is a
+     * mobile-JNI surface, not a desktop bridge method. Until a desktop
+     * capability query exists, an unprobed encoder is reported unavailable
+     * (fail-closed): the converter UI hides a format it cannot prove, and a
+     * transcode attempt through the bridge still fails with a clear
+     * "ffmpeg binary not found" error rather than a promised format.
      */
-    const hasNativeEngine = () => {
-      const exposed = (globalThis as unknown as {
-        window?: { BBeBee?: { audio?: { transcode?: unknown } } }
-      }).window
-      return typeof exposed?.BBeBee?.audio?.transcode === 'function'
-    }
     const probeFailed = stdout.length === 0
-    const fallbackAvailable = hasNativeEngine()
 
     const isAvailable = (key: string): boolean =>
-      probeFailed ? fallbackAvailable : new RegExp(`\\b${key}\\b`, 'i').test(stdout)
+      probeFailed ? false : new RegExp(`\\b${key}\\b`, 'i').test(stdout)
 
     for (const item of KNOWN_ENCODERS) {
       encoderMap[item.key] = {

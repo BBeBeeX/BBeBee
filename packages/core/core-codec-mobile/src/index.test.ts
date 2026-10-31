@@ -20,7 +20,7 @@ import { codecConformance } from '@BBeBee/protocol/conformance'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import type { FsService, Uri } from '@BBeBee/protocol'
 import { DEFAULT_FORMATS } from '@bbebee/core-codec-desktop'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import plugin, { type CodecRn } from './index.js'
 import { encodeBase64 } from '@BBeBee/toolkit'
@@ -437,6 +437,42 @@ describe('core-codec-mobile native seam', () => {
 
     expect(result.ok).toBe(true)
     expect(h.warns).toHaveLength(0)
+  })
+
+  it('cancels and fails a job whose progress stalls instead of polling forever', async () => {
+    const h = await harness()
+    const { seam, calls, setState } = fakeSeam()
+    setState({
+      found: true,
+      running: true,
+      done: false,
+      ok: false,
+      cancelled: false,
+      progress: 0,
+      currentTimeSec: 0,
+      durationSec: 0,
+    })
+    globals.bbebeeNativeCodec = seam
+
+    // Fake timers: the poll sleeps 200ms a tick, and the stall window is
+    // 120s of zero movement — advancing past it must resolve the promise
+    // instead of leaving it pending.
+    vi.useFakeTimers()
+    try {
+      const done = h.codec.transcode({
+        inputUri: h.uri('in.flac'),
+        outputUri: h.uri('out.mp3'),
+        targetFormat: 'mp3',
+      })
+      await vi.advanceTimersByTimeAsync(125_000)
+      const result = await done
+      expect(result.ok).toBe(false)
+      expect(result.error).toMatch(/stalled/)
+      expect(calls.cancel).toHaveLength(1)
+      expect(h.warns.some((w) => w.includes('stalled'))).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('declares the bundled libmpv engine list, mirroring the desktop default', async () => {

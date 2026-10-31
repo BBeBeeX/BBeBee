@@ -1,6 +1,18 @@
 const { withDangerousMod, withXcodeProject, IOSConfig } = require('expo/config-plugins')
+const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
+
+/**
+ * Content hash of a staged library. Size alone is not an identity: a
+ * rebuilt `.so` can land with the same byte count and different code, and
+ * the old size-only skip kept bundling the stale staging. Hashing ~90 MB
+ * per ABI costs a fraction of a second at prebuild time and is the only
+ * comparison that cannot mistake a rebuild for an identical file.
+ */
+function sha256File(p) {
+  return crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')
+}
 
 /**
  * Expo Config Plugin bundling the prebuilt audio-engine native libraries from
@@ -95,8 +107,9 @@ function withAndroidAudioEngine(config) {
         for (const soFile of soFiles) {
           const src = path.join(dir, soFile)
           const dest = path.join(jniDir, soFile)
-          // libmpv.so is ~90 MB per ABI; skip the copy when already staged.
-          if (fs.existsSync(dest) && fs.statSync(dest).size === fs.statSync(src).size) continue
+          // libmpv.so is ~90 MB per ABI; skip the copy only when the staged
+          // file is byte-identical (hash, not size — see sha256File).
+          if (fs.existsSync(dest) && sha256File(dest) === sha256File(src)) continue
           fs.copyFileSync(src, dest)
         }
         console.log(`[with-audio-engine] Bundled Android ${abi} libraries: ${soFiles.join(', ')}`)

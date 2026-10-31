@@ -314,6 +314,44 @@ describe('multi-set-cookie through the mobile transport', () => {
     ])
   })
 
+  it('prefers getSetCookie over _rawHeaders when both are present', async () => {
+    const ctx = await harness()
+    // The method is protected, so it is reached through a cast on the
+    // already-registered instance — constructing a second HttpRn on the
+    // same context would throw "service http has been registered".
+    const http = ctx.http as unknown as {
+      listSetCookies: (response: Response) => string[]
+    }
+    const response = {
+      headers: { getSetCookie: () => ['a=1', 'b=2'] },
+      _rawHeaders: [['set-cookie', 'c=3']] as [string, string][],
+    } as unknown as Response
+    expect(http.listSetCookies(response)).toEqual(['a=1', 'b=2'])
+  })
+
+  it('warns once when the expo transport answers with neither shape', async () => {
+    const ctx = await harness()
+    const http = ctx.http as unknown as {
+      listSetCookies: (response: Response) => string[]
+    }
+    // Warnings are captured through cordis's exporter API, as in the
+    // codec-mobile harness: a spy on one context's shadow method would
+    // never see another context's call.
+    const warns: string[] = []
+    ctx.logger.exporter({
+      export(message) {
+        if (message.type === 'warn') warns.push(message.args.map(String).join(' '))
+      },
+    })
+    // No getSetCookie, no _rawHeaders: the base fallback runs (hence a
+    // real `get`), and the expo-shape warning fires once.
+    const response = { headers: { get: () => null } } as unknown as Response
+    expect(http.listSetCookies(response)).toEqual([])
+    expect(http.listSetCookies(response)).toEqual([])
+    expect(warns).toHaveLength(1)
+    expect(warns[0]).toMatch(/_rawHeaders/)
+  })
+
   it('lands both cookies of a sign-in response in the jar, via ctx.secrets', async () => {
     const ctx = await signedInHarness('src-a')
     await ctx.http({ url: `${origin}/sign-in`, method: 'POST' })

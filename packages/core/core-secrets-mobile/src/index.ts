@@ -134,13 +134,18 @@ export class SecretsExpo extends Service implements SecretsService {
       await this.clearPrefix(prefix)
       return
     }
-    const keys = await this.readIndex()
-    for (const key of keys) {
-      await SecureStore.deleteItemAsync(key, this.config.options)
-    }
-    await this.writeIndex([])
-    // A pre-sharding install's single index goes too.
-    await SecureStore.deleteItemAsync(LEGACY_INDEX_KEY, this.config.options)
+    await this.withIndexLock(async () => {
+      const keys = await this.readIndex()
+      for (const key of keys) {
+        await SecureStore.deleteItemAsync(key, this.config.options)
+      }
+      // Delete every shard key and the legacy key outright, not just the
+      // keys enumeration found: a corrupt shard's entries cannot be
+      // enumerated by name, but its shard key itself must not survive a
+      // clear. Shard 0 is rewritten empty afterwards (see writeIndex).
+      await this.deleteAllIndexKeys()
+      await this.writeIndex([])
+    })
   }
 
   namespace(ns: string): SecretsService {
@@ -182,17 +187,23 @@ export class SecretsExpo extends Service implements SecretsService {
           'envelope-encrypt large values with a key kept here (docs/04 §2.1)',
       )
     }
-    // Index first: an orphaned index entry is harmless — `clear` deletes a key
-    // that is not there and moves on — while an unindexed secret is one that
-    // survives a sign-out.
-    await this.remember(key)
-    await SecureStore.setItemAsync(key, value, this.config.options)
+    // Index first, under the same lock as the write: an orphaned index entry
+    // is harmless — `clear` deletes a key that is not there and moves on —
+    // while an unindexed secret is one that survives a sign-out. Holding the
+    // lock across both steps also keeps a concurrent `clear()` from landing
+    // between the index write and the value write.
+    await this.withIndexLock(async () => {
+      await this.rememberInternal(key)
+      await SecureStore.setItemAsync(key, value, this.config.options)
+    })
   }
 
   /** @internal */
   async rawDelete(key: string): Promise<void> {
-    await SecureStore.deleteItemAsync(key, this.config.options)
-    await this.forget(key)
+    await this.withIndexLock(async () => {
+      await SecureStore.deleteItemAsync(key, this.config.options)
+      await this.forgetInternal(key)
+    })
   }
 
   private async read(key: string): Promise<string | null> {
@@ -211,12 +222,18 @@ export class SecretsExpo extends Service implements SecretsService {
 
   /** @internal */
   async clearPrefix(prefix: string): Promise<void> {
-    const keys = await this.readIndex()
-    const mine = keys.filter((key) => key.startsWith(prefix))
-    for (const key of mine) {
-      await SecureStore.deleteItemAsync(key, this.config.options)
-    }
-    await this.writeIndex(keys.filter((key) => !key.startsWith(prefix)))
+    await this.withIndexLock(async () => {
+      const keys = await this.readIndex()
+      const mine = keys.filter((key) => key.startsWith(prefix))
+      for (const key of mine) {
+        await SecureStore.deleteItemAsync(key, this.config.options)
+      }
+      // Rewrite from scratch rather than patching shards in place: a corrupt
+      // shard's contents must not survive as stale index entries, and the
+      // remaining keys are re-packed by writeIndex.
+      await this.deleteAllIndexKeys()
+      await this.writeIndex(keys.filter((key) => !key.startsWith(prefix)))
+    })
   }
 
   /**
@@ -244,22 +261,54 @@ export class SecretsExpo extends Service implements SecretsService {
       if (!raw) break
       try {
         const parsed: unknown = JSON.parse(raw)
-        if (!Array.isArray(parsed)) break
+        if (!Array.isArray(parsed)) continue // a malformed shard is skipped, not fatal
         keys.push(...parsed.filter((k): k is string => typeof k === 'string'))
       } catch {
-        break // A corrupt shard ends the walk; earlier shards still count.
+        // A corrupt shard is skipped and the walk continues: later shards
+        // hold real keys, and stopping here would let those keys survive a
+        // clear(). The corrupt shard's own entries cannot be recovered by
+        // name, but clear()/clearPrefix() delete every shard key outright.
+        continue
       }
     }
     return keys
   }
 
-  private async remember(key: string): Promise<void> {
+  /**
+   * Serialises every index read-modify-write (remember / forget / clear /
+   * clearPrefix) and every rawSet / rawDelete that touches the index, so two
+   * concurrent writes cannot both read the same index and have the later
+   * write silently drop the earlier one's entry. The chain never rejects:
+   * a failed step must not wedge every later index operation.
+   */
+  private indexQueue: Promise<unknown> = Promise.resolve()
+
+  private withIndexLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.indexQueue.then(fn, fn)
+    this.indexQueue = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+
+  /** Delete every shard key and the legacy key, regardless of content. */
+  private async deleteAllIndexKeys(): Promise<void> {
+    await SecureStore.deleteItemAsync(LEGACY_INDEX_KEY, this.config.options)
+    for (let i = 0; ; i++) {
+      const shardKey = `${INDEX_SHARD}${i}`
+      if (!(await this.read(shardKey))) break
+      await SecureStore.deleteItemAsync(shardKey, this.config.options)
+    }
+  }
+
+  private async rememberInternal(key: string): Promise<void> {
     const keys = await this.readIndex()
     if (keys.includes(key)) return
     await this.writeIndex([...keys, key])
   }
 
-  private async forget(key: string): Promise<void> {
+  private async forgetInternal(key: string): Promise<void> {
     const keys = await this.readIndex()
     if (!keys.includes(key)) return
     await this.writeIndex(keys.filter((k) => k !== key))
@@ -317,7 +366,20 @@ class NamespacedSecrets implements SecretsService {
   }
 
   async get(key: string): Promise<string | undefined> {
-    return this.root.rawGet(this.prefix + key)
+    const prefixed = await this.root.rawGet(this.prefix + key)
+    if (prefixed !== undefined) return prefixed
+    /*
+     * Legacy adoption, mirroring SecretsExpo.get: before explicit namespaces
+     * existed, a value written for this purpose landed under its bare key.
+     * Reading through the namespace must not read as "absent", and the first
+     * read moves it under the prefix so later reads (and clear()) find it.
+     */
+    const legacy = await this.root.rawGet(key)
+    if (legacy !== undefined) {
+      await this.root.rawSet(this.prefix + key, legacy)
+      await this.root.rawDelete(key)
+    }
+    return legacy
   }
 
   set(key: string, value: string): Promise<void> {

@@ -143,6 +143,15 @@ function probeNativeCodec(): NativeCodecSeam | undefined {
 /** How often the transcode poll reads the native job registry. */
 const TRANSCODE_POLL_MS = 200
 
+/**
+ * How long a native job may report zero movement before it is treated as
+ * stuck. Deliberately a stall window, not an absolute cap: a long file that
+ * keeps advancing — however slowly — is a working transcode, while a job
+ * whose progress and position have both frozen for two minutes is a wedged
+ * worker, and polling it forever only leaves the caller hanging.
+ */
+const TRANSCODE_STUCK_MS = 120_000
+
 export class CodecRn extends CodecNode {
   constructor(ctx: Context, config: CodecRnConfig = {}) {
     // No format override: the default is the bundled libmpv engine's list
@@ -303,6 +312,9 @@ export class CodecRn extends CodecNode {
     options.signal?.addEventListener('abort', onAbort, { once: true })
 
     const startedAt = Date.now()
+    let lastProgress = -1
+    let lastCurrentTimeSec = -1
+    let lastMovedAt = Date.now()
     try {
       while (true) {
         if (options.signal?.aborted) {
@@ -334,6 +346,22 @@ export class CodecRn extends CodecNode {
             ok: false,
             error: state.error ?? (state.cancelled ? 'Cancelled' : 'Transcode failed'),
           }
+        }
+
+        if (state.progress !== lastProgress || state.currentTimeSec !== lastCurrentTimeSec) {
+          lastProgress = state.progress
+          lastCurrentTimeSec = state.currentTimeSec
+          lastMovedAt = Date.now()
+        } else if (Date.now() - lastMovedAt >= TRANSCODE_STUCK_MS) {
+          // A wedged native worker used to leave this promise pending
+          // forever — the poll loop had no exit except an abort signal.
+          // Cancel the job, warn once, and return a failure the converter
+          // UI can show instead of spinning.
+          void seam.cancelTranscode(nativeJobId).catch(() => {})
+          this.ctx.logger.warn(
+            `transcode: native job ${nativeJobId} stalled with no progress for ${TRANSCODE_STUCK_MS / 1000}s — cancelling`,
+          )
+          return { ok: false, error: 'Transcode stalled: no progress from the native job' }
         }
 
         options.onProgress?.(state.progress, state.currentTimeSec)

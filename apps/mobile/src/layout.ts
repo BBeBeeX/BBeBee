@@ -10,7 +10,7 @@
  * would fail to collect.
  */
 
-/** What the user picked in settings. P0 always passes 'auto'; P4 wires ctx.store. */
+/** What the user picked in settings, persisted in `ctx.store` (see `MOBILE_LAYOUT_MODE_KEY`). */
 export type MobileLayoutMode = 'auto' | 'tablet' | 'foldable'
 
 /** The layout the shell should render in, after size constraints are applied. */
@@ -22,7 +22,8 @@ export interface MobileLayoutInput {
   /** window height in dp */
   height: number
   /**
-   * 用户持久化选择的布局模式，P0 阶段壳内恒传 'auto'（P4 接 ctx.store）
+   * 用户持久化选择的布局模式，来自 `ctx.store` 的 `mobile.layoutMode`
+   *（壳与设置行都读写同一 key）。
    */
   layoutMode: MobileLayoutMode
 }
@@ -48,12 +49,13 @@ export function resolveMobileLayout(input: MobileLayoutInput): MobileLayout {
 
   /*
    * Foldable is opt-in only: it demands an explicit user choice *and* a
-   * window at least 600dp wide. No orientation requirement — the two-pane
-   * foldable layout is a portrait posture (cover screen open, or an inner
-   * screen folded upright), so asking for landscape would forbid the very
-   * posture the layout exists for.
+   * landscape / spanning window at least 600dp wide, per docs/ui/architecture.md
+   * §7.4 — foldable applies in landscape / expanded state only. A folded
+   * (narrow) window, and a portrait wide window, fall back to the phone
+   * layout by the width/orientation rules below, even when the user chose
+   * foldable: the choice survives, but the window cannot host two panes.
    */
-  if (layoutMode === 'foldable' && width >= TABLET_MIN_DP) return 'foldable'
+  if (layoutMode === 'foldable' && width >= TABLET_MIN_DP && width > height) return 'foldable'
 
   /*
    * Tablet demands all three of: wide, landscape, *and* tall. Landscape is

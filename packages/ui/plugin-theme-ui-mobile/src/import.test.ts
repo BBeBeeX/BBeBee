@@ -59,6 +59,34 @@ describe('parseThemeDocument', () => {
     expect(result.pack.variants[0]!.name).toBe('solo-dark')
   })
 
+  it('rejects a document whose token leaves are not strings', () => {
+    expect(() =>
+      parseThemeDocument(
+        JSON.stringify({ id: 'bad', name: 'Bad', tokens: { bg: { app: 123 } } }),
+      ),
+    ).toThrowError(expect.objectContaining({ key: KEY.invalid }))
+    expect(() =>
+      parseThemeDocument(
+        JSON.stringify({ id: 'bad', name: 'Bad', tokens: { bg: 'not-an-object' } }),
+      ),
+    ).toThrowError(expect.objectContaining({ key: KEY.invalid }))
+    expect(() =>
+      parseThemeDocument(
+        JSON.stringify({
+          id: 'bad',
+          name: 'Bad',
+          tokens: { brand: { primary: '#FF0000' } },
+          lightTokens: { brand: { primary: true } },
+        }),
+      ),
+    ).toThrowError(expect.objectContaining({ key: KEY.invalid }))
+    // A valid partial document still completes from the default theme.
+    const ok = parseThemeDocument(
+      JSON.stringify({ id: 'good', name: 'Good', tokens: { brand: { primary: '#FF0000' } } }),
+    )
+    expect(ok.kind).toBe('theme')
+  })
+
   it('rejects with catalogue keys, never raw parser errors', () => {
     expect(() => parseThemeDocument('')).toThrowError(expect.objectContaining({ key: KEY.empty }))
     expect(() => parseThemeDocument('   ')).toThrowError(expect.objectContaining({ key: KEY.empty }))

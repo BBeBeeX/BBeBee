@@ -75,6 +75,39 @@ describe('headersToFields', () => {
   })
 })
 
+describe('buildMpvAdapter output devices', () => {
+  it('rejects an ios/ non-auto device instead of silently not switching it', async () => {
+    const seen: string[] = []
+    const mpv = buildMpvAdapter(
+      fakeNative({ setOutputDevice: async (id) => void seen.push(id) }),
+    )
+    await expect(mpv.setOutputDevice('ios/speaker')).rejects.toThrow(/not switchable/)
+    await expect(mpv.mpvSetOutputDevice('ios/bt_a2dp')).rejects.toThrow(/not switchable/)
+    expect(seen).toEqual([])
+  })
+
+  it('passes android and auto devices through to native', async () => {
+    const seen: string[] = []
+    const mpv = buildMpvAdapter(
+      fakeNative({ setOutputDevice: async (id) => void seen.push(id) }),
+    )
+    await mpv.setOutputDevice('android/bt_a2dp')
+    await mpv.setOutputDevice('auto')
+    expect(seen).toEqual(['android/bt_a2dp', 'auto'])
+  })
+})
+
+describe('headersToFields CR/LF', () => {
+  it('strips CR and LF from names and values instead of splitting a header line', () => {
+    expect(
+      headersToFields({
+        'X-A\r\nInjected: evil': '1\r\nInjected: evil',
+        Authorization: 'Bearer x',
+      }),
+    ).toBe('X-AInjected: evil: 1Injected: evil\r\nAuthorization: Bearer x')
+  })
+})
+
 describe('buildMpvAdapter', () => {
   it('answers undefined on ok:false so the engine falls back, and parses through', async () => {
     const loadEx = async (uri: string) =>

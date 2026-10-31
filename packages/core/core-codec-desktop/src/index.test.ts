@@ -623,6 +623,28 @@ describe('core-codec-desktop', () => {
     expect(caps?.supportedOutputFormats).toEqual([])
   })
 
+  it('reports no encoders when the probe is empty even though a transcode bridge exists', async () => {
+    // The bridge is a transcode invoke, not a capability query: its
+    // presence says nothing about which encoders the Rust side's ffmpeg
+    // has, so an unprobed encoder must stay unavailable rather than
+    // inheriting "available" from the bridge existing.
+    const h = await harness()
+    const scoped = h.ctx.isolate('codec')
+    await scoped.plugin(plugin, { probeEncoders: async () => '' })
+    await tick()
+    ;(globalThis as any).window = {
+      BBeBee: { audio: { transcode: async () => ({ ok: true }) } },
+    }
+    try {
+      const caps = await scoped.codec.getEncoderCapabilities?.()
+      expect(caps).toBeDefined()
+      expect(Object.values(caps?.encoders ?? {}).every((e) => !e.available)).toBe(true)
+      expect(caps?.supportedOutputFormats).toEqual([])
+    } finally {
+      delete (globalThis as any).window
+    }
+  })
+
   it('respects abort signal when transcoding', async () => {
     const h = await harness()
     const controller = new AbortController()

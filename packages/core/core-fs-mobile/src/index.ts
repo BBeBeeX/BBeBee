@@ -256,10 +256,20 @@ export class FsExpo extends Service implements FsService {
    * conformance suite only ever moved onto a fresh path, so nothing saw it.
    *
    * So the destination is cleared first, and the two implementations agree
-   * again. The cost is that the replace is no longer atomic here: a crash
-   * between the delete and the move leaves neither file. Callers that care
-   * keep their source until the move returns — `core-store-fs` does, and
-   * recovers from its temp file on the next boot for exactly this window.
+   * again. The cost is that the replace is no longer atomic here, and
+   * callers must not treat `move` as an atomic commit:
+   *
+   * - The destination is deleted *before* the source is moved, so a crash
+   *   or power loss in that window loses the old destination while the
+   *   target path is still empty (the source itself is untouched until the
+   *   move runs — what is lost is the destination, not both files).
+   * - A caller that needs the replace to survive a crash must therefore
+   *   keep the source until `move` returns and, on recovery, check both
+   *   paths: `core-store-fs` does exactly this, and recovers from its temp
+   *   file on the next boot for this window. A caller that deletes its
+   *   source early, or that assumes the target is either fully old or
+   *   fully new, will corrupt data on this platform (the desktop rename
+   *   does not have this window).
    */
   async move(from: Uri, to: Uri): Promise<void> {
     this.check(from, 'write')
