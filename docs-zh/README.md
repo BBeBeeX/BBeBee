@@ -41,6 +41,7 @@ pnpm dev:desktop # 桌面端开发（Tauri v2 + Vite HMR + Node.js sidecar）
 | **核心能力服务** | [services/overview.md](./services/overview.md) | 核心服务设计理念、平台抽象规范、不透明 `Uri` 与虚拟文件系统 |
 | | [services/contracts.md](./services/contracts.md) | 核心服务契约总表 (`http`, `ws`, `store`, `db`, `secrets`, `device` 等) |
 | | [services/logging.md](./services/logging.md) | Layer 3 日志传输架构 (`ctx.logger`、环形缓冲池、控制台输出、文件滚动) |
+| | [services/i18n.md](./services/i18n.md) | `ctx.i18n` 国际化服务：`namespace:path` 键、BCP 47 协商与 `useI18n` 钩子 |
 | **音频与播放** | [audio/engine.md](./audio/engine.md) | `ctx.audio` Web Audio 音频引擎、音频图拓扑结构与跨端原生桥接 |
 | | [audio/playback.md](./audio/playback.md) | `ctx.player` 播放控制状态机、流解析流水线、无缝切换与系统集成 |
 | | [audio/dsp.md](./audio/dsp.md) | `ctx.dsp` 效果链组装机制与内置音频处理器（EQ、压缩器、混响） |
@@ -56,6 +57,7 @@ pnpm dev:desktop # 桌面端开发（Tauri v2 + Vite HMR + Node.js sidecar）
 | | [data-model/migrations.md](./data-model/migrations.md) | 前向命名空间化数据库迁移策略、事务安全与数据保留规范 |
 | **UI 架构** | [ui/architecture.md](./ui/architecture.md) | 三包代码结构规范、Descriptor 描述符系统、React 服务绑定与多端外壳 |
 | | [ui/design-system.md](./ui/design-system.md) | 深色流媒体视觉语言、无边框高度层级、设计 Token 字典与 WCAG AA 对比度 |
+| | [ui/i18n.md](./ui/i18n.md) | 国际化投稿指南：`namespace:path` 键、语料库与 `t()` walkthrough；规范性规则见 `rules/i18n.md` |
 | **工程规范** | [workflow/structure.md](./workflow/structure.md) | Monorepo 目录布局、分层治理规则、Import 导入矩阵与 ESLint 架构守卫 |
 | | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | 构建流水线（`tsc`, `vite`, `tauri`, `expo`）与依赖版本矩阵 |
 | | [workflow/testing.md](./workflow/testing.md) | 测试策略（单元、契约、Fiber 泄漏测试）与日常开发工作流命令 |

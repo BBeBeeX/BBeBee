@@ -116,7 +116,7 @@ export interface FsService {
 > ⚠️ **整个抽象中最大的泄漏点。** 在 Android 上，用户选择的文件夹是一个
 > `content://` SAF 树 URI，而不是路径：它无法交给原生音频解码器，且其权限必须在重启之后仍然保留。
 > `core-fs-mobile` 会持久化该授权，并暴露 `fs.toPlayableUri(uri)` 供 `ctx.audio` 使用；在 iOS 与桌面端，它就是恒等函数。
-> 扫描器（[06](../sources/spec.md）正是针对 `list`/`stat` 编写的，因此对此毫不在意。
+> 扫描器（[06](../sources/spec.md)）正是针对 `list`/`stat` 编写的，因此对此毫不在意。
 
 ### 1.1 目录枚举与 Windows 连接点 (Junction Points)
 

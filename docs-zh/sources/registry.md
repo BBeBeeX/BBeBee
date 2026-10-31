@@ -8,7 +8,7 @@
 
 ## 1. 仓库架构
 
-（规范见 [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry第三方注册表)（L2）：registry 仓库定位、四类内容、entry 字段与安装红线归该节；本节讲仓库结构与发现机制。）
+（规范见 [rules/sources.md §6 — Registry](../../rules/sources.md#6-registry-third-party-registry)（L2）：registry 仓库定位、四类内容、entry 字段与安装红线归该节；本节讲仓库结构与发现机制。）
 
 注册表内容存放在独立仓库
 [BBeBeeX/B_Be_Bee-registry](https://github.com/BBeBeeX/B_Be_Bee-registry)。
@@ -43,7 +43,7 @@ B_Be_Bee-registry/
 
 ## 2. 元数据 Schema 格式
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：entry 字段枚举与 version 语义归该节；本表展开每个字段的适用 kind 与含义。）
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2）：entry 字段枚举与 version 语义归该节；本表展开每个字段的适用 kind 与含义。）
 
 `music-sources/`、`lyric-sources/` 与 `plugins/` 下的条目均为独立的 `{username}-{name}.json` 文件：
 
@@ -64,11 +64,11 @@ B_Be_Bee-registry/
 | `id` | 全部 | 稳定条目 id。是 `lyric-source` / `theme` / `plugin` 的匹配键（§3）。 |
 | `kind` | 全部 | `music-source` \| `lyric-source` \| `theme` \| `plugin`。 |
 | `name` | 全部 | 展示名。 |
-| `version` | 全部 | 最新发布的 semver —— 内容变更必须 bump；缺失即视为 `0.0.0`，更新检查会跳过（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））。内置歌词源已经用该字段比对注册表副本是否更新。 |
+| `version` | 全部 | 最新发布的 semver —— 内容变更必须 bump；缺失即视为 `0.0.0`，更新检查会跳过（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2））。内置歌词源已经用该字段比对注册表副本是否更新。 |
 | `author` | 全部 | 署名，展示在安装对话框。 |
 | `description` | 全部 | 列表中展示的一行简介。 |
 | `updatedAt` | 全部 | 条目的最后提交日期（ISO 8601），由索引生成器写入。 |
-| `downloadUrl` | 全部 | 可安装产物的位置 —— 应用只消费 `dist/` 产物，从不消费条目源码（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））。 |
+| `downloadUrl` | 全部 | 可安装产物的位置 —— 应用只消费 `dist/` 产物，从不消费条目源码（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2））。 |
 | `minAppVersion` | 全部 | 条目所需的最低应用版本（semver）。可选字段；缺失即代表不限制应用版本。UI 侧通过 `minAppVersionBlock` 强校验拦截 —— 当当前运行的应用版本低于此版本时禁用安装并提示具体原因。 |
 | `sourceUrl` | music-source | 文档的后端基址 —— 与已安装音源的匹配键（§3）。 |
 | `previewUrl` | theme, plugin | 安装对话框的预览图。 |
@@ -81,7 +81,7 @@ B_Be_Bee-registry/
 
 ## 3. 匹配语义 —— 什么算"已安装"
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：music-source 以 `sourceUrl` 为匹配键归该节；本节讲每种 kind 为何这样匹配。）
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2）：music-source 以 `sourceUrl` 为匹配键归该节；本节讲每种 kind 为何这样匹配。）
 
 `checkUpdates()` 将索引条目与用户已有内容比对。每类内容使用的身份各不相同，因为它复用该类内容自己的身份：
 
@@ -195,7 +195,7 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
 - **安全审计报告（Security Audit Report）**：展示审计等级徽标（`通过 (Pass)` / `警告 (Warn)` / `高危风险 (Block)`）并逐条列出发现问题（类别、等级、代码片段、行号）。
 - **作者仓库与 Commit**：展示代码仓库直链与 commit SHA。
 - **提交差异（Commit Diff）**：更新时展示提交哈希前进差异（如 `a1b2c3d → e4f5g6h`）。
-- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用 —— 即"用户显式确认高危风险"红线（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2））；桌面 UI 以 `我已知晓高危风险并确认强制安装` 覆写复选框实现它。仅有 `warn` 级 finding 时确认按钮保持可用。
+- **阻断门禁（Block Gating）**：审计等级为 `block` 时确认按钮默认禁用 —— 即"用户显式确认高危风险"红线（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2））；桌面 UI 以 `我已知晓高危风险并确认强制安装` 覆写复选框实现它。仅有 `warn` 级 finding 时确认按钮保持可用。
 
 ### 5.5 `registry.lock.json` 安装记录管理
 
@@ -253,7 +253,7 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
 
 ## 7. 内置内容约束
 
-（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表)（L2）：有且只有一个内置歌词源、无内置 music source、registry 不得新增 built-in。）原因：内置内容随应用二进制发布，走内置升级比对；而注册表中的一切都是用户确认后的自愿安装内容。今天的这一个内置内容就是 lrclib 歌词源（索引中 id 为 `builtin-lrclib`）。
+（规范见 [rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry)（L2）：有且只有一个内置歌词源、无内置 music source、registry 不得新增 built-in。）原因：内置内容随应用二进制发布，走内置升级比对；而注册表中的一切都是用户确认后的自愿安装内容。今天的这一个内置内容就是 lrclib 歌词源（索引中 id 为 `builtin-lrclib`）。
 
 ## 8. 视图选址
 
@@ -276,7 +276,7 @@ findings 标记为 `block`（高危）或 `warn`（可疑）。只要存在任�
 
 ## 9. 下一步阅读
 
-[spec.md](./spec.md) 定义注册表 `music-source` 条目编译出的音源文档模型；[runtime.md](./runtime.md) 定义被导入的源能做什么、不能做什么；[rules/sources.md §6](../../rules/sources.md#6-registry第三方注册表) 是注册表模型的规范性摘要；注册表仓的
+[spec.md](./spec.md) 定义注册表 `music-source` 条目编译出的音源文档模型；[runtime.md](./runtime.md) 定义被导入的源能做什么、不能做什么；[rules/sources.md §6](../../rules/sources.md#6-registry-third-party-registry) 是注册表模型的规范性摘要；注册表仓的
 [CONTRIBUTING](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/CONTRIBUTING.md)
 与
 [MODERATION](https://github.com/BBeBeeX/B_Be_Bee-registry/blob/main/MODERATION.md)

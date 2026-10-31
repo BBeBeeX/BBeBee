@@ -77,11 +77,14 @@ The architecture documentation is organized into 9 topic directories:
 | | [data-model/migrations.md](./data-model/migrations.md) | Forward-only, namespaced database schema migrations and transaction safety |
 | **UI** | [ui/architecture.md](./ui/architecture.md) | Three-package structure, descriptor contributions, React service hooks, and shells |
 | | [ui/design-system.md](./ui/design-system.md) | Dark streaming aesthetic, borderless elevation, design tokens, and WCAG AA contrast |
+| | [ui/i18n.md](./ui/i18n.md) | i18n contribution guide: `namespace:path` keys, catalogues, and the `t()` walkthrough; normative rules live in `rules/i18n.md` |
 | **Workflow** | [workflow/structure.md](./workflow/structure.md) | Monorepo layout, layer boundaries, dependency rules, and ESLint architecture guards |
 | | [workflow/build-pipelines.md](./workflow/build-pipelines.md) | Build pipelines (`tsc`, `vite`, `tauri`, `expo`) and version matrix |
 | | [workflow/testing.md](./workflow/testing.md) | Testing strategy (unit, conformance, fiber leak tests) and developer commands |
 | **Roadmap** | [roadmap/roadmap.md](./roadmap/roadmap.md) | Milestones (M0 – M5, plus the M5.1 mobile system-integration slice) with exit criteria, risk register, and architectural validity |
 | | [roadmap/archive-m1.md](./roadmap/archive-m1.md) | Historical M1 execution plan and completion verification records |
+
+Historical, top-level only: [audio-engine-inventory.md](./audio-engine-inventory.md) — Group 0 migration inventory for the audio engine; read its post-migration notice inside, it is not current architecture documentation.
 
 ---
 
