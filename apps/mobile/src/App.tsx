@@ -10,7 +10,17 @@
  */
 
 import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
-import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
+import {
+  ActivityIndicator,
+  BackHandler,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 /*
  * ⚠️ `react-native-safe-area-context`, not React Native's own `SafeAreaView`.
  *
@@ -99,10 +109,17 @@ async function loadDeferredPlugins(app: Awaited<ReturnType<typeof boot>>, ctx: C
   }
 }
 
-/** What the tab bar can navigate to: a route id plus its i18n title key. */
+/** What the tab bar can navigate to: a route id, its i18n title key, and its glyph. */
 interface Tab {
   id: string
   titleKey: string
+  /**
+   * The icon above the label — Apple-Music chrome style puts a glyph over a
+   * 10pt label per tab. Unicode symbols, because the mobile dependency set
+   * has no SVG/icon-font module to borrow (docs/ui/architecture.md §7.4 keeps
+   * it that way on purpose).
+   */
+  icon: string
 }
 
 /**
@@ -117,10 +134,10 @@ interface Tab {
  * follow the user's locale.
  */
 const TABS: readonly Tab[] = [
-  { id: 'sources.recommend', titleKey: 'app:common.app.tabs.home' },
-  { id: 'library.home', titleKey: 'app:common.app.tabs.library' },
-  { id: 'settings.view', titleKey: 'app:common.app.tabs.settings' },
-  { id: 'sources.search', titleKey: 'app:common.app.tabs.search' },
+  { id: 'sources.recommend', titleKey: 'app:common.app.tabs.home', icon: '⌂' },
+  { id: 'library.home', titleKey: 'app:common.app.tabs.library', icon: '♫' },
+  { id: 'settings.view', titleKey: 'app:common.app.tabs.settings', icon: '⚙︎' },
+  { id: 'sources.search', titleKey: 'app:common.app.tabs.search', icon: '⌕' },
 ]
 
 /**
@@ -745,12 +762,25 @@ function Shell({ ctx }: { ctx: Context }) {
           onOpenQueue: () => setIsQueueOpen(true),
         })
       : null,
+    /*
+     * The tab bar as Apple Music draws its chrome: a sunken, near-opaque
+     * surface under a hairline, each tab a glyph over a 10pt label, and the
+     * selection spoken in the accent colour rather than weight alone.
+     */
     h(
       View,
-      { style: { flexDirection: 'row', borderTopColor: palette.border.subtle, borderTopWidth: 1 } },
+      {
+        style: {
+          flexDirection: 'row',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: palette.border.subtle,
+          backgroundColor: palette.bg.sunken,
+        },
+      },
       ...TABS.map((tab) => {
         const isSelected = isTabSelected(tab)
         const tabTitle = t(tab.titleKey)
+        const tint = isSelected ? palette.accent.base : palette.text.secondary
         return h(
           Pressable,
           {
@@ -759,16 +789,10 @@ function Shell({ ctx }: { ctx: Context }) {
             accessibilityRole: 'tab',
             accessibilityLabel: tabTitle,
             accessibilityState: { selected: isSelected },
-            style: { flex: 1, padding: 14, alignItems: 'center' },
+            style: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8, gap: 1 },
           },
-          h(
-            Text,
-            {
-              numberOfLines: 1,
-              style: { color: isSelected ? palette.text.primary : palette.text.secondary },
-            },
-            tabTitle,
-          ),
+          h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
+          h(Text, { numberOfLines: 1, style: { color: tint, fontSize: 10 } }, tabTitle),
         )
       }),
     ),
