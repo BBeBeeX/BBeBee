@@ -10,7 +10,7 @@
  */
 
 import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
-import { ActivityIndicator, BackHandler, Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 /*
  * ⚠️ `react-native-safe-area-context`, not React Native's own `SafeAreaView`.
  *
@@ -26,10 +26,15 @@ import type { Context } from 'cordis'
 import type {
   LifecycleService,
   QuickActionsService,
+  SettingsService,
   StoreService,
 } from '@BBeBee/protocol'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { useI18n, usePalette, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
+import { usePlayHistoryHeatmap } from '@bbebee/plugin-player/hooks'
+// The stats page's heatmap chart, reused here for the drawer's three-month
+// slice — one chart, one colour scale, two homes (docs/ui/architecture.md §7.4).
+import { PlayHeatmap } from '@bbebee/plugin-history-ui-mobile'
 import { renderBootErrorMessage } from './boot-error'
 import { boot } from './boot'
 import {
@@ -38,6 +43,11 @@ import {
   resolveMobileLayout,
   type MobileLayoutMode,
 } from './layout'
+import {
+  appearanceModeLabelKey,
+  isAppearanceMode,
+  nextAppearanceMode,
+} from './appearance'
 import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
@@ -143,6 +153,128 @@ function useUiChangedTick(ctx: Context): number {
   return tick
 }
 
+/* ── the left navigation drawer (docs/ui/architecture.md §7.4) ─────────── */
+
+/**
+ * The display-mode button at the drawer header's right: cycles
+ * dark → light → auto and shows the mode it is in. The write goes through
+ * the settings service — the same `AppSettings.theme` field the palette
+ * drive reads and repaints from — so this button carries no palette logic
+ * of its own, and auto ("跟随系统") follows the system scheme because the
+ * drive resolves it natively.
+ */
+function DisplayModeButton({ ctx }: { ctx: Context }) {
+  const { t } = useI18n(ctx)
+  const palette = usePalette()
+  const mode = useServiceState(ctx, ['settings/changed'], () => {
+    const theme = serviceOf<SettingsService>(ctx, 'settings')?.getSync().theme
+    return isAppearanceMode(theme) ? theme : 'dark'
+  })
+  return h(
+    Pressable,
+    {
+      accessibilityRole: 'button',
+      accessibilityLabel: t('theme:themeManagement.appearanceMode'),
+      testID: 'drawer-display-mode',
+      onPress: () => {
+        void serviceOf<SettingsService>(ctx, 'settings')
+          ?.update({ theme: nextAppearanceMode(mode) })
+          .catch(() => {})
+      },
+      style: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      },
+    },
+    h(Text, { style: { color: palette.text.primary, fontSize: 13 } }, t(appearanceModeLabelKey(mode))),
+  )
+}
+
+/**
+ * The drawer's body, top to bottom: the logo with the display-mode button on
+ * its right, the stats page's play-count heatmap for the most recent three
+ * months, then the four fixed tabs stacked vertically in the tab bar's order.
+ * The list mirrors the tabs — it adds no destination and reorders none; a tap
+ * navigates (and the shell closes the drawer).
+ */
+function NavDrawerContents({ ctx, selectedTabId, onSelectTab }: {
+  ctx: Context
+  selectedTabId: string | undefined
+  onSelectTab: (id: string) => void
+}) {
+  const { t } = useI18n(ctx)
+  const palette = usePalette()
+  // Three months only — the stats page mounts the same chart with a year.
+  const { heatmap, loading } = usePlayHistoryHeatmap(ctx, 90)
+
+  return h(
+    View,
+    { style: { flex: 1 } },
+    h(
+      View,
+      {
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingTop: 12,
+          paddingBottom: 8,
+        },
+      },
+      h(Image, { source: brandIcon, style: { width: 28, height: 28, borderRadius: 6 } }),
+      h(View, { style: { flex: 1 } }),
+      h(DisplayModeButton, { ctx }),
+    ),
+    h(
+      ScrollView,
+      { style: { flex: 1 } },
+      h(
+        View,
+        { style: { paddingHorizontal: 12 } },
+        loading
+          ? null
+          : heatmap.length > 0
+            ? h(PlayHeatmap, { heatmap, t })
+            : h(
+                Text,
+                { style: { color: palette.text.secondary, fontSize: 13, paddingVertical: 8 } },
+                t('history:index.noPlayRecordsYet'),
+              ),
+      ),
+      ...TABS.map((tab) => {
+        const isSelected = tab.id === selectedTabId
+        const tabTitle = t(tab.titleKey)
+        return h(
+          Pressable,
+          {
+            key: tab.id,
+            onPress: () => onSelectTab(tab.id),
+            accessibilityRole: 'tab',
+            accessibilityLabel: tabTitle,
+            accessibilityState: { selected: isSelected },
+            testID: `nav-drawer-tab-${tab.id}`,
+            style: { paddingVertical: 12, paddingHorizontal: 20 },
+          },
+          h(
+            Text,
+            {
+              numberOfLines: 1,
+              style: {
+                color: isSelected ? palette.text.primary : palette.text.secondary,
+                fontWeight: isSelected ? '600' : '400',
+                fontSize: 15,
+              },
+            },
+            tabTitle,
+          ),
+        )
+      }),
+    ),
+  )
+}
+
 function Shell({ ctx }: { ctx: Context }) {
   const { t } = useI18n(ctx)
   /*
@@ -164,6 +296,14 @@ function Shell({ ctx }: { ctx: Context }) {
    * no single page or bar can own it without reaching across the others.
    */
   const [isQueueOpen, setIsQueueOpen] = useState(false)
+  /*
+   * The left navigation drawer's open state — shell-owned for the same
+   * reason the queue drawer's is: it overlays pages and panes alike (on a
+   * foldable it covers the left pane, not the right), and Back must close it
+   * before any stack pops. The hamburger that opens it lives in the main
+   * header, so only the shell can reach every trigger.
+   */
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   /*
    * The user's persisted layout choice, read from `ctx.store` on mount and
@@ -307,9 +447,14 @@ function Shell({ ctx }: { ctx: Context }) {
   }, [leftNavState.index])
 
   const goBack = useCallback(() => {
-    // Drawer before player before stacks: each surface unwinds in the order
-    // it covered the one beneath. (The sheet's own Modal also intercepts Back
-    // via `onRequestClose`; this guard is the same promise held by the shell.)
+    // Drawer before queue before player before stacks: each surface unwinds
+    // in the order it covered the one beneath. (The sheet's own Modal also
+    // intercepts Back via `onRequestClose`; this guard is the same promise
+    // held by the shell.)
+    if (isDrawerOpen) {
+      setIsDrawerOpen(false)
+      return true
+    }
     if (isQueueOpen) {
       setIsQueueOpen(false)
       return true
@@ -329,7 +474,7 @@ function Shell({ ctx }: { ctx: Context }) {
       return true
     }
     return false
-  }, [isQueueOpen, isFullscreenNowPlaying, navState.index, layout, leftNavState.index])
+  }, [isDrawerOpen, isQueueOpen, isFullscreenNowPlaying, navState.index, layout, leftNavState.index])
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -373,6 +518,16 @@ function Shell({ ctx }: { ctx: Context }) {
   const activeTab = TABS.find((tab) => tab.id === currentId)
 
   const isTablet = layout === 'tablet'
+
+  /**
+   * The tab a route belongs to, everywhere the four tabs are drawn — the
+   * bottom bar, the tablet rail and the drawer list must never disagree on
+   * which entry is lit. Detail routes ride their parent tab: an album page
+   * keeps the library entry selected.
+   */
+  const isTabSelected = (tab: Tab): boolean =>
+    activeTab?.id === tab.id || (currentId === 'album.view' && tab.id === 'library.home')
+  const selectedTabId = TABS.find((tab) => isTabSelected(tab))?.id
 
   const BottomBar = ctx.ui.viewFor('now-playing.bar') as
     | ComponentType<{ ctx: Context; onOpenNowPlaying?: () => void; onOpenQueue?: () => void }>
@@ -459,6 +614,47 @@ function Shell({ ctx }: { ctx: Context }) {
     )
   }
 
+  /*
+   * The main interface's header: the page title with the drawer's hamburger
+   * on its left. Shown where the back header is not — the four tab roots of
+   * the phone layout (and of the foldable's right pane, which is the phone
+   * layout verbatim). The tablet's root pages have no shell header: the rail
+   * is their navigation, and the spec gives the tablet no drawer to open.
+   */
+  const mainHeaderFor = (title: string, onOpenDrawer: () => void) =>
+    h(
+      View,
+      {
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomColor: palette.border.subtle,
+          borderBottomWidth: 1,
+        },
+      },
+      h(
+        Pressable,
+        {
+          onPress: onOpenDrawer,
+          accessibilityRole: 'button',
+          accessibilityLabel: t('app:common.app.openNavDrawer'),
+          testID: 'nav-drawer-open',
+          style: { paddingVertical: 4, paddingRight: 14 },
+        },
+        h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+      ),
+      h(
+        Text,
+        {
+          numberOfLines: 1,
+          style: { color: palette.text.primary, fontSize: 17, fontWeight: '600', flex: 1 },
+        },
+        title,
+      ),
+    )
+
   const backHeader = backHeaderFor(canGoBack, goBack)
   const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
     navigateTo('album.view', { urn }),
@@ -482,12 +678,65 @@ function Shell({ ctx }: { ctx: Context }) {
     (urn) => leftNavigate('album.view', { urn }),
   )
 
+  /*
+   * The left navigation drawer overlay: backdrop on the right of the panel,
+   * content inside it. One element serves both hosts — the phone mounts it
+   * over the whole window; the foldable mounts it as the left pane's last
+   * child, which keeps it inside the pane's bounds. Closing: a backdrop tap,
+   * a tab selection (the shell closes on select), or Android Back — Back
+   * unwinds the drawer before any stack pops (goBack above).
+   */
+  const drawerOverlay = h(
+    View,
+    {
+      style: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        flexDirection: 'row',
+        zIndex: 110,
+      },
+      testID: 'nav-drawer-overlay',
+    },
+    h(Pressable, {
+      onPress: () => setIsDrawerOpen(false),
+      accessibilityRole: 'button',
+      accessibilityLabel: t('app:common.close'),
+      testID: 'nav-drawer-backdrop',
+      style: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
+    }),
+    h(
+      View,
+      {
+        style: {
+          width: Math.min(320, Math.round(width * 0.8)),
+          backgroundColor: palette.bg.base,
+          borderRightWidth: 1,
+          borderRightColor: palette.border.subtle,
+        },
+        testID: 'nav-drawer-panel',
+      },
+      h(NavDrawerContents, {
+        ctx,
+        selectedTabId,
+        onSelectTab: (id: string) => {
+          setIsDrawerOpen(false)
+          navigateTo(id)
+        },
+      }),
+    ),
+  )
+
   /* ── phone chrome: page, bar, bottom tabs ──────────────────────────────── */
 
   const phoneChrome = h(
     View,
     { style: { flex: 1 } },
-    backHeader,
+    // Detail pages get the back header; the tab roots get the main header
+    // with the drawer's hamburger (the main interface per §7.4).
+    canGoBack ? backHeader : mainHeaderFor(activeTab ? t(activeTab.titleKey) : '', () => setIsDrawerOpen(true)),
     pageBody,
     BottomBar
       ? h(BottomBar, {
@@ -500,9 +749,7 @@ function Shell({ ctx }: { ctx: Context }) {
       View,
       { style: { flexDirection: 'row', borderTopColor: palette.border.subtle, borderTopWidth: 1 } },
       ...TABS.map((tab) => {
-        const isSelected =
-          activeTab?.id === tab.id ||
-          (currentId === 'album.view' && tab.id === 'library.home')
+        const isSelected = isTabSelected(tab)
         const tabTitle = t(tab.titleKey)
         return h(
           Pressable,
@@ -560,9 +807,7 @@ function Shell({ ctx }: { ctx: Context }) {
         View,
         { style: { flex: 1 } },
         ...TABS.map((tab) => {
-          const isSelected =
-            activeTab?.id === tab.id ||
-            (currentId === 'album.view' && tab.id === 'library.home')
+          const isSelected = isTabSelected(tab)
           const tabTitle = t(tab.titleKey)
           return h(
             Pressable,
@@ -640,6 +885,12 @@ function Shell({ ctx }: { ctx: Context }) {
    * two-pane posture behaves exactly like the phone it replaces — same tab
    * navigation, same back stack, same sheet triggers — with the library
    * pinned open beside it.
+   *
+   * The right pane's hamburger opens the drawer into the LEFT pane: within
+   * the left pane's bounds, overlaying the library temporarily — never over
+   * the phone layout. A drawer tab navigates the right pane (`navigateTo`
+   * only ever touches the right stack) and closes; the left pane stays the
+   * library afterwards.
    */
   const foldableChrome = h(
     View,
@@ -678,6 +929,7 @@ function Shell({ ctx }: { ctx: Context }) {
       ),
       leftBackHeader,
       leftPageBody,
+      isDrawerOpen ? drawerOverlay : null,
     ),
     h(View, { style: { flex: 1 }, testID: 'foldable-right-pane' }, phoneChrome),
   )
@@ -803,6 +1055,10 @@ function Shell({ ctx }: { ctx: Context }) {
     fullscreenOverlay,
     queueSheet,
     queueDrawer,
+    // The drawer over the whole window is the phone host only — the foldable
+    // mounts the same element inside its left pane, and the tablet has no
+    // drawer (the rail is its navigation).
+    layout === 'phone' && isDrawerOpen ? drawerOverlay : null,
     activeToast
       ? h(
           View,

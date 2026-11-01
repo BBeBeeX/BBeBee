@@ -8,7 +8,7 @@
 import { createElement as h, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { PlayHistoryHeatmapDay } from '@BBeBee/protocol'
-import { tokens } from '@BBeBee/ui-tokens'
+import { HEATMAP_LEVEL_COLORS, getHeatmapLevel, tokens } from '@BBeBee/ui-tokens'
 import historyCatalogue from '../../../feature/plugin-i18n/src/locales/history.json'
 
 const EN_HISTORY = (historyCatalogue as unknown as { en: Record<string, unknown> }).en
@@ -78,22 +78,12 @@ const MONTH_KEYS = [
 ] as const
 
 
-/** Green intensity levels matching GitHub's dark theme palette. */
-const LEVEL_COLORS = [
-  'rgba(255, 255, 255, 0.07)', // 0: None
-  '#0e4429',                   // 1: 1-2
-  '#006d32',                   // 2: 3-5
-  '#26a641',                   // 3: 6-10
-  '#39d353',                   // 4: 11+
-] as const
-
-export function getHeatmapLevel(count: number): 0 | 1 | 2 | 3 | 4 {
-  if (count <= 0) return 0
-  if (count <= 2) return 1
-  if (count <= 5) return 2
-  if (count <= 10) return 3
-  return 4
-}
+/**
+ * The bucket function and colour scale live in `@BBeBee/ui-tokens` — the
+ * mobile stats page and navigation drawer colour by the same scale. Re-exported
+ * here so the chart's own surface stays the one-stop import for its callers.
+ */
+export { getHeatmapLevel } from '@BBeBee/ui-tokens'
 
 interface MonthHeader {
   month: string
@@ -338,7 +328,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate, t }: PlayHeat
                     width: 10,
                     height: 10,
                     borderRadius: 2,
-                    background: LEVEL_COLORS[level],
+                    background: HEATMAP_LEVEL_COLORS[level],
                     cursor: 'pointer',
                     boxSizing: 'border-box',
                     outline: isSelected ? '2px solid var(--success, #57f287)' : 'none',
@@ -401,7 +391,7 @@ export function PlayHeatmap({ heatmap, selectedDate, onSelectDate, t }: PlayHeat
           },
         },
         h('span', null, translate('history:playHeatmap.less')),
-        LEVEL_COLORS.map((color, idx) =>
+        HEATMAP_LEVEL_COLORS.map((color, idx) =>
           h('div', {
             key: idx,
             style: {

@@ -20,7 +20,8 @@
       "layoutModeDescription": "Choose phone, tablet, or dual-pane foldable layout; Auto follows the window size.",
       "layoutModeAuto": "Auto",
       "layoutModeTablet": "Tablet",
-      "layoutModeFoldable": "Dual screen"
+      "layoutModeFoldable": "Dual screen",
+      "openNavDrawer": "Open navigation drawer"
     },
     "back": "Back",
     "cancel": "Cancel",

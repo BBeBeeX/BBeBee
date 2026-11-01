@@ -8,10 +8,11 @@ import { createElement as h, Fragment, useMemo } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { I18nService, PlayRecord, Track } from '@BBeBee/protocol'
+import type { PlayRecord, Track } from '@BBeBee/protocol'
 import { HISTORY_VIEWS } from '@bbebee/plugin-history/views'
 import {
   usePlayHistory,
+  usePlayHistoryHeatmap,
   usePlayHistoryStats,
   useTracksByUrn,
   useTransport,
@@ -21,6 +22,7 @@ import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
+import { PlayHeatmap, formatPlayDuration } from './PlayHeatmap.js'
 
 function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): ReactElement {
   const artwork = useResolvedArtwork(ctx, props.track.artwork)
@@ -32,17 +34,6 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
 
 function fallbackTrack(urn: string, title = ''): Track {
   return { urn, title, artists: [] }
-}
-
-function formatPlayDuration(t: I18nService['t'], ms: number): string {
-  if (ms <= 0) return t('history:playHeatmap.durationZero')
-  const totalMinutes = Math.floor(ms / 60000)
-  if (totalMinutes === 0) return t('history:playHeatmap.durationUnderOneMinute')
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  if (hours === 0) return t('history:playHeatmap.durationMinutes', { minutes })
-  if (minutes === 0) return t('history:playHeatmap.durationHours', { hours })
-  return t('history:playHeatmap.hrMin', { hours, minutes })
 }
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
@@ -63,6 +54,9 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   }, [records])
 
   const { stats } = usePlayHistoryStats(ctx)
+  // The stats page's heatmap: a year of daily play counts, the same chart the
+  // shell's navigation drawer mounts with the most recent three months.
+  const { heatmap } = usePlayHistoryHeatmap(ctx, 365)
   const transport = useTransport(ctx)
   const tracks = useTracksByUrn(
     ctx,
@@ -120,6 +114,14 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
         ),
       ),
     ),
+    h(PlayHeatmap, {
+      heatmap,
+      t,
+      summary: t('history:playHeatmap.playedSummary', {
+        plays: stats.totalPlays,
+        duration: formatPlayDuration(t, stats.totalMsPlayed),
+      }),
+    }),
     h(List<PlayRecord>, {
       items: uniqueRecords,
       accessibilityLabel: t('history:history.playHistory'),
@@ -173,6 +175,14 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
     h(ContextMenu, menu.menuProps),
   )
 }
+
+/**
+ * The stats page's play-count heatmap, exported for the shell: the navigation
+ * drawer mounts this same chart with the most recent three months of data
+ * (docs/ui/architecture.md §7.4) rather than growing a second implementation.
+ */
+export { PlayHeatmap, formatPlayDuration } from './PlayHeatmap.js'
+export type { PlayHeatmapProps, TranslateFn } from './PlayHeatmap.js'
 
 export const name = 'plugin-history-ui-mobile'
 export const inject = ['ui', 'player', 'sources']
