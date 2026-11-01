@@ -953,13 +953,27 @@ describe('SettingsScreen', () => {
     expect(container.querySelector('#section-playback')).toBeNull()
     expect(container.querySelector('#section-about')).toBeNull()
 
-    // Tab buttons have no emoji / icons and length is 9 (including plugins)
+    // Tab buttons have no emoji / icons. The two `contributed` tabs
+    // (lyrics, shortcuts) are absent: the harness contributes nothing to
+    // their sections, and a contributed tab exists only while its section
+    // has a live contribution (tabs.ts).
     const tabButtons = container.querySelectorAll('aside button[role="tab"]')
-    expect(tabButtons.length).toBe(9)
+    expect(tabButtons.length).toBe(7)
     for (const btn of Array.from(tabButtons)) {
       expect(btn.querySelector('svg')).toBeNull()
       expect(btn.textContent).not.toMatch(/[\u{1F300}-\u{1F9FF}]/u)
     }
+
+    // Contributing to a section brings its contributed tab back.
+    ;(ctx.get('settings') as unknown as { contribute(c: SettingsContribution): void }).contribute({
+      id: 'settings.shortcuts',
+      section: 'shortcuts',
+      title: 'Global shortcuts',
+      display: 'card',
+    })
+    await waitFor(() => {
+      expect(container.querySelectorAll('aside button[role="tab"]').length).toBe(8)
+    })
 
     // Default volume is removed completely from the UI
     expect(container.textContent).not.toContain('Default volume')

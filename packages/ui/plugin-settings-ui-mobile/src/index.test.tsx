@@ -305,4 +305,36 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).toContain('Dynamically registered configuration')
       expect(container.textContent).toContain('Open extension')
     })
+
+    it('omits a card contribution with no view on this target from the home list', async () => {
+      const { ctx } = await createHarness()
+      ;(ctx.settings as any).contribute({
+        id: 'desktop.only.card',
+        section: 'desktopOnly',
+        title: 'Desktop-only card',
+        description: 'Registered everywhere, viewable nowhere on mobile',
+        display: 'card',
+      })
+      const { container } = render(h(SettingsScreen, { ctx }))
+      // No placeholder row, and no section header for a section that has
+      // nothing usable here.
+      expect(container.textContent).not.toContain('Desktop-only card')
+      expect(container.textContent).not.toContain('DesktopOnly')
+    })
+
+    it('renders the same card once a view is registered for it', async () => {
+      const { ctx } = await createHarness()
+      ;(ctx.ui as any).registerView(
+        'desktop.only.card',
+        () => h('div', null, 'desktop only card body'),
+      )
+      ;(ctx.settings as any).contribute({
+        id: 'desktop.only.card',
+        section: 'desktopOnly',
+        title: 'Desktop-only card',
+        display: 'card',
+      })
+      const { container } = render(h(SettingsScreen, { ctx }))
+      expect(container.textContent).toContain('desktop only card body')
+    })
   })

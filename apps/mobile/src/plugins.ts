@@ -105,9 +105,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
     },
   },
   // Car mode: driving-optimized state (charging auto-detection, trigger
-  // matching) plus the mobile driving screen. Headless on desktop, like
-  // plugin-desktop-lyrics is headless here — the feature-parity gate
-  // (shells.test.ts) counts the feature on both shells.
+  // matching) plus the mobile driving screen. Headless on desktop — the
+  // feature-parity gate (shells.test.ts) counts the feature on both shells.
   '@bbebee/plugin-car-mode': {},
   '@bbebee/plugin-car-mode-ui-mobile': {},
   // Hooks `player/before-resolve`: a file the user downloads is kept under
@@ -132,7 +131,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // The lyrics panel view, contributed into the now-playing page's panel
   // slot — the mobile twin of `plugin-lyrics-ui-desktop`.
   '@bbebee/plugin-lyrics-ui-mobile': {},
-  '@bbebee/plugin-desktop-lyrics': {},
+  // `plugin-desktop-lyrics` is absent here on purpose: the floating window
+  // has no phone analogue, so its manifest declares `platforms: ["desktop"]`
+  // and the parity gate excuses it (DESKTOP_ONLY_FEATURES in the kernel's
+  // shells.test.ts). Re-adding it here fails the "configured but not
+  // available" check, because the mobile registry no longer carries it.
   '@bbebee/plugin-mini-player': {},
   '@bbebee/plugin-queue': {},
   '@bbebee/plugin-queue-ui-mobile': {},

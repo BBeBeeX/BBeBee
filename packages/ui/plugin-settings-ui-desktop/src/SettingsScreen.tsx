@@ -128,6 +128,12 @@ export function SettingsScreen({
   const availableSettings = useAvailableSettings(ctx)
   const grouped = groupBySection(availableSettings)
 
+  // Sections with their own static chrome (or rendered inside another
+  // section's component — 'audio' lives in PlaybackSection). Contributions
+  // to them are merged into those components; they never become custom tabs.
+  // 'lyrics'/'shortcuts' are excluded for the same reason — their dedicated
+  // blocks below are contribution-driven, and the tabs themselves exist only
+  // while their section has contributions (tabs.ts `contributed`).
   const customSectionIds = Array.from(
     new Set(
       availableSettings
@@ -151,7 +157,12 @@ export function SettingsScreen({
   )
 
   const allTabs: readonly TabItem[] = [
-    ...TABS.map((tab) => ({ ...tab, label: tabLabel(t, tab.id) })),
+    // A contributed tab (tabs.ts) exists only while its section has live
+    // contributions — disabling the owning plugin takes the tab with it.
+    // Static tabs carry their own section components and are always present.
+    ...TABS.filter((tab) => !tab.contributed || (grouped.get(tab.id)?.length ?? 0) > 0).map(
+      (tab) => ({ ...tab, label: tabLabel(t, tab.id) }),
+    ),
     ...customSectionIds.map((s) => ({
       id: s,
       label: tabLabel(t, s),

@@ -1662,6 +1662,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
+    "platforms": [
+      "desktop"
+    ],
     "entry": {
       "main": "./dist/index.js",
       "ui": {
@@ -1692,6 +1695,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     ],
     "systemId": "layer-4",
     "moduleId": "lyrics",
+    "platforms": [
+      "desktop"
+    ],
     "entry": {
       "main": "./dist/index.js",
       "ui": {

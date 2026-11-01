@@ -51,6 +51,17 @@ const SHELLS: Shell[] = [
 ]
 
 /**
+ * Features one shell may lack because they are platform-inherent rather than
+ * split products: the floating desktop-lyrics window cannot exist on a phone,
+ * so its feature package declares `platforms: ["desktop"]` in its manifest and
+ * the parity check below excuses it. The excuse is not taken on faith — the
+ * dedicated check after the shell tests fails unless the manifest itself
+ * declares the restriction, so a feature cannot leave the mobile shell by
+ * adding an id here alone, and this table cannot drift from the manifests.
+ */
+const DESKTOP_ONLY_FEATURES: readonly string[] = ['@bbebee/plugin-desktop-lyrics']
+
+/**
  * Every workspace package, by directory name → absolute path.
  *
  * Packages live at `packages/<layer>/<package>` (docs/09 §1), so a name alone
@@ -227,10 +238,32 @@ describe.each(SHELLS)('the $name shell', (shell) => {
 
     // Desktop has the inspector's view package and mobile does not, which is a
     // *view*, not a feature — both shells enable `plugin-inspector` itself.
-    const missing = [...theirs].filter((id) => !mine.has(id))
+    // A platform-inherent feature (DESKTOP_ONLY_FEATURES) is excused — but
+    // only because its manifest declares the restriction, which the dedicated
+    // check after this describe enforces.
+    const missing = [...theirs].filter(
+      (id) => !mine.has(id) && !DESKTOP_ONLY_FEATURES.includes(id),
+    )
     expect(
       missing,
       `${other.name} runs these and ${shell.name} does not:\n  ${missing.join('\n  ')}`,
+    ).toEqual([])
+  })
+})
+
+describe('a desktop-only feature exception', () => {
+  it('is backed by a manifest that declares the restriction', async () => {
+    const all = await manifests()
+    const unbacked = DESKTOP_ONLY_FEATURES.filter((id) => {
+      const platforms = all.get(id)?.platforms
+      // No `platforms` at all means the feature runs everywhere, and the
+      // parity gate above would be right to refuse the excuse.
+      return !platforms || platforms.includes('mobile')
+    })
+    expect(
+      unbacked,
+      'listed in DESKTOP_ONLY_FEATURES but the manifest does not declare ' +
+        `"platforms": ["desktop"]:\n  ${unbacked.join('\n  ')}`,
     ).toEqual([])
   })
 })

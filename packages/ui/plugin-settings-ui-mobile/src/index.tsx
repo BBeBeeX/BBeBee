@@ -100,9 +100,17 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
   const availableSettings = useAvailableSettings(ctx)
+  // A card contribution with no view on this target can only render the
+  // "not available on this platform" placeholder; in the home directory that
+  // is noise, so such a card is omitted and a section left with nothing
+  // usable here does not appear at all. The category sub-pages keep the
+  // explicit unavailable state (docs/08 §3).
+  const usable = availableSettings.filter(
+    (contribution) => contribution.display !== 'card' || !!ctx.ui?.viewFor?.(contribution.id),
+  )
   const customSectionIds = Array.from(
     new Set(
-      availableSettings
+      usable
         .map((contribution) => contribution.section)
         .filter((section) => !FIXED_SECTION_IDS.includes(section)),
     ),
@@ -158,7 +166,7 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       // Plugin-contributed sections outside the five fixed ones: rendered
       // inline — they are dynamic, and a page per unknown id buys nothing.
       ...customSectionIds.map((secId) => {
-        const secContribs = availableSettings.filter((contribution) => contribution.section === secId)
+        const secContribs = usable.filter((contribution) => contribution.section === secId)
         return h(
           native.View as never,
           { key: secId, style: { paddingHorizontal: tokens.space[4] } },

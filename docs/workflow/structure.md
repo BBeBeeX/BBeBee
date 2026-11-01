@@ -205,6 +205,8 @@ B_Be_Bee/
 │   │   ├── plugin-lyrics/          ✅        ctx.lyrics — lyric cache, source resolution and sync
 │   │   ├── plugin-lyric-sources/   ✅        ctx.lyricSources — third-party external lyric sources
 │   │   ├── plugin-desktop-lyrics/  ✅        ctx.desktopLyrics — floating/secondary window lyrics
+│   │   │                                       (desktop-only by manifest; the parity gate's
+│   │   │                                       DESKTOP_ONLY_FEATURES excuses it on mobile)
 │   │   ├── plugin-desktop-taskbar/ ✅        Windows taskbar thumbnail toolbar (play/pause/prev/next/favorite) and tray controls
 │   │   ├── plugin-visualizer/      ✅        ctx.visualizer — real-time audio FFT/waveform analysis service
 │   │   ├── plugin-mini-player/     ✅        ctx.miniPlayer — floating mini player and Dynamic Island
@@ -213,7 +215,7 @@ B_Be_Bee/
 │   │   ├── plugin-sleep-timer/     ✅        ctx.sleepTimer — countdown sleep timer service
 │   │   ├── plugin-car-mode/        ✅        ctx.carMode — driving-optimized mode state (trigger
 │   │   │                                       matching, charging auto-detection); headless on
-│   │   │                                       desktop, like plugin-desktop-lyrics is here on mobile
+│   │   │                                       desktop
 │   │   ├── plugin-theme/           ✅        ctx.theme — theme registry and token DOM/store synchronization
 │   │   ├── plugin-manager/         ✅        ctx['plugin-manager'] — plugin registry and runtime lifecycle
 │   │   ├── plugin-cache/           ✅        ctx.cache — covers and remote streams served from

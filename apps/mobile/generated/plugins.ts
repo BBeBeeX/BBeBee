@@ -104,11 +104,6 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/plugin-car-mode","name":"@bbebee/plugin-car-mode","displayName":"Car Mode","description":"ctx.carMode — driving-optimized mode state, triggers and auto-detection.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["carMode"]},"effect":"carMode"},
     builtin: true,
   },
-  "@bbebee/plugin-desktop-lyrics": {
-    load: () => import('@bbebee/plugin-desktop-lyrics'),
-    manifest: {"id":"@bbebee/plugin-desktop-lyrics","name":"@bbebee/plugin-desktop-lyrics","displayName":"Desktop Lyrics","description":"Floating desktop lyrics state and command contributions.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-lyrics"],"systemId":"layer-4","moduleId":"lyrics","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["desktopLyrics"]},"effect":"desktopLyrics"},
-    builtin: true,
-  },
   "@bbebee/plugin-desktop-taskbar": {
     load: () => import('@bbebee/plugin-desktop-taskbar'),
     manifest: {"id":"@bbebee/plugin-desktop-taskbar","name":"@bbebee/plugin-desktop-taskbar","displayName":"Desktop Taskbar","description":"Desktop taskbar and tray playback controls for Play/Pause, Previous, and Next.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-player"],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
