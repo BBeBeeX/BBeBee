@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
 import { Context, Service } from '@BBeBee/kernel'
 import type { AppSettings, SettingsService, SettingsContribution, CacheClass, CacheStats, DspService, ChainEntry, EffectDefinition } from '@BBeBee/protocol'
@@ -43,6 +43,7 @@ configureNative({
 class UiStub extends Service {
   public views = new Map<string, unknown>()
   public routes: string[] = []
+  public lastNavigateParams?: Record<string, unknown>
 
   constructor(ctx: Context) {
     super(ctx, 'ui')
@@ -62,8 +63,9 @@ class UiStub extends Service {
     }
   }
 
-  navigate(id: string) {
+  navigate(id: string, params?: Record<string, unknown>) {
     this.routes.push(id)
+    this.lastNavigateParams = params
   }
 
   viewFor(id: string) {
@@ -336,5 +338,59 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       })
       const { container } = render(h(SettingsScreen, { ctx }))
       expect(container.textContent).toContain('desktop only card body')
+    })
+
+    it('renders the About sub-page with the desktop twin’s sections and rows', async () => {
+      const { ctx } = await createHarness()
+      const AboutPage = (ctx.ui as any).viewFor('settings.about')
+      const { container, getByTestId } = render(h(AboutPage, {}))
+
+      // Brand badge: name and tagline with the version baked in.
+      expect(container.textContent).toContain('BBeBee')
+      expect(container.textContent).toContain('Cross-platform plugin-based music player · Version 0.1.0')
+      // The onboarding guide row, the architecture/sandbox/license rows.
+      expect(container.textContent).toContain('Onboarding & Quick Start Guide')
+      expect(container.textContent).toContain('Microkernel architecture')
+      expect(container.textContent).toContain('Secure sandbox')
+      expect(container.textContent).toContain('Open-source license')
+      // Danger zone exists only behind the advanced-settings toggle.
+      expect(container.textContent).not.toContain('Danger zone')
+
+      // The guide row navigates to the recommend page with the guide flag.
+      await act(async () => {
+        getByTestId('about-open-guide').click()
+      })
+      expect((ctx.ui as any).routes).toContain('sources.recommend')
+      expect((ctx.ui as any).lastNavigateParams).toEqual({ showGuide: true })
+    })
+
+    it('gates the developer diagnostics and danger zone behind advanced settings', async () => {
+      const { ctx } = await createHarness()
+      const AboutPage = (ctx.ui as any).viewFor('settings.about')
+      const { container, getByTestId } = render(h(AboutPage, {}))
+
+      expect(container.textContent).not.toContain('Developer & system diagnostics')
+      expect(container.textContent).not.toContain('Reset all settings')
+
+      // Flipping the advanced toggle reveals both sections.
+      await act(async () => {
+        getByTestId('about-advanced-toggle').click()
+      })
+      expect(container.textContent).toContain('Developer & system diagnostics')
+      expect(container.textContent).toContain('Danger zone')
+      expect(container.textContent).toContain('Reset all settings')
+
+      // The reset flow: restore-defaults → confirm, and the settings
+      // service's reset actually runs (the danger zone stays while advanced
+      // settings is on — same as the desktop twin).
+      await act(async () => {
+        getByTestId('about-restore-defaults').click()
+      })
+      expect(container.textContent).toContain('Confirm reset')
+      await act(async () => {
+        getByTestId('about-confirm-reset').click()
+      })
+      expect(container.textContent).toContain('Restore defaults')
+      expect(container.textContent).not.toContain('Confirm reset')
     })
   })

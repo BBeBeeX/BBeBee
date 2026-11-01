@@ -2,10 +2,10 @@
 /**
  * The mobile library screens, rendered and pressed.
  *
- * Same wiring as the desktop twin, on the phone's transcription: a create
- * field that writes the trimmed name, a delete that names the right URN, a
- * remove control that passes the **item id**, and a smart playlist that draws
- * no remove control at all.
+ * Same wiring as the desktop twin, on the phone's transcription: the create
+ * sheet that writes the trimmed name, a delete that goes through the shared
+ * row menu and its confirmation, a remove control that passes the **item
+ * id**, and a smart playlist that draws no remove control at all.
  *
  * React Native is injected as DOM host components, the same seam
  * `apps/mobile` uses to hand over the real `react-native`.
@@ -268,7 +268,7 @@ function type(field: HTMLElement, value: string): void {
 }
 
 describe('LibraryScreen on mobile', () => {
-  it('renders the playlists and creates a trimmed one', async () => {
+  it('renders the playlists and creates a trimmed one through the create sheet', async () => {
     const { ctx, library } = await harness()
     const { container, getByTestId } = render(h(LibraryScreen, { ctx }))
     await act(async () => {
@@ -276,36 +276,66 @@ describe('LibraryScreen on mobile', () => {
     })
 
     expect(container.textContent).toContain('Road trip')
+    // Create (＋) → the create sheet's playlist option → name + confirm.
     await act(async () => {
-      type(getByTestId('playlists-new-name'), '  New mix  ')
+      getByTestId('create-dropdown-trigger').click()
       await tick()
     })
     await act(async () => {
-      getByTestId('playlists-create').click()
+      getByTestId('create-menu-playlist').click()
+      await tick()
+    })
+    await act(async () => {
+      type(getByTestId('create-playlist-name'), '  New mix  ')
+      await tick()
+    })
+    await act(async () => {
+      getByTestId('create-playlist-confirm').click()
       await tick()
     })
 
     expect(library.calls).toContain('create:New mix')
   })
 
-  it('deletes and opens by the playlist URN', async () => {
+  it('deletes through the row menu and opens by the playlist URN', async () => {
     const { ctx, library, ui } = await harness()
     const { container } = render(h(LibraryScreen, { ctx }))
     await act(async () => {
       await tick()
     })
 
+    // The row's ⋯ opens the shared playlist menu; its Delete item asks for
+    // confirmation before it names the right URN.
     await act(async () => {
-      ;(container.querySelector('[data-label="Delete Road trip"]') as HTMLElement).click()
-      const open = Array.from(container.querySelectorAll('div')).find((d) => d.textContent === 'Open')
-      open?.click()
+      ;(container.querySelector('[data-label="More actions for Road trip"]') as HTMLElement).click()
+      await tick()
+    })
+    await act(async () => {
+      const del = Array.from(container.querySelectorAll('div')).find((d) => d.textContent === 'Delete')
+      del?.click()
+      await tick()
+    })
+    await act(async () => {
+      getByTestIdHelper(container, 'confirm-delete-button').click()
       await tick()
     })
 
     expect(library.calls).toContain(`delete:${PLAYLIST_URN}`)
+
+    await act(async () => {
+      ;(container.querySelector('[data-label="Road trip"]') as HTMLElement).click()
+      await tick()
+    })
     expect(ui.calls).toContain(`library.playlist:{"urn":"${PLAYLIST_URN}"}`)
   })
 })
+
+/** A testID lookup that reads the host components' `data-testid` attribute. */
+function getByTestIdHelper(container: HTMLElement, testID: string): HTMLElement {
+  const el = container.querySelector(`[data-testid="${testID}"]`) as HTMLElement | null
+  if (!el) throw new Error(`no element with testID ${testID}`)
+  return el
+}
 
 describe('PlaylistDetailScreen on mobile', () => {
   it('plays a tapped track with the whole playlist as its context', async () => {

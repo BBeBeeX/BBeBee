@@ -7,15 +7,15 @@
  * `@bbebee/plugin-sources/hooks`, which is the whole point: nothing here
  * would need to be written twice, so nothing is.
  *
- * **Cold start**: desktop renders its onboarding hero and first-run wizard;
- * mobile deliberately degrades to an explicit empty state pointing at import
- * instead of porting the wizard — an honest "nothing here yet" rather than a
- * second, divergent onboarding to maintain.
+ * **Cold start**: like the desktop, the first run with no sources opens the
+ * onboarding guide — the mobile transcription renders only the sources step
+ * (see `OnboardingModal`); the desktop's plugins step is deliberately not
+ * ported.
  */
 
-import { createElement as h, Fragment, useState, type ReactElement } from 'react'
+import { createElement as h, Fragment, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { BrowseEntry, MediaProvider, UiService } from '@BBeBee/protocol'
+import type { BrowseEntry, MediaProvider, StoreService, UiService } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import {
   useFavoriteAlbums,
@@ -30,10 +30,13 @@ import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
 import { SourceConfigureModal } from '../SourceConfigureModal.js'
+import { OnboardingModal } from '../components/OnboardingModal.js'
 
 export interface RecommendScreenProps {
   ctx: Context
   onOpenAlbum?: (urn: string) => void
+  /** Opened from the settings About page's guide row — same param as desktop. */
+  showGuide?: boolean
 }
 
 /** One vertical-list section: either a resolved album shelf or a source shelf. */
@@ -41,7 +44,7 @@ type Section =
   | { kind: 'static'; key: string; title: string; entries: readonly BrowseEntry[] }
   | { kind: 'source'; key: string; provider: MediaProvider }
 
-export function RecommendScreen({ ctx, onOpenAlbum }: RecommendScreenProps): ReactElement {
+export function RecommendScreen({ ctx, onOpenAlbum, showGuide }: RecommendScreenProps): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const allSources = useSources(ctx)
@@ -49,6 +52,32 @@ export function RecommendScreen({ ctx, onOpenAlbum }: RecommendScreenProps): Rea
   const { albums: recentAlbums } = useRecentPlayedAlbums(ctx)
   const { albums: favoriteAlbums } = useFavoriteAlbums(ctx)
   const playCard = usePlayAlbum(ctx)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (showGuide) {
+      setGuideModalOpen(true)
+    }
+  }, [showGuide])
+
+  // First run with no sources: open the guide, same trigger as the desktop.
+  useEffect(() => {
+    let cancelled = false
+    const store = serviceOf<StoreService>(ctx, 'store')
+    if (store && allSources.length === 0) {
+      store
+        .get<boolean>('onboarding.completed')
+        .then((completed) => {
+          if (!cancelled && !completed) {
+            setGuideModalOpen(true)
+          }
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [ctx, allSources.length])
 
   const openCard = (entry: BrowseEntry) => {
     if (!entry.urn || entry.kind !== 'album') return
@@ -81,51 +110,60 @@ export function RecommendScreen({ ctx, onOpenAlbum }: RecommendScreenProps): Rea
   }
 
   return h(
-    native.View as never,
-    {
-      accessibilityLabel: t('sources:recommend.recommendations'),
-      testID: 'recommend-screen',
-      style: { flex: 1, padding: tokens.space[4] },
-    },
-    isColdStart
-      ? h(EmptyState, {
-          icon: '🎵',
-          title: t('sources:recommend.coldStartTitle'),
-          description: t('sources:recommend.coldStartDescription'),
-        })
-      : !hasAnyContent
+    Fragment,
+    null,
+    h(
+      native.View as never,
+      {
+        accessibilityLabel: t('sources:recommend.recommendations'),
+        testID: 'recommend-screen',
+        style: { flex: 1, padding: tokens.space[4] },
+      },
+      isColdStart
         ? h(EmptyState, {
             icon: '🎵',
-            title: t('sources:recommend.noRecommendations'),
-            description: t('sources:recommend.onceAMusicSourceImplementing'),
+            title: t('sources:recommend.coldStartTitle'),
+            description: t('sources:recommend.coldStartDescription'),
           })
-        : h(
-            // The page is a handful of shelves, so it scrolls as one
-            // recycled list of sections rather than one long ScrollView —
-            // a source count that outgrows the screen keeps scrolling cold.
-            native.FlashList as never,
-            {
-              data: sections,
-              keyExtractor: (section: Section) => section.key,
-              renderItem: ({ item }: { item: Section }) =>
-                item.kind === 'static'
-                  ? h(RecommendShelfRow, {
-                      ctx,
-                      title: item.title,
-                      testID: `recommend-shelf-${item.key}`,
-                      entries: item.entries,
-                      onOpenCard: openCard,
-                      onPlayCard: playCard,
-                    })
-                  : h(SourceShelf, {
-                      ctx,
-                      provider: item.provider,
-                      onOpenCard: openCard,
-                      onPlayCard: playCard,
-                    }),
-              contentContainerStyle: { gap: tokens.space[5] },
-            },
-          ),
+        : !hasAnyContent
+          ? h(EmptyState, {
+              icon: '🎵',
+              title: t('sources:recommend.noRecommendations'),
+              description: t('sources:recommend.onceAMusicSourceImplementing'),
+            })
+          : h(
+              // The page is a handful of shelves, so it scrolls as one
+              // recycled list of sections rather than one long ScrollView —
+              // a source count that outgrows the screen keeps scrolling cold.
+              native.FlashList as never,
+              {
+                data: sections,
+                keyExtractor: (section: Section) => section.key,
+                renderItem: ({ item }: { item: Section }) =>
+                  item.kind === 'static'
+                    ? h(RecommendShelfRow, {
+                        ctx,
+                        title: item.title,
+                        testID: `recommend-shelf-${item.key}`,
+                        entries: item.entries,
+                        onOpenCard: openCard,
+                        onPlayCard: playCard,
+                      })
+                    : h(SourceShelf, {
+                        ctx,
+                        provider: item.provider,
+                        onOpenCard: openCard,
+                        onPlayCard: playCard,
+                      }),
+                contentContainerStyle: { gap: tokens.space[5] },
+              },
+            ),
+    ),
+    h(OnboardingModal, {
+      ctx,
+      open: guideModalOpen,
+      onClose: () => setGuideModalOpen(false),
+    }),
   )
 }
 

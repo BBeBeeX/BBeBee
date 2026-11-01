@@ -12,7 +12,7 @@
  */
 
 import { createElement as h, useState } from 'react'
-import type { ReactElement, ReactNode } from 'react'
+import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
@@ -21,6 +21,8 @@ import { c, Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobil
 import { tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 import { SwitchRow } from './SchemaForm.js'
+import { renderCard, renderRow, renderSectionHeader } from './layout.js'
+import { AboutSection } from './AboutSection.js'
 
 const p = () => c()
 
@@ -44,54 +46,6 @@ function formatBytes(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1)
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
-}
-
-function renderSectionHeader(title: string, subtitle?: string): ReactElement {
-  const native = nativePrimitives()
-  return h(
-    native.View as never,
-    { style: { marginBottom: tokens.space[2], marginTop: tokens.space[4] } },
-    h(Text, { variant: 'sm', tone: 'accent', children: title }),
-    subtitle ? h(Text, { variant: 'xs', tone: 'muted', children: subtitle }) : null,
-  )
-}
-
-function renderCard(children: ReactNode[]): ReactElement {
-  const native = nativePrimitives()
-  return h(
-    native.View as never,
-    {
-      style: {
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: tokens.radius.md,
-        padding: tokens.space[3],
-        gap: tokens.space[3],
-      },
-    },
-    ...children,
-  )
-}
-
-function renderRow(title: string, description: string | undefined, control: ReactNode): ReactElement {
-  const native = nativePrimitives()
-  return h(
-    native.View as never,
-    {
-      style: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: tokens.space[3],
-      },
-    },
-    h(
-      native.View as never,
-      { style: { flex: 1 } },
-      h(Text, { variant: 'md', children: title }),
-      description ? h(Text, { variant: 'xs', tone: 'muted', children: description }) : null,
-    ),
-    control,
-  )
 }
 
 /* ── the settings home: a directory of category rows ───────────────────── */
@@ -189,7 +143,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const grouped = groupBySection(availableSettings)
 
   const [clearingCache, setClearingCache] = useState(false)
-  const [confirmingReset, setConfirmingReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const handleClearCache = async () => {
     setClearingCache(true)
@@ -204,12 +158,12 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
     try {
       await reset()
     } finally {
-      setConfirmingReset(false)
+      setResetting(false)
     }
   }
 
-  const handleNavigate = (route: string) => {
-    ;(ctx as { ui?: UiService })?.ui?.navigate?.(route)
+  const handleNavigate = (route: string, params?: Record<string, unknown>) => {
+    ;(ctx as { ui?: UiService })?.ui?.navigate?.(route, params)
   }
 
   const playbackContribs = availableSettings.filter(
@@ -334,31 +288,16 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                 ]),
               ]
             : [
-                // about
-                renderSectionHeader(t('settings:settings.about'), t('settings:mobile.versionReset')),
-                renderCard([
-                  renderRow(t('settings:mobile.version'), 'BBeBee 0.1.0 · Cordis microkernel', null),
-                  confirmingReset
-                    ? h(
-                        native.View as never,
-                        { style: { flexDirection: 'row', gap: tokens.space[2], justifyContent: 'flex-end' } },
-                        h(Button, {
-                          variant: 'primary',
-                          onPress: handleReset,
-                          children: t('settings:mobile.confirmReset'),
-                        }),
-                        h(Button, {
-                          variant: 'secondary',
-                          onPress: () => setConfirmingReset(false),
-                          children: t('app:common.cancel'),
-                        }),
-                      )
-                    : h(Button, {
-                        variant: 'secondary',
-                        onPress: () => setConfirmingReset(true),
-                        children: t('settings:mobile.restoreDefaults'),
-                      }),
-                ]),
+                // about — the desktop twin's AboutSection, on the phone's
+                // primitives (see AboutSection.tsx).
+                h(AboutSection, {
+                  key: 'about',
+                  ctx,
+                  resetting,
+                  onSetResetting: setResetting,
+                  onReset: handleReset,
+                  onNavigate: handleNavigate,
+                }),
               ]
 
   return h(

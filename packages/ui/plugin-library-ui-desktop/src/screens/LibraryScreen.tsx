@@ -10,6 +10,7 @@ import { tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import {
   useCollections,
+  useLibraryHydration,
   useLibraryProfile,
   usePlaylists,
   useSaved,
@@ -29,7 +30,6 @@ import { LibraryModals } from '../components/LibraryModals.js'
 import { CollapsedLibraryView } from '../components/views/CollapsedLibraryView.js'
 import { ExpandedLibraryView } from '../components/views/ExpandedLibraryView.js'
 import { SidebarFolderView } from '../components/views/SidebarFolderView.js'
-import { useLibraryHydration } from '../hooks/useLibraryHydration.js'
 import { useLibraryActions } from '../hooks/useLibraryActions.js'
 
 export interface LibraryScreenProps {

@@ -25,10 +25,12 @@ export function SwitchRow({
   checked,
   onChange,
   accessibilityLabel,
+  testID,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   accessibilityLabel: string
+  testID?: string
 }) {
   const native = nativePrimitives()
   return h(
@@ -38,6 +40,7 @@ export function SwitchRow({
       accessibilityLabel,
       accessibilityRole: 'switch',
       accessibilityState: { checked },
+      ...(testID ? { testID } : {}),
       style: {
         width: 48,
         height: 26,

@@ -24,7 +24,7 @@
 
 import { act, cleanup, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-desktop'
 import { FsNode } from '@BBeBee/core-fs-desktop'
@@ -46,6 +46,7 @@ import { configureNative } from '@BBeBee/ui-kit-mobile'
 import httpPlugin from '@bbebee/core-http-desktop'
 import sourceRuntime from '@bbebee/plugin-source-runtime'
 import { RecommendAllScreen, RecommendScreen, SearchScreen, SourceConfigureModal, TestScreen, inject } from './index.js'
+import { OnboardingModal } from './components/OnboardingModal.js'
 import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 
@@ -698,6 +699,54 @@ describe('RecommendScreen on mobile', () => {
       card.click()
     })
     expect(opened).toEqual([`BBeBee:${source.id}:album:1`])
+  })
+})
+
+describe('OnboardingModal on mobile', () => {
+  it('renders the sources step only — the plugins step is deliberately not ported', async () => {
+    const { ctx } = await harness()
+    const onClose = vi.fn()
+    const { container, getByTestId } = render(h(OnboardingModal, { ctx, open: true, onClose }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Step 1 (music sources): both cards, both their actions, and the finish
+    // button — the same copy and test IDs as the desktop twin.
+    expect(container.textContent).toContain('Step 1: Music Sources')
+    expect(container.textContent).toContain('Local Music Scanner')
+    expect(container.textContent).toContain('Third-Party Sources')
+    expect(getByTestId('modal-add-folder-btn')).toBeTruthy()
+    expect(getByTestId('modal-import-source-btn')).toBeTruthy()
+    expect(getByTestId('onboarding-finish-btn')).toBeTruthy()
+
+    // Step 2 (plugins) does not exist here: no second tab, no plugin copy,
+    // no explore action.
+    expect(container.textContent).not.toContain('Step 2')
+    expect(container.textContent).not.toContain('Plugin Registry')
+    expect(container.querySelector('[data-testid="modal-explore-plugins-btn"]')).toBeNull()
+  })
+
+  it('finishing marks onboarding completed and closes', async () => {
+    const { ctx, admin } = await harness()
+    const storeValues = new Map<string, unknown>()
+    admin.provide('store', {
+      get: async (key: string) => storeValues.get(key),
+      set: async (key: string, value: unknown) => {
+        storeValues.set(key, value)
+      },
+    })
+    const onClose = vi.fn()
+    const { getByTestId } = render(h(OnboardingModal, { ctx, open: true, onClose }))
+    await act(async () => {
+      await tick()
+    })
+    await act(async () => {
+      getByTestId('onboarding-finish-btn').click()
+      await tick()
+    })
+    expect(storeValues.get('onboarding.completed')).toBe(true)
+    expect(onClose).toHaveBeenCalled()
   })
 })
 
