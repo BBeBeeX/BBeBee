@@ -55,6 +55,13 @@ class UiStub extends Service {
     }
   }
 
+  contribute(contribution: { id: string }) {
+    this.routes.push(contribution.id)
+    return () => {
+      this.routes = this.routes.filter((id) => id !== contribution.id)
+    }
+  }
+
   navigate(id: string) {
     this.routes.push(id)
   }
@@ -227,19 +234,42 @@ class SettingsStub extends Service implements Partial<SettingsService> {
   }
 
   describe('plugin-settings-ui-mobile', () => {
-    it('registers settings view with ui service', async () => {
+    it('registers the settings home and one view per category sub-page', async () => {
       const { ctx } = await createHarness()
       expect((ctx.ui as any).viewFor('settings.view')).toBeDefined()
+      for (const id of ['settings.appearance', 'settings.playback', 'settings.sources', 'settings.storage', 'settings.about']) {
+        expect((ctx.ui as any).viewFor(id)).toBeDefined()
+      }
+      // The sub-routes are contributed (placement-less): programmatic
+      // navigation only — never desktop sidebar/tray, never the drawer.
+      expect((ctx.ui as any).routes).toEqual(
+        expect.arrayContaining(['settings.appearance', 'settings.playback', 'settings.storage', 'settings.about']),
+      )
     })
 
-    it('renders mobile SettingsScreen with DSP section and controls for EQ, normalize, compressor, reverb', async () => {
+    it('renders the settings home as a directory of category rows', async () => {
       const { ctx } = await createHarness()
       const { container } = render(h(SettingsScreen, { ctx }))
 
-      expect(container.textContent).toContain('Settings')
       expect(container.textContent).toContain('Appearance & language')
-      expect(container.textContent).toContain('Playback & Audio')
-      expect(container.textContent).toContain('Audio effects & equalizer (DSP)')
+      expect(container.textContent).toContain('Playback & audio')
+      expect(container.textContent).toContain('Music sources')
+      expect(container.textContent).toContain('Storage & cache')
+      expect(container.textContent).toContain('About')
+      // Category content moved to the sub-pages: the home carries none of it.
+      expect(container.textContent).not.toContain('Audio output engine')
+      expect(container.textContent).not.toContain('10-Band equalizer (EQ)')
+      expect(container.textContent).not.toContain('Audio effects & equalizer (DSP)')
+    })
+
+    it('renders the playback sub-page with engine row and DSP contributions', async () => {
+      const { ctx } = await createHarness()
+      const PlaybackPage = (ctx.ui as any).viewFor('settings.playback')
+      const { container } = render(h(PlaybackPage, {}))
+
+      expect(container.textContent).toContain('Audio output engine')
+      expect(container.textContent).toContain('MPV Hi-Fi')
+      expect(container.textContent).not.toContain('WebAudio')
 
       // 1. EQ
       expect(container.textContent).toContain('10-Band equalizer (EQ)')
@@ -259,15 +289,6 @@ class SettingsStub extends Service implements Partial<SettingsService> {
 
       // 5. Advanced panel link
       expect(container.textContent).toContain('Advanced effect tuning and routing')
-    })
-
-    it('renders the single MPV audio engine (no engine picker)', async () => {
-      const { ctx } = await createHarness()
-      const { container } = render(h(SettingsScreen, { ctx }))
-
-      expect(container.textContent).toContain('Audio output engine')
-      expect(container.textContent).toContain('MPV Hi-Fi')
-      expect(container.textContent).not.toContain('WebAudio')
     })
 
     it('dynamically renders contributions registered via settings service', async () => {

@@ -7,11 +7,11 @@ import type {
   SettingsFieldOption,
 } from '@BBeBee/protocol'
 import { useSettingsFields } from '@bbebee/plugin-settings/hooks'
-import { Button, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, Button, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /** Entries of a `switch-list` field, resolved from its descriptor. */
 interface SwitchListEntry {

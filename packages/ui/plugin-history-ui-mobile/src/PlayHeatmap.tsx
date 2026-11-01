@@ -29,6 +29,13 @@ export interface PlayHeatmapProps {
   t: TranslateFn
   /** Right-aligned header line (the stats page's "played N times" summary). Absent → title only. */
   summary?: string
+  /**
+   * `'full'` (default) is the stats page's card: title, weekday labels,
+   * legend. `'bare'` is the drawer's edition — the grid alone (months over
+   * cells), no header, no weekday column, no legend; in the drawer the
+   * surrounding surface already says what the chart is.
+   */
+  variant?: 'full' | 'bare'
 }
 
 const CELL = 10
@@ -75,8 +82,9 @@ interface MonthHeader {
   weekIndex: number
 }
 
-export function PlayHeatmap({ heatmap, t, summary }: PlayHeatmapProps): ReactElement | null {
+export function PlayHeatmap({ heatmap, t, summary, variant = 'full' }: PlayHeatmapProps): ReactElement | null {
   const native = nativePrimitives()
+  const bare = variant === 'bare'
 
   const { weeks, monthHeaders } = useMemo(() => {
     if (!heatmap || heatmap.length === 0 || !heatmap[0]) {
@@ -136,35 +144,40 @@ export function PlayHeatmap({ heatmap, t, summary }: PlayHeatmapProps): ReactEle
         borderColor: 'rgba(255, 255, 255, 0.06)',
       },
     },
-    // Header: section title, with the host's optional summary on the right.
-    h(
-      native.View as never,
-      { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.space[2] } },
-      h(Text, { variant: 'sm', children: t('history:playHeatmap.title') }),
-      summary ? h(Text, { variant: 'xs', tone: 'muted', numberOfLines: 1, children: summary }) : null,
-    ),
+    // Header: section title with the host's optional summary — the full
+    // variant only; the bare edition opens straight onto the grid.
+    bare
+      ? null
+      : h(
+          native.View as never,
+          { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.space[2] } },
+          h(Text, { variant: 'sm', children: t('history:playHeatmap.title') }),
+          summary ? h(Text, { variant: 'xs', tone: 'muted', numberOfLines: 1, children: summary }) : null,
+        ),
     // The grid scrolls horizontally: a year of weeks (~53 columns) cannot fit
     // any pane, a quarter fits without scrolling — same chart, both lengths.
     Scroller
       ? h(
           Scroller as never,
           { horizontal: true, showsHorizontalScrollIndicator: false },
-          heatmapGrid(native, weeks, monthHeaders, t),
+          heatmapGrid(native, weeks, monthHeaders, bare, t),
         )
-      : heatmapGrid(native, weeks, monthHeaders, t),
-    // Legend: the level scale itself, less → more.
-    h(
-      native.View as never,
-      { style: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: tokens.space[2] } },
-      h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.less') }),
-      ...HEATMAP_LEVEL_COLORS.map((color, idx) =>
-        h(native.View as never, {
-          key: idx,
-          style: { width: CELL, height: CELL, borderRadius: 2, backgroundColor: color },
-        }),
-      ),
-      h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.more') }),
-    ),
+      : heatmapGrid(native, weeks, monthHeaders, bare, t),
+    // Legend: the level scale itself, less → more — full variant only.
+    bare
+      ? null
+      : h(
+          native.View as never,
+          { style: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: tokens.space[2] } },
+          h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.less') }),
+          ...HEATMAP_LEVEL_COLORS.map((color, idx) =>
+            h(native.View as never, {
+              key: idx,
+              style: { width: CELL, height: CELL, borderRadius: 2, backgroundColor: color },
+            }),
+          ),
+          h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.more') }),
+        ),
   )
 }
 
@@ -173,6 +186,7 @@ function heatmapGrid(
   native: ReturnType<typeof nativePrimitives>,
   weeks: (PlayHistoryHeatmapDay | null)[][],
   monthHeaders: MonthHeader[],
+  bare: boolean,
   t: TranslateFn,
 ): ReactElement {
   return h(
@@ -180,9 +194,10 @@ function heatmapGrid(
     { style: { minWidth: '100%' } },
     // Month labels, one per week column where a month starts — absolutely
     // positioned so a label can run past its 13dp slot, exactly as on desktop.
+    // Offset by the weekday column the full variant carries.
     h(
       native.View as never,
-      { style: { height: 14, marginLeft: WEEKDAY_COLUMN_WIDTH } },
+      { style: { height: 14, marginLeft: bare ? 0 : WEEKDAY_COLUMN_WIDTH } },
       ...monthHeaders.map((hdr) =>
         h(
           native.View as never,
@@ -197,30 +212,33 @@ function heatmapGrid(
     h(
       native.View as never,
       { style: { flexDirection: 'row', gap: GAP } },
-      // Weekday labels (Mon, Wed, Fri), one row per day of the week.
-      h(
-        native.View as never,
-        { style: { width: WEEKDAY_COLUMN_WIDTH, gap: GAP } },
-        ...[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) =>
-          h(
+      // Weekday labels (Mon, Wed, Fri) — the full variant only; the bare
+      // edition starts straight at the cells.
+      bare
+        ? null
+        : h(
             native.View as never,
-            { key: dayOfWeek, style: { height: CELL, justifyContent: 'center' } },
-            dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5
-              ? h(
-                  Text,
-                  { variant: 'xs', tone: 'muted' },
-                  t(
-                    dayOfWeek === 1
-                      ? 'history:playHeatmap.mon'
-                      : dayOfWeek === 3
-                        ? 'history:playHeatmap.wed'
-                        : 'history:playHeatmap.fri',
-                  ),
-                )
-              : null,
+            { style: { width: WEEKDAY_COLUMN_WIDTH, gap: GAP } },
+            ...[0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) =>
+              h(
+                native.View as never,
+                { key: dayOfWeek, style: { height: CELL, justifyContent: 'center' } },
+                dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5
+                  ? h(
+                      Text,
+                      { variant: 'xs', tone: 'muted' },
+                      t(
+                        dayOfWeek === 1
+                          ? 'history:playHeatmap.mon'
+                          : dayOfWeek === 3
+                            ? 'history:playHeatmap.wed'
+                            : 'history:playHeatmap.fri',
+                      ),
+                    )
+                  : null,
+              ),
+            ),
           ),
-        ),
-      ),
       // Week columns, level-coloured cells.
       ...weeks.map((week, wIdx) =>
         h(

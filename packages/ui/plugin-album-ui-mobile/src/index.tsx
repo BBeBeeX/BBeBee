@@ -16,13 +16,13 @@ import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { useAlbum } from '@bbebee/plugin-album/hooks'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
-import { Artwork, Button, ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Artwork, Button, ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.

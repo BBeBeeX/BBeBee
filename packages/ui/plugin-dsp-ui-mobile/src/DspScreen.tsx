@@ -5,8 +5,8 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 import { useDsp } from '@bbebee/plugin-dsp/hooks'
 import { EQ10_BANDS } from '@bbebee/plugin-dsp/effects'
 
@@ -14,7 +14,7 @@ export interface DspScreenProps {
   ctx: Context
 }
 
-const p = () => palettes.dark
+const p = () => c()
 
 export function DspScreen({ ctx }: DspScreenProps): ReactElement {
   const { t } = useI18n(ctx)

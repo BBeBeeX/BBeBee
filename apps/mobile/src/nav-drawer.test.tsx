@@ -15,7 +15,7 @@ import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { palettes } from '@BBeBee/ui-tokens'
-import { NavDrawerOverlay } from './nav-drawer'
+import { NavDrawerOverlay, collectDrawerPages } from './nav-drawer'
 
 afterEach(cleanup)
 
@@ -50,7 +50,9 @@ configureNative({
 
 const palette = palettes.dark
 
-function renderOverlay(overrides: Partial<{ width: number; onClose: () => void }> = {}) {
+function renderOverlay(
+  overrides: Partial<{ width: number; onClose: () => void; topInset: number }> = {},
+) {
   return render(
     h(NavDrawerOverlay, {
       palette,
@@ -107,5 +109,80 @@ describe('NavDrawerOverlay', () => {
     const backdrop = container.querySelector('[data-testid="nav-drawer-backdrop"]') as HTMLElement
     fireEvent.click(backdrop)
     expect(closed).toBe(true)
+  })
+
+  it('pads the panel content below the status bar by the top inset', () => {
+    // The overlay is absolutely positioned and escapes the shell's
+    // SafeAreaView padding — the panel carries the status-bar inset itself.
+    const { container } = renderOverlay({ topInset: 24 })
+    const panel = container.querySelector('[data-testid="nav-drawer-panel"]') as HTMLElement
+    expect(panel.style.paddingTop).toBe('24px')
+  })
+})
+
+describe('collectDrawerPages', () => {
+  const routes = [
+    { id: 'library.home', title: 'Library', order: 0 },
+    { id: 'album.view', title: 'Album', order: 0 },
+    { id: 'history.view', title: 'Play history', order: 25 },
+    { id: 'sources.search', title: 'Search', order: 1 },
+    // No mobile view registered: a desktop-only route stays out.
+    { id: 'desktop.only', title: 'Desktop only', order: 0 },
+  ]
+  const hasView = (id: string) => id !== 'desktop.only'
+  const translate = (_id: string, contributed: string) => `t(${contributed})`
+
+  it('lists every route with a registered view, drops the rest', () => {
+    const pages = collectDrawerPages(routes, hasView, translate)
+    expect(pages.map((page) => page.id)).toEqual([
+      'album.view',
+      'library.home',
+      'sources.search',
+      'history.view',
+    ])
+  })
+
+  it('sorts by contribution order, ties by id', () => {
+    const pages = collectDrawerPages(routes, hasView, translate)
+    expect(pages[0]?.id).toBe('album.view')
+    expect(pages[pages.length - 1]?.id).toBe('history.view')
+  })
+
+  it('deduplicates routes contributed twice', () => {
+    const pages = collectDrawerPages(
+      [...routes, { id: 'album.view', title: 'Album', order: 0 }],
+      hasView,
+      translate,
+    )
+    expect(pages.filter((page) => page.id === 'album.view')).toHaveLength(1)
+  })
+
+  it('translates through the shell resolver with the contributed title', () => {
+    const pages = collectDrawerPages(routes, hasView, translate)
+    expect(pages.find((page) => page.id === 'album.view')?.title).toBe('t(Album)')
+  })
+
+  it('keeps routes without an order, after the ordered ones', () => {
+    const pages = collectDrawerPages(
+      [
+        { id: 'a.late', title: 'Late' },
+        { id: 'b.first', title: 'First', order: 1 },
+      ],
+      () => true,
+      (_id, contributed) => contributed,
+    )
+    expect(pages.map((page) => page.id)).toEqual(['b.first', 'a.late'])
+  })
+
+  it("drops the ids the shell excludes (param'd details, transport overlays)", () => {
+    const pages = collectDrawerPages(
+      routes,
+      hasView,
+      (_id, contributed) => contributed,
+      new Set(['album.view', 'queue.view']),
+    )
+    expect(pages.map((page) => page.id)).not.toContain('album.view')
+    expect(pages.map((page) => page.id)).not.toContain('queue.view')
+    expect(pages.map((page) => page.id)).toContain('library.home')
   })
 })

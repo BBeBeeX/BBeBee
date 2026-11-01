@@ -24,6 +24,7 @@ export {
   getScheme,
   setPalette,
   activePalette,
+  c,
   onPaletteChange,
   nativePrimitives,
 } from './primitives.js'

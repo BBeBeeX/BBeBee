@@ -31,13 +31,14 @@ import {
  * This is a native module, so it needs a dev-client rebuild — which docs/11
  * §4.13 already expects for M1, and which FlashList requires anyway.
  */
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
 import type {
   LifecycleService,
   QuickActionsService,
   SettingsService,
   StoreService,
+  UiService,
 } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { useI18n, usePalette, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
@@ -58,7 +59,7 @@ import {
   isAppearanceMode,
   nextAppearanceMode,
 } from './appearance'
-import { NavDrawerOverlay } from './nav-drawer'
+import { NavDrawerOverlay, collectDrawerPages } from './nav-drawer'
 import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
@@ -142,6 +143,52 @@ const TABS: readonly Tab[] = [
 ]
 
 /**
+ * Header titles for the detail routes the shell can push. The shell's own
+ * chrome strings — the headless route contributions carry English literals
+ * ('All recommendations'), and the header must speak the user's locale. A
+ * route outside this map falls back to its contributed title.
+ */
+const DETAIL_TITLES: Readonly<Record<string, string>> = {
+  'album.view': 'app:common.app.routeTitles.album',
+  'library.playlist': 'app:common.app.routeTitles.playlist',
+  'library.collection': 'app:common.app.routeTitles.collection',
+  'library.favorites': 'app:common.app.routeTitles.favorites',
+  'library.local': 'app:common.app.routeTitles.local',
+  'library.profile': 'app:common.app.routeTitles.profile',
+  'sources.settings': 'app:common.app.routeTitles.sources',
+  'sources.import': 'app:common.app.routeTitles.import',
+  'sources.test': 'app:common.app.routeTitles.sourceTest',
+  'sources.recommend.all': 'app:common.app.routeTitles.recommendAll',
+  'history.view': 'app:common.app.routeTitles.history',
+  'scanner.settings': 'app:common.app.routeTitles.scannerSettings',
+  'settings.appearance': 'settings:mobile.sectionAppearance',
+  'settings.playback': 'settings:mobile.sectionPlayback',
+  'settings.sources': 'settings:mobile.sectionSources',
+  'settings.storage': 'settings:mobile.sectionStorage',
+  'settings.about': 'settings:mobile.sectionAbout',
+}
+
+/**
+ * Pages the drawer leaves out: detail surfaces that need parameters a drawer
+ * entry cannot carry (the album and collection pages are opened from library
+ * rows), transport overlays with their own affordances (the queue via the
+ * bar's list button, the player via the bar body), and the settings
+ * sub-pages — reached only from the settings home's category rows.
+ * Everything else the registration API reports stays in.
+ */
+const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
+  'album.view',
+  'library.collection',
+  'queue.view',
+  'now-playing.view',
+  'settings.appearance',
+  'settings.playback',
+  'settings.sources',
+  'settings.storage',
+  'settings.about',
+])
+
+/**
  * The foldable left pane is fixed to the library — the pane is a browsing
  * surface, not a mirror of the tabs, so its stack's root never moves.
  */
@@ -213,19 +260,40 @@ function DisplayModeButton({ ctx }: { ctx: Context }) {
 /**
  * The drawer's body, top to bottom: the logo with the display-mode button on
  * its right, the stats page's play-count heatmap for the most recent three
- * months, then the four fixed tabs stacked vertically in the tab bar's order.
- * The list mirrors the tabs — it adds no destination and reorders none; a tap
- * navigates (and the shell closes the drawer).
+ * months, then the page list the registration API reports: every contributed
+ * route with a view registered on this shell, in contribution order — the
+ * shell curates nothing. A tap navigates (and the shell closes the drawer).
  */
-function NavDrawerContents({ ctx, selectedTabId, onSelectTab }: {
+function NavDrawerContents({ ctx, currentPageId, translate, onSelectPage }: {
   ctx: Context
-  selectedTabId: string | undefined
-  onSelectTab: (id: string) => void
+  currentPageId: string | undefined
+  /** The shell's title resolution: tab place-names and chrome keys, then the contribution's own. */
+  translate: (id: string, contributed: string) => string
+  onSelectPage: (id: string) => void
 }) {
   const { t } = useI18n(ctx)
   const palette = usePalette()
   // Three months only — the stats page mounts the same chart with a year.
   const { heatmap, loading } = usePlayHistoryHeatmap(ctx, 90)
+  // Live re-read on `ui/changed`: a view registering late (the deferred
+  // plugin pass) joins the list without a restart.
+  const pages = useServiceState(
+    ctx,
+    ['ui/changed'],
+    () => {
+      const ui = serviceOf<UiService>(ctx, 'ui')
+      return collectDrawerPages(
+        ui?.routes ?? [],
+        (id) => Boolean(ui?.viewFor?.(id)),
+        translate,
+        DRAWER_EXCLUDED_ROUTES,
+      )
+    },
+    {
+      isEqual: (a, b) =>
+        a.length === b.length && a.every((page, i) => page.id === b[i]?.id && page.title === b[i]?.title),
+    },
+  )
 
   return h(
     View,
@@ -254,25 +322,26 @@ function NavDrawerContents({ ctx, selectedTabId, onSelectTab }: {
         loading
           ? null
           : heatmap.length > 0
-            ? h(PlayHeatmap, { heatmap, t })
+            ? // The bare edition: grid only — no title, weekday labels, or
+              // legend; the drawer's surface already says what this is.
+              h(PlayHeatmap, { heatmap, t, variant: 'bare' })
             : h(
                 Text,
                 { style: { color: palette.text.secondary, fontSize: 13, paddingVertical: 8 } },
                 t('history:index.noPlayRecordsYet'),
               ),
       ),
-      ...TABS.map((tab) => {
-        const isSelected = tab.id === selectedTabId
-        const tabTitle = t(tab.titleKey)
+      ...pages.map((page) => {
+        const isSelected = page.id === currentPageId
         return h(
           Pressable,
           {
-            key: tab.id,
-            onPress: () => onSelectTab(tab.id),
+            key: page.id,
+            onPress: () => onSelectPage(page.id),
             accessibilityRole: 'tab',
-            accessibilityLabel: tabTitle,
+            accessibilityLabel: page.title,
             accessibilityState: { selected: isSelected },
-            testID: `nav-drawer-tab-${tab.id}`,
+            testID: `nav-drawer-page-${page.id}`,
             style: { paddingVertical: 12, paddingHorizontal: 20 },
           },
           h(
@@ -285,7 +354,7 @@ function NavDrawerContents({ ctx, selectedTabId, onSelectTab }: {
                 fontSize: 15,
               },
             },
-            tabTitle,
+            page.title,
           ),
         )
       }),
@@ -295,6 +364,13 @@ function NavDrawerContents({ ctx, selectedTabId, onSelectTab }: {
 
 function Shell({ ctx }: { ctx: Context }) {
   const { t } = useI18n(ctx)
+  /*
+   * The status-bar inset, for the surfaces that escape the SafeAreaView's
+   * padding: absolutely positioned overlays (the drawer, the fullscreen
+   * player) position against the window edge, not the padded box, so they
+   * have to carry the inset themselves.
+   */
+  const insets = useSafeAreaInsets()
   /*
    * The shell paints from the same palette the kit's components read. Every
    * colour below comes off this object — a hardcoded hex here would outlive
@@ -435,9 +511,6 @@ function Shell({ ctx }: { ctx: Context }) {
     }
   }, [ctx])
 
-  const canGoBack = navState.index > 0
-  const leftCanGoBack = leftNavState.index > 0
-
   /** Push onto the left pane's stack — the foldable pane's own history. */
   const leftNavigate = useCallback((id: string, params?: Record<string, unknown>) => {
     setLeftNavState((prev) => {
@@ -545,7 +618,6 @@ function Shell({ ctx }: { ctx: Context }) {
    */
   const isTabSelected = (tab: Tab): boolean =>
     activeTab?.id === tab.id || (currentId === 'album.view' && tab.id === 'library.home')
-  const selectedTabId = TABS.find((tab) => isTabSelected(tab))?.id
 
   const BottomBar = ctx.ui.viewFor('now-playing.bar') as
     | ComponentType<{ ctx: Context; onOpenNowPlaying?: () => void; onOpenQueue?: () => void }>
@@ -568,37 +640,6 @@ function Shell({ ctx }: { ctx: Context }) {
    * hold no hooks, so a call is ordinary createElement within the shell's
    * single render.
    */
-  const backHeaderFor = (show: boolean, onBack: () => void) =>
-    show
-      ? h(
-          View,
-          {
-            style: {
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderBottomColor: palette.border.subtle,
-              borderBottomWidth: 1,
-            },
-          },
-          h(
-            Pressable,
-            {
-              onPress: onBack,
-              accessibilityRole: 'button',
-              accessibilityLabel: t('app:common.app.goBack'),
-              style: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-            },
-            h(
-              Text,
-              { style: { color: palette.accent.base, fontSize: 16, fontWeight: '600' } },
-              t('app:common.app.backPill'),
-            ),
-          ),
-        )
-      : null
-
   const pageBodyFor = (
     id: string | undefined,
     params: Record<string, unknown> | undefined,
@@ -633,13 +674,40 @@ function Shell({ ctx }: { ctx: Context }) {
   }
 
   /*
-   * The main interface's header: the page title with the drawer's hamburger
-   * on its left. Shown where the back header is not — the four tab roots of
-   * the phone layout (and of the foldable's right pane, which is the phone
-   * layout verbatim). The tablet's root pages have no shell header: the rail
-   * is their navigation, and the spec gives the tablet no drawer to open.
+   * The display title for a page id: the tab's place-name on tab roots, a
+   * chrome-owned localized string on the shell's detail routes, then the
+   * contribution's own title — which may be an i18n key (translated) or a
+   * literal (passed through). Shared by the header title and the drawer's
+   * page list, so the two can never disagree.
    */
-  const mainHeaderFor = (title: string, onOpenDrawer: () => void) =>
+  const resolvePageTitle = (id: string, contributed: string): string => {
+    const tab = TABS.find((tab) => tab.id === id)
+    if (tab) return t(tab.titleKey)
+    const key = DETAIL_TITLES[id]
+    if (key) return t(key)
+    if (contributed.includes(':')) {
+      const translated = t(contributed)
+      if (translated !== contributed) return translated
+    }
+    return contributed
+  }
+
+  const pageTitleFor = (id: string | undefined): string => {
+    if (!id) return ''
+    const route = serviceOf<UiService>(ctx, 'ui')?.routes?.find((route) => route.id === id)
+    return resolvePageTitle(id, route?.title ?? '')
+  }
+
+  /*
+   * Every page's header, one shape on every page and pane: the drawer's
+   * hamburger on the left, the page's title centered. The back pill is gone
+   * — hardware Back unwinds the stack (goBack) — which is what makes the
+   * drawer reachable from detail pages too, not just the tab roots. The
+   * tablet has no drawer to open (§7.4: the rail is its navigation), so its
+   * hamburger yields to an empty spacer; the mirrored right slot keeps the
+   * title centered either way.
+   */
+  const pageHeaderFor = (title: string, onOpenDrawer: (() => void) | undefined) =>
     h(
       View,
       {
@@ -647,33 +715,43 @@ function Shell({ ctx }: { ctx: Context }) {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 16,
-          paddingVertical: 10,
+          // Extra breathing room above the title, on top of the
+          // SafeAreaView's status-bar inset.
+          paddingTop: 16,
+          paddingBottom: 10,
           borderBottomColor: palette.border.subtle,
-          borderBottomWidth: 1,
+          borderBottomWidth: StyleSheet.hairlineWidth,
         },
       },
+      onOpenDrawer
+        ? h(
+            Pressable,
+            {
+              onPress: onOpenDrawer,
+              accessibilityRole: 'button',
+              accessibilityLabel: t('app:common.app.openNavDrawer'),
+              testID: 'nav-drawer-open',
+              style: { paddingVertical: 4, minWidth: 34 },
+            },
+            h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+          )
+        : h(View, { style: { minWidth: 34 } }),
       h(
-        Pressable,
-        {
-          onPress: onOpenDrawer,
-          accessibilityRole: 'button',
-          accessibilityLabel: t('app:common.app.openNavDrawer'),
-          testID: 'nav-drawer-open',
-          style: { paddingVertical: 4, paddingRight: 14 },
-        },
-        h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+        View,
+        { style: { flex: 1, alignItems: 'center' } },
+        h(
+          Text,
+          {
+            numberOfLines: 1,
+            style: { color: palette.text.primary, fontSize: 17, fontWeight: '600' },
+          },
+          title,
+        ),
       ),
-      h(
-        Text,
-        {
-          numberOfLines: 1,
-          style: { color: palette.text.primary, fontSize: 17, fontWeight: '600', flex: 1 },
-        },
-        title,
-      ),
+      h(View, { style: { minWidth: 34 } }),
     )
 
-  const backHeader = backHeaderFor(canGoBack, goBack)
+  const pageHeader = pageHeaderFor(pageTitleFor(currentId), () => setIsDrawerOpen(true))
   const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
     navigateTo('album.view', { urn }),
   )
@@ -688,7 +766,7 @@ function Shell({ ctx }: { ctx: Context }) {
     leftNavState.history[leftNavState.index] ?? { id: LEFT_PANE_ROOT }
   const leftCurrentId = leftCurrentItem.id
   const leftCurrentParams = leftCurrentItem.params
-  const leftBackHeader = backHeaderFor(leftCanGoBack, leftGoBack)
+  const leftPageHeader = pageHeaderFor(pageTitleFor(leftCurrentId), () => setIsDrawerOpen(true))
   const leftPageBody = pageBodyFor(
     leftCurrentId,
     leftCurrentParams,
@@ -714,12 +792,17 @@ function Shell({ ctx }: { ctx: Context }) {
       onClose: () => setIsDrawerOpen(false),
       children: h(NavDrawerContents, {
         ctx,
-        selectedTabId,
-        onSelectTab: (id: string) => {
+        // The exact current page — the list carries every page, so the
+        // highlight is exact, not the parent-tab approximation the tab bar
+        // uses for detail routes.
+        currentPageId: currentId,
+        translate: resolvePageTitle,
+        onSelectPage: (id: string) => {
           setIsDrawerOpen(false)
           navigateTo(id)
         },
       }),
+      topInset: insets.top,
     },
   )
 
@@ -728,9 +811,9 @@ function Shell({ ctx }: { ctx: Context }) {
   const phoneChrome = h(
     View,
     { style: { flex: 1 } },
-    // Detail pages get the back header; the tab roots get the main header
-    // with the drawer's hamburger (the main interface per §7.4).
-    canGoBack ? backHeader : mainHeaderFor(activeTab ? t(activeTab.titleKey) : '', () => setIsDrawerOpen(true)),
+    // One header shape on every page — tab root or detail: hamburger left,
+    // page title centered. No back pill anywhere; Back unwinds the stack.
+    pageHeader,
     pageBody,
     BottomBar
       ? h(BottomBar, {
@@ -872,7 +955,9 @@ function Shell({ ctx }: { ctx: Context }) {
         ),
       ),
     ),
-    h(View, { style: { flex: 1 } }, backHeader, pageBody),
+    // The tablet's header carries no hamburger: there is no drawer to open
+    // (the rail is the navigation), and a dead control is worse than none.
+    h(View, { style: { flex: 1 } }, pageHeaderFor(pageTitleFor(currentId), undefined), pageBody),
   )
 
   /* ── foldable chrome: library pane beside a whole phone ────────────────── */
@@ -928,7 +1013,7 @@ function Shell({ ctx }: { ctx: Context }) {
           ),
         ),
       ),
-      leftBackHeader,
+      leftPageHeader,
       leftPageBody,
       isDrawerOpen ? drawerOverlay : null,
     ),
@@ -954,6 +1039,10 @@ function Shell({ ctx }: { ctx: Context }) {
             left: 0,
             right: 0,
             bottom: 0,
+            // Absolute children escape the SafeAreaView's padding — the
+            // player's own top controls (close, style switcher) need the
+            // status-bar inset carried here.
+            paddingTop: insets.top,
             backgroundColor: palette.bg.base,
             zIndex: 100,
           },
@@ -1047,6 +1136,11 @@ function Shell({ ctx }: { ctx: Context }) {
     SafeAreaView,
     // `shell-<layout>` lets a manual rotation check (and later an e2e tap
     // through) see which branch the classifier picked without a debugger.
+    // The shell root paints the theme's base surface: the transparent top
+    // bar and every page that does not paint its own background (the
+    // recommend page) sit on it, and the page family reads the same token
+    // through the kit's palette, so all of them follow theme switches
+    // together.
     { style: { flex: 1, backgroundColor: palette.bg.base }, testID: `shell-${layout}` },
     layout === 'tablet'
       ? tabletChrome

@@ -35,12 +35,12 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@bbebee/plugin-player/hooks'
-import { Artwork, IconButton, Slider, Text, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
+import { c, Artwork, IconButton, Slider, Text, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.

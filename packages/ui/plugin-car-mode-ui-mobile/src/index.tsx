@@ -14,10 +14,10 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { CAR_MODE_VIEWS } from '@bbebee/plugin-car-mode/views'
 import { isPlayingLike, useTransport } from '@bbebee/plugin-player/hooks'
-import { Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /**
  * The driving-optimized screen.

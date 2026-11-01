@@ -10,12 +10,12 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { VisualizerColorTheme, VisualizerStyle } from '@BBeBee/protocol'
-import { nativePrimitives, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, nativePrimitives, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 import { useVisualizer } from '@bbebee/plugin-visualizer/hooks'
 import { VisualizerCanvas } from './VisualizerCanvas.js'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export interface VisualizerSettingsCardProps {
   ctx: Context

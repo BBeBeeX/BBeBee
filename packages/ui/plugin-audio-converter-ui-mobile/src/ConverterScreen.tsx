@@ -17,8 +17,8 @@ import type {
   CompressionEstimate,
   EncoderCapabilities,
 } from '@BBeBee/protocol'
-import { Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 import {
   useAudioConverterConfig,
   useAudioConverterTasks,
@@ -30,7 +30,7 @@ import { OutputCard } from './components/OutputCard.js'
 import { defaultConvertOptions } from './options.js'
 import type { StagedFile } from './pick.js'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export type ConverterTab = 'convert' | 'queue' | 'output'
 

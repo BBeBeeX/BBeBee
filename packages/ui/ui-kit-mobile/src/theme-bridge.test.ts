@@ -49,8 +49,8 @@ describe('themeToPalette', () => {
   it('maps the theme tokens onto the mobile palette groups', () => {
     const p = themeToPalette(midnightPurpleTheme, 'dark')
     const t = midnightPurpleTheme.tokens
-    expect(p.bg.sunken).toBe(t.bg.app)
-    expect(p.bg.base).toBe(t.bg.primary)
+    expect(p.bg.sunken).toBe(t.bg.primary)
+    expect(p.bg.base).toBe(t.bg.app)
     expect(p.bg.raised).toBe(t.surface.s1)
     expect(p.bg.overlay).toBe(t.surface.s2)
     expect(p.text.primary).toBe(t.text.primary)
@@ -70,28 +70,28 @@ describe('themeToPalette', () => {
   it('maps a different theme to its own colours, not the first theme', () => {
     const p = themeToPalette(oceanAbyssTheme, 'dark')
     expect(p.accent.base).toBe(oceanAbyssTheme.tokens.brand.primary)
-    expect(p.bg.base).toBe(oceanAbyssTheme.tokens.bg.primary)
+    expect(p.bg.base).toBe(oceanAbyssTheme.tokens.bg.app)
   })
 
   it('swaps to lightTokens under the light scheme and falls back without them', () => {
     const dual = themeToPalette(DUAL_SCHEME, 'light')
-    expect(dual.bg.sunken).toBe('#F4F4F6')
+    expect(dual.bg.base).toBe('#F4F4F6')
     expect(dual.text.primary).toBe('#101014')
 
     // The built-in midnight theme ships lightTokens of its own, so the
     // fallback is exercised with a synthetic dark-only variant.
     const darkOnly = themeToPalette({ ...midnightPurpleTheme, lightTokens: undefined }, 'light')
-    expect(darkOnly.bg.base).toBe(midnightPurpleTheme.tokens.bg.primary)
+    expect(darkOnly.bg.base).toBe(midnightPurpleTheme.tokens.bg.app)
 
     // The built-in's own light tokens, when it has them, are what light uses.
     if (midnightPurpleTheme.lightTokens) {
       expect(themeToPalette(midnightPurpleTheme, 'light').bg.base).toBe(
-        midnightPurpleTheme.lightTokens.bg.primary,
+        midnightPurpleTheme.lightTokens.bg.app,
       )
     }
 
     const dark = themeToPalette(DUAL_SCHEME, 'dark')
-    expect(dark.bg.sunken).toBe(midnightPurpleTheme.tokens.bg.app)
+    expect(dark.bg.sunken).toBe(midnightPurpleTheme.tokens.bg.primary)
   })
 })
 
@@ -148,7 +148,7 @@ describe('usePalette', () => {
       setPalette(themeToPalette(midnightPurpleTheme, 'dark'))
     })
     expect(rendered.length).toBe(2)
-    expect(rendered[1]).toBe(midnightPurpleTheme.tokens.bg.primary)
+    expect(rendered[1]).toBe(midnightPurpleTheme.tokens.bg.app)
 
     act(() => {
       setPalette(null)

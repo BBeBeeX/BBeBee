@@ -19,13 +19,13 @@ import {
   useDownloadPolicy,
   useDownloadTasks,
 } from '@bbebee/plugin-download/hooks'
-import { Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import type { UseI18nResult } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 import { formatBytes } from '@BBeBee/toolkit'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)

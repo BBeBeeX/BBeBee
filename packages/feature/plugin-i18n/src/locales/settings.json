@@ -198,7 +198,12 @@
       "totalArtwork": "Total: {total} (artwork: {artwork})",
       "version": "Version",
       "versionReset": "Version and system reset",
-      "mpvEngine": "MPV Hi-Fi native engine"
+      "mpvEngine": "MPV Hi-Fi native engine",
+      "sectionAppearance": "Appearance & language",
+      "sectionPlayback": "Playback & audio",
+      "sectionSources": "Music sources",
+      "sectionStorage": "Storage & cache",
+      "sectionAbout": "About"
     },
     "network": {
       "chooseTheTransportProtocolSupported": "Choose the transport protocol supported by the proxy server",
@@ -736,7 +741,12 @@
       "totalArtwork": "总计：{total}（封面：{artwork}）",
       "version": "版本",
       "versionReset": "版本与系统重置",
-      "mpvEngine": "MPV Hi-Fi 原生引擎"
+      "mpvEngine": "MPV Hi-Fi 原生引擎",
+      "sectionAppearance": "外观与语言",
+      "sectionPlayback": "播放与音频",
+      "sectionSources": "音乐来源",
+      "sectionStorage": "存储与缓存",
+      "sectionAbout": "关于"
     },
     "network": {
       "chooseTheTransportProtocolSupported": "选择代理服务器支持的传输协议",

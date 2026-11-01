@@ -21,7 +21,21 @@
       "layoutModeAuto": "自动",
       "layoutModeTablet": "平板",
       "layoutModeFoldable": "双屏",
-      "openNavDrawer": "打开导航抽屉"
+      "openNavDrawer": "打开导航抽屉",
+      "routeTitles": {
+        "album": "专辑",
+        "collection": "合集",
+        "favorites": "收藏",
+        "history": "播放历史",
+        "import": "导入音乐源",
+        "local": "本地音乐",
+        "playlist": "播放列表",
+        "profile": "个人资料",
+        "recommendAll": "全部推荐",
+        "scannerSettings": "扫描设置",
+        "sourceTest": "音源测试",
+        "sources": "音源管理"
+      }
     },
     "back": "返回",
     "cancel": "取消",

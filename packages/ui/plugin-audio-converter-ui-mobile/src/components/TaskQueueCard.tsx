@@ -8,10 +8,10 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ConvertTask, TaskStatus } from '@BBeBee/protocol'
-import { Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { c, Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens } from '@BBeBee/ui-tokens'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export interface TaskQueueCardProps {
   ctx: Context

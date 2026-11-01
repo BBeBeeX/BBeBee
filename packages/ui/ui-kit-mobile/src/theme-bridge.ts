@@ -25,8 +25,13 @@ export function themeToPalette(theme: ThemeDefinition, scheme: Scheme): Palette 
   const t = scheme === 'light' && theme.lightTokens ? theme.lightTokens : theme.tokens
   return {
     bg: {
-      sunken: t.bg.app,
-      base: t.bg.primary,
+      // The page family (shell root, drawer, every page canvas) sits on the
+      // theme's own app background — `bg.app`, in both schemes — so what the
+      // user sees is the theme's colour, never a derived or hand-picked one.
+      // The chrome (tab bar, rail) takes `bg.primary`, one step removed, to
+      // stay distinguishable from the canvas it overlays.
+      sunken: t.bg.primary,
+      base: t.bg.app,
       raised: t.surface.s1,
       overlay: t.surface.s2,
     },

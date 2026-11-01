@@ -21,7 +21,21 @@
       "layoutModeAuto": "Auto",
       "layoutModeTablet": "Tablet",
       "layoutModeFoldable": "Dual screen",
-      "openNavDrawer": "Open navigation drawer"
+      "openNavDrawer": "Open navigation drawer",
+      "routeTitles": {
+        "album": "Album",
+        "collection": "Collection",
+        "favorites": "Favorites",
+        "history": "Play history",
+        "import": "Import a source",
+        "local": "Local music",
+        "playlist": "Playlist",
+        "profile": "Profile",
+        "recommendAll": "All recommendations",
+        "scannerSettings": "Scanner settings",
+        "sourceTest": "Test a source",
+        "sources": "Sources"
+      }
     },
     "back": "Back",
     "cancel": "Cancel",

@@ -16,9 +16,9 @@ import type {
   CompressionEstimate,
   CompressionPreset,
 } from '@BBeBee/protocol'
-import { nativePrimitives, Text, TextField, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, nativePrimitives, Text, TextField, useI18n } from '@BBeBee/ui-kit-mobile'
 import { formatBytes } from '@BBeBee/toolkit'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 import { isLosslessFormat } from '@bbebee/plugin-audio-converter'
 import {
   applyPreset,
@@ -32,7 +32,7 @@ import {
   withOption,
 } from '../options.js'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export interface FormatOptionsCardProps {
   ctx: Context

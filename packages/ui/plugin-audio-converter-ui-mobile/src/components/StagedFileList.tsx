@@ -10,13 +10,13 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { formatBytes } from '@BBeBee/toolkit'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 import { pickFilesCapability, toStagedFiles, type StagedFile } from '../pick.js'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export interface StagedFileListProps {
   ctx: Context

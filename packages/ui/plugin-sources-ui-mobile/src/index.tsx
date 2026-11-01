@@ -23,7 +23,7 @@ import {
   useSources,
   type SearchResultRow,
 } from '@bbebee/plugin-sources/hooks'
-import {
+import { c,
   Artwork,
   ContextMenu,
   Button,
@@ -40,7 +40,7 @@ import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendScreen } from './screens/RecommendScreen.js'
 import { RecommendAllScreen } from './screens/RecommendAllScreen.js'
 
@@ -50,7 +50,7 @@ export { RecommendShelfRow } from './components/RecommendShelfRow.js'
 export { RecommendScreen } from './screens/RecommendScreen.js'
 export { RecommendAllScreen } from './screens/RecommendAllScreen.js'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /**
  * `<Artwork>`, with the cover resolved through `ctx.cache` first.

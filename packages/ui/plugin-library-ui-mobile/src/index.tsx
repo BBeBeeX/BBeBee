@@ -32,13 +32,13 @@ import { useAlbums } from '@bbebee/plugin-sources/hooks'
 import { useTracksByUrn } from '@bbebee/plugin-player/hooks'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import type { ArtworkProps } from '@BBeBee/ui-core'
-import { Artwork, Button, ContextMenu, EmptyState, IconButton, List, Text, TextField, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Artwork, Button, ContextMenu, EmptyState, IconButton, List, Text, TextField, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import type { MenuAnchor } from '@BBeBee/ui-core'
 
-const p = () => palettes.dark
+const p = () => c()
 
 /** One row of the library: three sections in a single scroller. */
 type LibraryRow =

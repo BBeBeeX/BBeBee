@@ -9,11 +9,11 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ConvertTask } from '@BBeBee/protocol'
-import { Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { formatBytes } from '@BBeBee/toolkit'
-import { palettes, tokens } from '@BBeBee/ui-tokens'
+import { tokens } from '@BBeBee/ui-tokens'
 
-const p = () => palettes.dark
+const p = () => c()
 
 export interface OutputCardProps {
   ctx: Context

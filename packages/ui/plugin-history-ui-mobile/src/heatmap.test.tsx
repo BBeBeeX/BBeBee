@@ -101,4 +101,17 @@ describe('PlayHeatmap', () => {
     expect(text).toContain('history:playHeatmap.less')
     expect(text).toContain('history:playHeatmap.more')
   })
+
+  it('bare variant drops the title, weekday labels and legend, keeps the grid', () => {
+    const { container } = render(h(PlayHeatmap, { heatmap: days([1, 2, 3]), t, variant: 'bare' }))
+    const text = container.textContent ?? ''
+    expect(container.querySelector('[data-testid="play-heatmap"]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-testid^="heatmap-cell-"]')).toHaveLength(3)
+    // Still oriented: months stay.
+    expect(text).toContain('history:playHeatmap.jan')
+    // Stripped: no chart title, no weekday labels, no less/more legend.
+    expect(text).not.toContain('history:playHeatmap.title')
+    expect(text).not.toContain('history:playHeatmap.mon')
+    expect(text).not.toContain('history:playHeatmap.less')
+  })
 })

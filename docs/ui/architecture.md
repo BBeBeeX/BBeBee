@@ -553,7 +553,7 @@ The shells are thin. Everything below is genuinely platform-specific and belongs
 | | `apps/mobile` | `apps/desktop/renderer` |
 |---|---|---|
 | Boot | Create context, register the mobile `core-*-mobile` implementations, mount inside `ctx.inject(['ui'], …)` | Same with the desktop `core-*-desktop` / `core-desktop-bridge` set |
-| Chrome | Phone: bottom tab bar + hamburger-triggered left navigation drawer. Tablet (landscape): left rail. Foldable: dual pane (§7.4), drawer rendered in the left pane. Stack headers, safe-area insets in all three | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
+| Chrome | Phone: bottom tab bar + hamburger-triggered left navigation drawer. Tablet (landscape): left rail. Foldable: dual pane (§7.4), drawer rendered in the left pane. One header shape on every page — hamburger left, page title centred, no back bar — with safe-area insets in all three | Sidebar, TopBar (central search with collapse-to-magnifier + 2×2 matrix, tray, profile avatar), window controls, resizable panes |
 | Player surface | Phone: mini player above the tab bar. Tablet: mini player at the rail bottom. Foldable: the right pane's mini player. All expand to full screen | Persistent bottom bar; optional detached mini-player window |
 | Platform-only | Gestures, haptics, pull-to-refresh | Right-click menus, drag-and-drop, keyboard shortcuts, tray, command palette |
 | Absent | No keyboard shortcuts, no tray | No gestures, no haptics |
@@ -768,9 +768,10 @@ alphabetical and not placement order.
   `history.view` are ignored by the mobile shell under this spec: now-playing
   becomes the fullscreen overlay and the queue becomes the drawer. History
   therefore loses its tab, so the implementation must add an explicit
-  entry for it **inside Settings** — a row that navigates to
-  `history.view` (a detail route, not a tab), with Back returning to
-  Settings. It must not ship unreachable.
+  entry for it **inside Settings** (it renders on the appearance & language
+  page among the general contributions) — a row that navigates to
+  `history.view` (a detail route, not a tab), with Back unwinding the
+  settings sub-page and then the settings home. It must not ship unreachable.
   Placements are left untouched in the first implementation (no headless
   change, no desktop divergence); removing the dead mobile placements is a
   later cleanup, not part of this work.
@@ -780,10 +781,11 @@ alphabetical and not placement order.
 
 **Left navigation drawer (phone trigger; tablet and foldable host it differently).**
 
-The drawer is shell chrome, not a tab and not a page. It is opened from the
-main interface: the header title's left side carries a three-line
-(hamburger) icon, and tapping it opens the drawer. The drawer open state
-belongs to the shell, like the queue drawer state below.
+The drawer is shell chrome, not a tab and not a page. Every page's header —
+tab root or detail — carries a three-line (hamburger) icon at its left with
+the page's title centred (there is no back bar anywhere: Android Back
+unwinds the stacks), and tapping the hamburger opens the drawer. The drawer
+open state belongs to the shell, like the queue drawer state below.
 
 Drawer content, top to bottom:
 
@@ -793,14 +795,38 @@ Drawer content, top to bottom:
 2. The play-count heatmap from the stats page: daily play counts rendered
    by colour depth, for the most recent three months only. This is the
    stats page's chart and data reused, not a second stats implementation
-   or a second colour scale.
-3. The tab list, stacked vertically, in the same fixed order as the four
-   tabs above. Tapping an entry navigates to that tab and closes the
-   drawer. The drawer list mirrors the four tabs; it does not add tabs,
-   and it does not change their count or order.
+   or a second colour scale; the drawer mounts the chart's **bare** edition
+   — grid and month labels only, no title, weekday labels or legend.
+3. The page list, stacked vertically, read from the registration API: every
+   contributed route (`ctx.ui.routes`) whose view is registered on this
+   shell, deduplicated, in contribution order (ties by id) — minus the
+   shell's excluded set (`album.view`, `library.collection`, `queue.view`,
+   `now-playing.view`): param'd detail surfaces reached from library rows
+   and transport overlays reached from the bar's own buttons are not drawer
+   destinations. The shell
+   curates nothing else — a plugin that contributes a route and registers a
+   mobile view is in the list, and one that does not is not; a view
+   registering late (the deferred plugin pass) joins on the next
+   `ui/changed`. Titles resolve through the shell's shared resolver: tab
+   place-names on the four tabs, chrome-owned keys on the shell's detail
+   routes, then the contribution's own title (translated when it is an
+   i18n key, passed through when a literal). The bottom tab bar stays the
+   fixed four — the drawer is the full directory, the bar is the chrome.
+   Tapping an entry navigates to that page and closes the drawer.
 
-Closing: selecting a tab, tapping the backdrop, or Android Back closes the
+Closing: selecting a page, tapping the backdrop, or Android Back closes the
 drawer (Back closes the drawer before it pops a navigation stack).
+
+**Settings home (Spotify-style directory).** The settings tab renders one
+row per category — icon, title, chevron — and every category's content
+lives on its own sub-page. The five fixed categories (appearance & language,
+playback & audio, music sources, storage & cache, about) are routes
+contributed by `plugin-settings-ui-mobile` with no placement (programmatic
+navigation only) and a view apiece; the shell excludes them from the drawer
+and resolves their header titles like any detail route, and Android Back
+unwinds them. Plugin contributions whose section id is none of the five
+render inline at the bottom of the home page — they are dynamic, and a page
+per unknown id buys nothing.
 
 **Phone layout (vertical stack, top to bottom).**
 
@@ -830,10 +856,11 @@ drawer (Back closes the drawer before it pops a navigation stack).
   scrolling inside it. Opening the drawer from the fullscreen overlay must layer
   it above the overlay, the same layering rule as desktop (§7.1 item 5).
 - The left navigation drawer on the phone is a left-side overlay over the
-  page, opened by the hamburger icon at the left of the main header title
+  page, opened by the hamburger icon at the left of the page header
   (see the drawer definition above). The vertical stack itself is unchanged:
   page, floating bar, bottom tab bar. The drawer is an additional way to
-  reach the same four tabs; it does not replace the bottom tab bar.
+  reach the pages the registration API reports; it does not replace the
+  bottom tab bar.
 
 **Tablet layout (landscape, left rail + content).**
 

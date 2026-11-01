@@ -148,7 +148,7 @@ describe('wirePaletteDrive', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(activePalette().accent.base).toBe(midnightPurpleTheme.tokens.brand.primary)
-    expect(activePalette().bg.base).toBe(midnightPurpleTheme.tokens.bg.primary)
+    expect(activePalette().bg.base).toBe(midnightPurpleTheme.tokens.bg.app)
   })
 
   it('follows theme/changed events', async () => {
@@ -169,12 +169,14 @@ describe('wirePaletteDrive', () => {
 
     // A theme with dedicated light tokens, painted dark first.
     ctx.emit('theme/changed', DUAL, 'dark')
-    expect(activePalette().bg.sunken).toBe(DUAL.tokens.bg.app)
+    expect(activePalette().bg.base).toBe(DUAL.tokens.bg.app)
+    expect(activePalette().bg.sunken).toBe(DUAL.tokens.bg.primary)
 
     settings.settings = { ...DEFAULT_APP_SETTINGS, theme: 'light' }
     ctx.emit('settings/changed', settings.settings)
 
-    expect(activePalette().bg.sunken).toBe('#F4F4F6')
+    expect(activePalette().bg.base).toBe('#F4F4F6')
+    expect(activePalette().bg.sunken).toBe('#080A10')
   })
 
   it('resolves system mode through the Appearance change listener', async () => {

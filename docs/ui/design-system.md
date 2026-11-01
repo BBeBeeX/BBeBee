@@ -148,7 +148,7 @@ The active theme maps its own `ColorTokens` on top of this core palette: the pla
   - Large text & key UI borders contrast $\ge 3.0:1$
   - Tested across both `dark` and `light` schemes in CI parity suites.
 - **Component Tokenization & Contrast Preservation Rule**: see the spec at [rules/ui.md §4](../../rules/ui.md#4-visual-design-language--color-system) (L2) — no hardcoded `#FFFFFF`/`#000000` foregrounds (semantic CSS variables only); fixed black containers keep light foregrounds / on-color tokens (Fixed Dark Container Exception).
-- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes. On mobile there is no DOM to write and no `matchMedia`, so the contract is mirrored rather than shared: `plugin-theme-ui-mobile`'s palette drive owns scheme resolution (explicit modes pass straight through; `'system'` asks the `Appearance` primitive the shell injects) and applies the resolved `ThemeDefinition` kit-wide through `themeToPalette` + `setPalette`.
+- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes. On mobile there is no DOM to write and no `matchMedia`, so the contract is mirrored rather than shared: `plugin-theme-ui-mobile`'s palette drive owns scheme resolution (explicit modes pass straight through; `'system'` asks the `Appearance` primitive the shell injects) and applies the resolved `ThemeDefinition` kit-wide through `themeToPalette` + `setPalette`. The mobile bridge maps the page family onto the theme's own app background: `bg.base` resolves from the theme's `bg.app` (never a derived or hand-picked tone) in both schemes, and `bg.sunken` — the tab-bar/rail chrome — from `bg.primary`, one step removed so the chrome stays distinguishable from the canvas it overlays.
 - **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme` — the desktop writer; mobile's single writer is `plugin-theme-ui-mobile`'s palette drive, which installs one resolved palette at a time via `setPalette`):
   - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `emerald-green`)
   - `data-color-scheme="{effectiveScheme}"` (`dark` or `light`)
@@ -252,6 +252,8 @@ Depth is communicated through **subtle luminance stepping and translucent layers
 | `shadow.dropdown` | `var(--shadow-dropdown-layered)` | Floating composite shadow with deep diffusion for menus, tooltips, and popovers. |
 | `bevel.chamfer` | `var(--bevel-chamfer-top)` | 1px top specular reflection highlight (`inset 0 1px 0 rgba(255, 255, 255, 0.14)`). |
 | `shadow.sunken` | `var(--shadow-sunken)` | Subtle inner shadow (`inset 0 1px 2px rgba(0, 0, 0, 0.35)`) for inputs and sunken tracks. |
+
+- **Mobile divergence (§6.0.2):** the table above is the desktop mapping. On mobile, `themeToPalette` resolves `bg.base` from the theme's `bg.app` and `bg.sunken` from `bg.primary` — the mobile page family (shell root, navigation drawer, every page canvas, fullscreen player) sits on the theme's own app background in both schemes (`#05060A` dark / `#F0F4FC` light for `midnight-purple`), with the tab-bar chrome one tone removed.
 
 - **Dynamic Reactive Canvas Gradients**: Detail views (Album Detail, Favorites, Local Music, Playlist Detail, Settings) render smooth vertical ambient gradients responding to `--surface-hover` / `--surface-selected` / `--surface-1` / `--bg-primary`, adapting instantly to any theme switch.
 - **Cover-Tinted Detail Theming**: The four detail pages (Album Detail, Playlist Detail, Favorites, Local Music) source the header area's gradient and the scroll-collapsed sticky bar's wash from the cover's `dominantColor` via the kit's `headerGradient(tint)` / `tintRgba` — the tint is strongest at the top (~50% alpha) and, using percentage stops, lands exactly on `--bg-primary` at the header's bottom edge, so the gradient scrolls away with the header and everything below (rows, pinned table header) sits on the same solid colour with no seam. A ref without a declared colour gets a one-shot canvas extraction (`useImageColor` → `extractVibrantColor`); an unreadable cover or no cover at all falls back to the neutral brand wash above, never an error. Favorites pins the liked-songs purple (`#450af5`) as its identity tint; Local Music, with no single cover, keeps the neutral gradient.
@@ -433,10 +435,19 @@ The scale relies on **"weight follows size"**:
     bottom tab bar with exactly four tabs in this order — Home (Recommend), Library (labelled
     音乐库), Settings, Search. The bar is always present: idle shows a “暂无播放” placeholder
     with play/favorite disabled and the queue button still working. A phone in landscape
-    keeps the bottom-tab layout (tablet needs height ≥ 600 dp too). The main header title's
-    left side carries a hamburger icon opening a left navigation drawer: logo + display-mode
-    button (dark / light / auto) on top, the stats page's daily play-count heatmap for the
-    most recent three months below it, then the same four tabs stacked vertically.
+    keeps the bottom-tab layout (tablet needs height ≥ 600 dp too). Every page's header carries a
+    hamburger icon on the left and the page title centred — there is no back bar anywhere; Android
+    Back unwinds the stacks. The hamburger opens a left navigation drawer: logo + display-mode
+    button (dark / light / auto) on top, the stats page's play-count heatmap for the
+    most recent three months below it (bare grid — no title, weekday labels or legend), then every
+    mobile page the registration API reports
+    (`ctx.ui.routes` filtered to routes with a registered view, minus the shell's
+    excluded detail/overlay routes, in contribution order)
+    stacked vertically — the full directory, beside the fixed four-tab bar. The settings tab is a
+    Spotify-style directory of its own: one row per category (appearance & language, playback &
+    audio, music sources, storage & cache, about), each opening its own sub-page contributed by
+    `plugin-settings-ui-mobile`; plugin contributions outside those sections render inline at the
+    bottom of the settings home.
   - **Tablet (landscape, height ≥ 600 dp)**: a 240 dp left rail — brand text `B Be Bee` plus
     the app icon on top, the same four tabs stacked vertically,
     a spacer, a now-playing card at the bottom with a queue button opening a right-side drawer — beside
@@ -445,8 +456,8 @@ The scale relies on **"weight follows size"**:
     layout on the right — entered by an explicit, persisted user choice, never inferred from
     width alone. The right pane's hamburger drawer is rendered in the left pane, not over the
     right pane.
-  - Persistent mini-player showing cover thumbnail, marquee title, artist name, play/pause
-    toggle, and a hairline playback progress bar.
+  - Persistent mini-player showing cover thumbnail, truncated title, artist name, play/pause
+    toggle, and a hairline playback progress bar along the card's bottom edge.
   - Full-screen now-playing sheet: Expanding the mini-player slides up an immersive player featuring
     large square cover art, bold geometric typography, scrub bar, circular transport controls, and
     swipe-up lyrics pane.
