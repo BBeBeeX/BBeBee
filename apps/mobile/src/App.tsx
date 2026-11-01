@@ -58,6 +58,7 @@ import {
   isAppearanceMode,
   nextAppearanceMode,
 } from './appearance'
+import { NavDrawerOverlay } from './nav-drawer'
 import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
@@ -696,46 +697,22 @@ function Shell({ ctx }: { ctx: Context }) {
   )
 
   /*
-   * The left navigation drawer overlay: backdrop on the right of the panel,
-   * content inside it. One element serves both hosts — the phone mounts it
-   * over the whole window; the foldable mounts it as the left pane's last
-   * child, which keeps it inside the pane's bounds. Closing: a backdrop tap,
-   * a tab selection (the shell closes on select), or Android Back — Back
-   * unwinds the drawer before any stack pops (goBack above).
+   * The left navigation drawer overlay. The panel-left / backdrop-right
+   * arrangement lives in `nav-drawer.tsx`, on the kit's configureNative seam
+   * — the one part of the drawer a render test can pin, where the shell
+   * itself never loads (App.tsx imports react-native at module scope).
+   * Closing: a backdrop tap, a tab selection (the shell closes on select),
+   * or Android Back — Back unwinds the drawer before any stack pops (goBack
+   * above).
    */
   const drawerOverlay = h(
-    View,
+    NavDrawerOverlay,
     {
-      style: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        flexDirection: 'row',
-        zIndex: 110,
-      },
-      testID: 'nav-drawer-overlay',
-    },
-    h(Pressable, {
-      onPress: () => setIsDrawerOpen(false),
-      accessibilityRole: 'button',
-      accessibilityLabel: t('app:common.close'),
-      testID: 'nav-drawer-backdrop',
-      style: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
-    }),
-    h(
-      View,
-      {
-        style: {
-          width: Math.min(320, Math.round(width * 0.8)),
-          backgroundColor: palette.bg.base,
-          borderRightWidth: 1,
-          borderRightColor: palette.border.subtle,
-        },
-        testID: 'nav-drawer-panel',
-      },
-      h(NavDrawerContents, {
+      palette,
+      width,
+      closeLabel: t('app:common.close'),
+      onClose: () => setIsDrawerOpen(false),
+      children: h(NavDrawerContents, {
         ctx,
         selectedTabId,
         onSelectTab: (id: string) => {
@@ -743,7 +720,7 @@ function Shell({ ctx }: { ctx: Context }) {
           navigateTo(id)
         },
       }),
-    ),
+    },
   )
 
   /* ── phone chrome: page, bar, bottom tabs ──────────────────────────────── */

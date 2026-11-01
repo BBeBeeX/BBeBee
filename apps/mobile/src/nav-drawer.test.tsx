@@ -1,0 +1,111 @@
+// @vitest-environment jsdom
+/**
+ * The drawer overlay's arrangement — the regression that slipped past the
+ * drawer's first delivery: the `flex: 1` backdrop listed before the panel
+ * took the row's left edge and pushed the 320dp panel to the right, so the
+ * "left" drawer opened on the right. These tests pin the order (panel first,
+ * backdrop after), the width cap, and the backdrop's close affordance.
+ *
+ * They can exist only because `NavDrawerOverlay` sits on the kit's
+ * `configureNative` seam; `App.tsx` itself never loads under vitest.
+ */
+
+import { cleanup, fireEvent, render } from '@testing-library/react'
+import { createElement as h, type ReactNode } from 'react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { configureNative } from '@BBeBee/ui-kit-mobile'
+import { palettes } from '@BBeBee/ui-tokens'
+import { NavDrawerOverlay } from './nav-drawer'
+
+afterEach(cleanup)
+
+function hostComponent(name: string) {
+  return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
+    const { children, testID, accessibilityLabel, style, onPress } = props
+    return h(
+      'div',
+      {
+        'data-host': name,
+        'data-testid': typeof testID === 'string' ? testID : undefined,
+        'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
+        style: typeof style === 'object' && style !== null ? style : undefined,
+        onClick: typeof onPress === 'function' ? onPress : undefined,
+      },
+      children,
+    )
+  }
+}
+
+configureNative({
+  View: hostComponent('View'),
+  Text: hostComponent('Text'),
+  Pressable: hostComponent('Pressable'),
+  Image: hostComponent('Image'),
+  Modal: hostComponent('Modal'),
+  FlashList: hostComponent('FlashList'),
+  ActivityIndicator: hostComponent('ActivityIndicator'),
+  TextInput: hostComponent('TextInput'),
+  ScrollView: hostComponent('ScrollView'),
+})
+
+const palette = palettes.dark
+
+function renderOverlay(overrides: Partial<{ width: number; onClose: () => void }> = {}) {
+  return render(
+    h(NavDrawerOverlay, {
+      palette,
+      width: 400,
+      closeLabel: 'Close',
+      onClose: overrides.onClose ?? (() => {}),
+      ...overrides,
+      children: 'DRAWER BODY',
+    }),
+  )
+}
+
+describe('NavDrawerOverlay', () => {
+  it('renders the panel as the first (left) child, the backdrop after it', () => {
+    const { container } = renderOverlay()
+    const overlay = container.querySelector('[data-testid="nav-drawer-overlay"]') as HTMLElement
+    expect(overlay).toBeTruthy()
+
+    // The row's first child is its left edge: the panel must be it, the
+    // flex: 1 backdrop the remainder on the right. Reversed, the "left"
+    // drawer opens on the right — the shipped bug.
+    const [first, second] = Array.from(overlay.children)
+    expect(first).toBe(container.querySelector('[data-testid="nav-drawer-panel"]'))
+    expect(second).toBe(container.querySelector('[data-testid="nav-drawer-backdrop"]'))
+    expect(first?.textContent).toContain('DRAWER BODY')
+  })
+
+  it('fills the window as an absolute row above the shell', () => {
+    const { container } = renderOverlay()
+    const overlay = container.querySelector('[data-testid="nav-drawer-overlay"]') as HTMLElement
+    expect(overlay.style.position).toBe('absolute')
+    expect(overlay.style.flexDirection).toBe('row')
+    expect(overlay.style.zIndex).toBe('110')
+  })
+
+  it('caps the panel at 320dp, or 80% of a narrower window', () => {
+    const wide = renderOverlay({ width: 900 })
+    const widePanel = wide.container.querySelector(
+      '[data-testid="nav-drawer-panel"]',
+    ) as HTMLElement
+    expect(widePanel.style.width).toBe('320px')
+    wide.unmount()
+
+    const narrow = renderOverlay({ width: 300 })
+    const narrowPanel = narrow.container.querySelector(
+      '[data-testid="nav-drawer-panel"]',
+    ) as HTMLElement
+    expect(narrowPanel.style.width).toBe('240px')
+  })
+
+  it('closes from the backdrop', () => {
+    let closed = false
+    const { container } = renderOverlay({ onClose: () => { closed = true } })
+    const backdrop = container.querySelector('[data-testid="nav-drawer-backdrop"]') as HTMLElement
+    fireEvent.click(backdrop)
+    expect(closed).toBe(true)
+  })
+})
