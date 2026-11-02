@@ -46,4 +46,15 @@ export { List } from './components/List.js'
 export { EmptyState } from './components/EmptyState.js'
 export { JsonTree, type JsonDirective } from './components/JsonTree.js'
 export { Toast } from './components/Toast.js'
+export { GlassSurface, type GlassSurfaceProps } from './components/GlassSurface.js'
 export { tablerIcon, hasSvgIcons, DEFAULT_STROKE_WIDTH, type TablerIconProps } from './icons/tabler.js'
+
+/**
+ * The total vertical height of the mobile bottom floating chrome:
+ * Mini Player (~66dp) + Tab Bar (~54dp) + Safe Area Inset (~34dp) ≈ 160dp.
+ *
+ * All mobile screens whose content extends to the bottom must include this
+ * clearance in their scroll / content padding so that bottom elements can be
+ * fully scrolled into view and remain clickable.
+ */
+export const BOTTOM_CHROME_HEIGHT = 160

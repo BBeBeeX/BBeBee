@@ -239,13 +239,13 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     it('registers the settings home and one view per category sub-page', async () => {
       const { ctx } = await createHarness()
       expect((ctx.ui as any).viewFor('settings.view')).toBeDefined()
-      for (const id of ['settings.appearance', 'settings.playback', 'settings.sources', 'settings.storage', 'settings.about', 'debug.view']) {
+      for (const id of ['settings.appearance', 'settings.playback', 'settings.network', 'settings.sources', 'settings.storage', 'settings.about', 'debug.view']) {
         expect((ctx.ui as any).viewFor(id)).toBeDefined()
       }
       // The sub-routes are contributed (placement-less): programmatic
       // navigation only — never desktop sidebar/tray, never the drawer.
       expect((ctx.ui as any).routes).toEqual(
-        expect.arrayContaining(['settings.appearance', 'settings.playback', 'settings.storage', 'settings.about']),
+        expect.arrayContaining(['settings.appearance', 'settings.playback', 'settings.network', 'settings.storage', 'settings.about']),
       )
     })
 
@@ -255,6 +255,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
 
       expect(container.textContent).toContain('Appearance & language')
       expect(container.textContent).toContain('Playback & audio')
+      expect(container.textContent).toContain('Network & proxy')
       expect(container.textContent).toContain('Music sources')
       expect(container.textContent).toContain('Storage & cache')
       expect(container.textContent).toContain('About')
@@ -262,6 +263,25 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).not.toContain('Audio output engine')
       expect(container.textContent).not.toContain('10-Band equalizer (EQ)')
       expect(container.textContent).not.toContain('Audio effects & equalizer (DSP)')
+    })
+
+    it('renders the network sub-page with proxy and third-party settings', async () => {
+      const { ctx } = await createHarness()
+      const NetworkPage = (ctx.ui as any).viewFor('settings.network')
+      const { container } = render(h(NetworkPage, {}))
+
+      expect(container.textContent).toContain('Third-party service settings')
+      expect(container.textContent).toContain('Network proxy settings')
+      expect(container.textContent).toContain('Download & GitHub acceleration')
+    })
+
+    it('renders the sources sub-page with configured sources card', async () => {
+      const { ctx } = await createHarness()
+      const SourcesPage = (ctx.ui as any).viewFor('settings.sources')
+      const { container } = render(h(SourcesPage, {}))
+
+      expect(container.textContent).toContain('Music sources & files')
+      expect(container.textContent).toContain('Configured sources')
     })
 
     it('renders the playback sub-page with engine row and DSP contributions', async () => {
@@ -408,17 +428,12 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).toContain('RingBuffer (2000 lines)')
       expect(container.textContent).toContain('QuickJS Realm Isolation')
 
-      // The tool cards all render; the desktop-only DevTools card is the one
-      // surface without a mobile view, and it says so instead of navigating
-      // into the shell's dead end.
+      // The tool cards all render with active views.
       expect(container.textContent).toContain('System logs (Discover)')
       expect(container.textContent).toContain('Test sources (Test Sources)')
       expect(container.textContent).toContain('Plugins')
-      const unavailable = container.textContent!.split('Not available on this platform').length - 1
-      expect(unavailable).toBe(1)
       expect(getByTestId('debug-open-sources-test')).toBeTruthy()
       expect(getByTestId('debug-open-plugins')).toBeTruthy()
-      expect(getByTestId('debug-open-devtools')).toBeTruthy()
     })
 
     it('renders the appearance page with a language select and no device-feature cards', async () => {

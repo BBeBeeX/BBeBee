@@ -14,7 +14,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { CAR_MODE_VIEWS } from '@bbebee/plugin-car-mode/views'
 import { isPlayingLike, useTransport } from '@bbebee/plugin-player/hooks'
-import { c, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const p = () => c()
@@ -103,7 +103,7 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
           alignItems: 'center',
           justifyContent: 'center',
           gap: tokens.space[6],
-          paddingBottom: tokens.space[6],
+          paddingBottom: BOTTOM_CHROME_HEIGHT,
         },
       },
       h(DriveButton, {

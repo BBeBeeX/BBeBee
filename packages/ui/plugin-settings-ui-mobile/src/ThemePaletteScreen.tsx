@@ -13,6 +13,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import {
   activePalette,
+  BOTTOM_CHROME_HEIGHT,
   Button,
   c,
   getScheme,
@@ -78,7 +79,7 @@ export function ThemePaletteScreen({ ctx }: { ctx: Context }): ReactElement {
     native.ScrollView as never,
     {
       style: { flex: 1, backgroundColor: c().bg.base },
-      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[3] },
+      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[3], paddingBottom: BOTTOM_CHROME_HEIGHT },
       accessibilityLabel: t('settings:debug.themeVariablePaletteThemePalette'),
     },
     h(Text, {

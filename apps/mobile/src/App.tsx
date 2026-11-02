@@ -9,7 +9,7 @@
  * `ctx.ui`.
  */
 
-import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
+import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   BackHandler,
@@ -41,7 +41,7 @@ import type {
   UiService,
 } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { useI18n, usePalette, Sheet, Toast, tablerIcon } from '@BBeBee/ui-kit-mobile'
+import { useI18n, usePalette, getScheme, GlassSurface, Sheet, Toast, tablerIcon } from '@BBeBee/ui-kit-mobile'
 import { usePlayHistoryHeatmap } from '@bbebee/plugin-player/hooks'
 // The stats page's heatmap chart, reused here for the drawer's three-month
 // slice — one chart, one colour scale, two homes (docs/ui/architecture.md §7.4).
@@ -164,6 +164,7 @@ const DETAIL_TITLES: Readonly<Record<string, string>> = {
   'scanner.settings': 'app:common.app.routeTitles.scannerSettings',
   'settings.appearance': 'settings:mobile.sectionAppearance',
   'settings.playback': 'settings:mobile.sectionPlayback',
+  'settings.network': 'settings:settings.networkProxy',
   'settings.sources': 'settings:mobile.sectionSources',
   'settings.storage': 'settings:mobile.sectionStorage',
   'settings.about': 'settings:mobile.sectionAbout',
@@ -171,7 +172,6 @@ const DETAIL_TITLES: Readonly<Record<string, string>> = {
   'debug.logs': 'settings:logs.title',
   'debug.http-logs': 'settings:httpLogs.title',
   'debug.theme-palette': 'settings:debug.themeVariablePaletteThemePalette',
-  'inspector.panel': 'settings:debug.systemArchitecturePluginTopologyInspector',
   'plugin-manager.screen': 'settings:settings.plugins',
 }
 
@@ -198,6 +198,7 @@ const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
   'now-playing.view',
   'settings.appearance',
   'settings.playback',
+  'settings.network',
   'settings.sources',
   'settings.storage',
   'settings.about',
@@ -330,7 +331,7 @@ function NavDrawerContents({ ctx, currentPageId, translate, onSelectPage }: {
     ),
     h(
       ScrollView,
-      { style: { flex: 1 } },
+      { style: { flex: 1 }, contentContainerStyle: { paddingBottom: 60 } },
       h(
         Pressable,
         {
@@ -722,16 +723,27 @@ function Shell({ ctx }: { ctx: Context }) {
     return resolvePageTitle(id, route?.title ?? '')
   }
 
+  const isSettingsSubpage = (id?: string): boolean => {
+    if (!id) return false
+    return (
+      (id.startsWith('settings.') && id !== 'settings.view') ||
+      id.startsWith('debug.') ||
+      id === 'plugin-manager.screen' ||
+      id === 'sources.test'
+    )
+  }
+
   /*
-   * Every page's header, one shape on every page and pane: the drawer's
-   * hamburger on the left, the page's title centered. The back pill is gone
-   * — hardware Back unwinds the stack (goBack) — which is what makes the
-   * drawer reachable from detail pages too, not just the tab roots. The
-   * tablet has no drawer to open (§7.4: the rail is its navigation), so its
-   * hamburger yields to an empty spacer; the mirrored right slot keeps the
-   * title centered either way.
+   * Every page's header: on sub-pages within a stack, a back chevron returns
+   * to the parent; otherwise the drawer's hamburger lives on the left, with the
+   * page's title centered.
    */
-  const pageHeaderFor = (title: string, onOpenDrawer: (() => void) | undefined) =>
+  const pageHeaderFor = (
+    title: string,
+    onOpenDrawer: (() => void) | undefined,
+    onBack?: (() => void) | undefined,
+    rightAction?: ReactNode,
+  ) =>
     h(
       View,
       {
@@ -747,19 +759,31 @@ function Shell({ ctx }: { ctx: Context }) {
           borderBottomWidth: StyleSheet.hairlineWidth,
         },
       },
-      onOpenDrawer
+      onBack
         ? h(
             Pressable,
             {
-              onPress: onOpenDrawer,
+              onPress: onBack,
               accessibilityRole: 'button',
-              accessibilityLabel: t('app:common.app.openNavDrawer'),
-              testID: 'nav-drawer-open',
+              accessibilityLabel: t('app:common.back'),
+              testID: 'nav-back-button',
               style: { paddingVertical: 4, minWidth: 34 },
             },
-            h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+            h(Text, { style: { color: palette.text.primary, fontSize: 24, fontWeight: '600' } }, '‹'),
           )
-        : h(View, { style: { minWidth: 34 } }),
+        : onOpenDrawer
+          ? h(
+              Pressable,
+              {
+                onPress: onOpenDrawer,
+                accessibilityRole: 'button',
+                accessibilityLabel: t('app:common.app.openNavDrawer'),
+                testID: 'nav-drawer-open',
+                style: { paddingVertical: 4, minWidth: 34 },
+              },
+              h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+            )
+          : h(View, { style: { minWidth: 34 } }),
       h(
         View,
         { style: { flex: 1, alignItems: 'center' } },
@@ -772,10 +796,30 @@ function Shell({ ctx }: { ctx: Context }) {
           title,
         ),
       ),
-      h(View, { style: { minWidth: 34 } }),
+      rightAction ?? h(View, { style: { minWidth: 34 } }),
     )
 
-  const pageHeader = pageHeaderFor(pageTitleFor(currentId), () => setIsDrawerOpen(true))
+  const libraryHeaderMenuButton = h(
+    Pressable,
+    {
+      onPress: () => ctx.emit('library/open-header-menu'),
+      accessibilityRole: 'button',
+      accessibilityLabel: t('library:library.actions') || 'More options',
+      testID: 'library-header-menu',
+      style: { paddingVertical: 4, minWidth: 34, alignItems: 'center', justifyContent: 'center' },
+    },
+    tablerIcon('dots', { size: 22, color: palette.text.primary }) ??
+      h(Text, { style: { color: palette.text.primary, fontSize: 22, fontWeight: '700' } }, '⋯'),
+  )
+
+  const isCurrentSettingsSubpage = isSettingsSubpage(currentId) && navState.index > 0
+  const isCurrentLibraryHome = currentId === 'library.home'
+  const pageHeader = pageHeaderFor(
+    pageTitleFor(currentId),
+    () => setIsDrawerOpen(true),
+    isCurrentSettingsSubpage ? () => void goBack() : undefined,
+    isCurrentLibraryHome ? libraryHeaderMenuButton : undefined,
+  )
   const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
     navigateTo('album.view', { urn }),
   )
@@ -790,7 +834,12 @@ function Shell({ ctx }: { ctx: Context }) {
     leftNavState.history[leftNavState.index] ?? { id: LEFT_PANE_ROOT }
   const leftCurrentId = leftCurrentItem.id
   const leftCurrentParams = leftCurrentItem.params
-  const leftPageHeader = pageHeaderFor(pageTitleFor(leftCurrentId), () => setIsDrawerOpen(true))
+  const leftPageHeader = pageHeaderFor(
+    pageTitleFor(leftCurrentId),
+    () => setIsDrawerOpen(true),
+    undefined,
+    leftCurrentId === 'library.home' ? libraryHeaderMenuButton : undefined,
+  )
   const leftPageBody = pageBodyFor(
     leftCurrentId,
     leftCurrentParams,
@@ -834,52 +883,81 @@ function Shell({ ctx }: { ctx: Context }) {
 
   const phoneChrome = h(
     View,
-    { style: { flex: 1 } },
-    // One header shape on every page — tab root or detail: hamburger left,
-    // page title centered. No back pill anywhere; Back unwinds the stack.
-    pageHeader,
-    pageBody,
-    BottomBar
-      ? h(BottomBar, {
-          ctx,
-          onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
-          onOpenQueue: () => setIsQueueOpen(true),
-        })
-      : null,
-    /*
-     * The tab bar as Apple Music draws its chrome: a sunken, near-opaque
-     * surface under a hairline, each tab a glyph over a 10pt label, and the
-     * selection spoken in the accent colour rather than weight alone.
-     */
+    { style: { flex: 1, position: 'relative' } },
+    // 1. The page surface, covering the whole screen
+    h(
+      View,
+      { style: { flex: 1 } },
+      pageHeader,
+      pageBody,
+    ),
+    // 2. The floating chrome container (Mini Player + TabBar), anchored to the bottom
     h(
       View,
       {
+        pointerEvents: 'box-none',
         style: {
-          flexDirection: 'row',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: palette.border.subtle,
-          backgroundColor: palette.bg.sunken,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 20,
         },
       },
-      ...TABS.map((tab) => {
-        const isSelected = isTabSelected(tab)
-        const tabTitle = t(tab.titleKey)
-        const tint = isSelected ? palette.accent.base : palette.text.secondary
-        return h(
-          Pressable,
-          {
-            key: tab.id,
-            onPress: () => navigateTo(tab.id),
-            accessibilityRole: 'tab',
-            accessibilityLabel: tabTitle,
-            accessibilityState: { selected: isSelected },
-            style: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8, gap: 1 },
+      BottomBar
+        ? h(
+            View,
+            {
+              pointerEvents: 'box-none',
+              style: {
+                paddingHorizontal: 8,
+                paddingBottom: 6,
+              },
+            },
+            h(BottomBar, {
+              ctx,
+              onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
+              onOpenQueue: () => setIsQueueOpen(true),
+            }),
+          )
+        : null,
+      /*
+       * The tab bar as Apple Music draws its chrome: a translucent frosted
+       * glass surface under a hairline, each tab a glyph over a 10pt label,
+       * and the selection spoken in the accent colour rather than weight alone.
+       */
+      h(
+        GlassSurface,
+        {
+          intensity: 85,
+          tint: getScheme() === 'light' ? 'light' : 'dark',
+          style: {
+            flexDirection: 'row',
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: getScheme() === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
+            paddingBottom: insets.bottom,
           },
-          tablerIcon(tab.tabler, { size: 24, color: tint }) ??
-            h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
-          h(Text, { numberOfLines: 1, style: { color: tint, fontSize: 10 } }, tabTitle),
-        )
-      }),
+        },
+        ...TABS.map((tab) => {
+          const isSelected = isTabSelected(tab)
+          const tabTitle = t(tab.titleKey)
+          const tint = isSelected ? palette.accent.base : palette.text.secondary
+          return h(
+            Pressable,
+            {
+              key: tab.id,
+              onPress: () => navigateTo(tab.id),
+              accessibilityRole: 'tab',
+              accessibilityLabel: tabTitle,
+              accessibilityState: { selected: isSelected },
+              style: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8, gap: 1 },
+            },
+            tablerIcon(tab.tabler, { size: 24, color: tint }) ??
+              h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
+            h(Text, { numberOfLines: 1, style: { color: tint, fontSize: 10, fontWeight: isSelected ? '600' : '400' } }, tabTitle),
+          )
+        }),
+      ),
     ),
   )
 
@@ -980,9 +1058,17 @@ function Shell({ ctx }: { ctx: Context }) {
         ),
       ),
     ),
-    // The tablet's header carries no hamburger: there is no drawer to open
-    // (the rail is the navigation), and a dead control is worse than none.
-    h(View, { style: { flex: 1 } }, pageHeaderFor(pageTitleFor(currentId), undefined), pageBody),
+    h(
+      View,
+      { style: { flex: 1 } },
+      pageHeaderFor(
+        pageTitleFor(currentId),
+        undefined,
+        isCurrentSettingsSubpage ? () => void goBack() : undefined,
+        isCurrentLibraryHome ? libraryHeaderMenuButton : undefined,
+      ),
+      pageBody,
+    ),
   )
 
   /* ── foldable chrome: library pane beside a whole phone ────────────────── */

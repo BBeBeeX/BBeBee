@@ -18,6 +18,7 @@ import { common, nativePrimitives } from '../primitives.js'
  */
 export function List<T>(props: ListProps<T>): ReactElement {
   const native = nativePrimitives()
+  const customStyle = (props as { contentContainerStyle?: unknown }).contentContainerStyle
   return h(native.FlashList as never, {
     ...common(props),
     data: props.items,
@@ -26,5 +27,9 @@ export function List<T>(props: ListProps<T>): ReactElement {
     onEndReached: props.onEndReached,
     onEndReachedThreshold: 0.5,
     ListEmptyComponent: props.empty as ReactNode,
+    contentContainerStyle: [
+      { paddingBottom: 160 },
+      ...(Array.isArray(customStyle) ? customStyle : customStyle ? [customStyle] : []),
+    ],
   })
 }

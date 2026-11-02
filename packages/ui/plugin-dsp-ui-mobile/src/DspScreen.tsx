@@ -5,7 +5,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { c, Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { useDsp } from '@bbebee/plugin-dsp/hooks'
 import { EQ10_BANDS } from '@bbebee/plugin-dsp/effects'
@@ -101,7 +101,7 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
       contentContainerStyle: {
         padding: tokens.space[4],
         gap: tokens.space[4],
-        paddingBottom: tokens.space[8],
+        paddingBottom: BOTTOM_CHROME_HEIGHT,
       },
     },
     // Header

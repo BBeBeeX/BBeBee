@@ -17,7 +17,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { DeviceService, I18nService, UiService } from '@BBeBee/protocol'
-import { Button, Text, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { BOTTOM_CHROME_HEIGHT, Button, Text, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 interface ToolCard {
@@ -75,13 +75,6 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       testID: 'debug-open-sources-test',
     },
     {
-      titleKey: 'settings:debug.systemArchitecturePluginTopologyInspector',
-      descKey: 'settings:debug.inspectorDesc',
-      buttonKey: 'settings:debug.openInspector',
-      viewId: 'inspector.panel',
-      testID: 'debug-open-inspector',
-    },
-    {
       // Plugin management moved here from the settings home: on the desktop
       // it lives inside the settings screen, so its phone entrance joined the
       // other developer surfaces in the debug center.
@@ -90,14 +83,6 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
       buttonKey: 'settings:debug.openPlugins',
       viewId: 'plugin-manager.screen',
       testID: 'debug-open-plugins',
-    },
-    {
-      // The desktop's renderer DevTools live behind the host bridge; a phone
-      // has no such bridge, so the card is always unavailable here.
-      titleKey: 'settings:debug.developerToolsDevTools',
-      descKey: 'settings:debug.devToolsDesc',
-      buttonKey: 'settings:debug.openDevTools',
-      testID: 'debug-open-devtools',
     },
   ]
 
@@ -113,7 +98,7 @@ export function DebugScreen({ ctx }: { ctx: Context }): ReactElement {
     native.ScrollView as never,
     {
       style: { flex: 1, backgroundColor: c().bg.base },
-      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[3] },
+      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[3], paddingBottom: BOTTOM_CHROME_HEIGHT },
       accessibilityLabel: t('settings:debug.title'),
     },
     // Card 1 — debug status

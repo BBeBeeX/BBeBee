@@ -21,7 +21,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PluginInfo } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/toolkit/hooks'
-import { Text, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
+import { BOTTOM_CHROME_HEIGHT, Text, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { PluginRow } from '../components/PluginRow.js'
 import { changesApplyAtNextLaunch } from '../i18n.js'
@@ -88,10 +88,11 @@ export function PluginManagerScreen({ ctx }: { ctx: Context }): ReactElement {
   }
 
   return h(
-    native.View as never,
+    (native.ScrollView ?? native.View) as never,
     {
       testID: 'plugin-manager-screen',
-      style: { flex: 1, backgroundColor: p.bg.base, padding: tokens.space[4], gap: tokens.space[2] },
+      style: { flex: 1, backgroundColor: p.bg.base },
+      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[2], paddingBottom: BOTTOM_CHROME_HEIGHT },
     },
     // Screen title + the next-launch hint (the platform's actual semantics —
     // there is no mobile lifecycle bridge, so toggles only persist).

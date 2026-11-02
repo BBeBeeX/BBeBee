@@ -19,7 +19,7 @@ import {
   useDownloadPolicy,
   useDownloadTasks,
 } from '@bbebee/plugin-download/hooks'
-import { c, Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import type { UseI18nResult } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -45,13 +45,16 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   return h(
-    native.View as never,
+    (native.ScrollView ?? native.View) as never,
     {
       style: {
         flex: 1,
         backgroundColor: p().bg.base,
+      },
+      contentContainerStyle: {
         padding: tokens.space[4],
         gap: tokens.space[4],
+        paddingBottom: BOTTOM_CHROME_HEIGHT,
       },
     },
     h(

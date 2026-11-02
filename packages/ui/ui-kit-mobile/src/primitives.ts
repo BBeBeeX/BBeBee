@@ -61,6 +61,11 @@ export interface NativePrimitives {
    * keeps screens reactive to rotation and foldable posture changes.
    */
   useWindowDimensions?: () => { width: number; height: number }
+  /**
+   * Native frosted glass / blur view (e.g. `BlurView` from `expo-blur`).
+   * Optional: when absent (or in tests), components fall back to translucent Views.
+   */
+  BlurView?: unknown
 }
 
 /** The `react-native-svg` exports the Tabler icon geometry needs. */
@@ -93,6 +98,7 @@ const PLACEHOLDER: NativePrimitives = {
   ActivityIndicator: 'ActivityIndicator',
   TextInput: 'TextInput',
   ScrollView: 'ScrollView',
+  BlurView: 'View',
 }
 
 /**

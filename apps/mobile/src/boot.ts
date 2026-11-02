@@ -32,6 +32,7 @@ import {
 import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { File, Paths } from 'expo-file-system'
+import { BlurView } from 'expo-blur'
 import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
 import {
   isCriticalServiceKey,
@@ -175,6 +176,7 @@ configureNative({
   ActivityIndicator,
   TextInput,
   ScrollView,
+  BlurView,
   /*
    * The Tabler icon set draws through react-native-svg (the kit's
    * `icons/tabler.tsx`); without this group the kit falls back to text

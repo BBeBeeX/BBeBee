@@ -25,7 +25,7 @@ import {
   useRecommendSources,
   useSources,
 } from '@bbebee/plugin-sources/hooks'
-import { EmptyState, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { BOTTOM_CHROME_HEIGHT, EmptyState, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendShelfRow } from '../components/RecommendShelfRow.js'
@@ -155,7 +155,7 @@ export function RecommendScreen({ ctx, onOpenAlbum, showGuide }: RecommendScreen
                         onOpenCard: openCard,
                         onPlayCard: playCard,
                       }),
-                contentContainerStyle: { gap: tokens.space[5] },
+                contentContainerStyle: { gap: tokens.space[5], paddingBottom: BOTTOM_CHROME_HEIGHT },
               },
             ),
     ),

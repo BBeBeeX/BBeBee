@@ -17,7 +17,7 @@ import type {
   CompressionEstimate,
   EncoderCapabilities,
 } from '@BBeBee/protocol'
-import { c, Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Button, nativePrimitives, Text, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import {
   useAudioConverterConfig,
@@ -179,7 +179,7 @@ export function ConverterScreen({ ctx }: ConverterScreenProps): ReactElement {
       contentContainerStyle: {
         padding: tokens.space[4],
         gap: tokens.space[3],
-        paddingBottom: tokens.space[8],
+        paddingBottom: BOTTOM_CHROME_HEIGHT,
       },
     },
     // Header

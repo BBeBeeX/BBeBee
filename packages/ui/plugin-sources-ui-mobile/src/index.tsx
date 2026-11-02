@@ -25,6 +25,7 @@ import {
 } from '@bbebee/plugin-sources/hooks'
 import { c,
   Artwork,
+  BOTTOM_CHROME_HEIGHT,
   ContextMenu,
   Button,
   EmptyState,
@@ -415,8 +416,11 @@ export function ImportScreen({ ctx }: { ctx: Context }): ReactElement {
   const scheme = p()
 
   return h(
-    native.View as never,
-    { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
+    (native.ScrollView ?? native.View) as never,
+    {
+      style: { flex: 1, backgroundColor: scheme.bg.base },
+      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[4], paddingBottom: BOTTOM_CHROME_HEIGHT },
+    },
     h(Text, { variant: 'lg' }, t('sources:import.importASource')),
     h(
       Text,
@@ -723,8 +727,11 @@ export function TestScreen({ ctx, sourceId }: { ctx: Context; sourceId?: string 
     )
 
   return h(
-    native.View as never,
-    { style: { flex: 1, padding: tokens.space[4], gap: tokens.space[4] } },
+    (native.ScrollView ?? native.View) as never,
+    {
+      style: { flex: 1, backgroundColor: scheme.bg.base },
+      contentContainerStyle: { padding: tokens.space[4], gap: tokens.space[4], paddingBottom: BOTTOM_CHROME_HEIGHT },
+    },
     h(Text, { variant: 'lg' }, t('sources:test.testASource')),
 
     h(Button, {

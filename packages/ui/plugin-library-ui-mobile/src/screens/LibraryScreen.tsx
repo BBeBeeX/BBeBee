@@ -26,7 +26,7 @@ import {
   usePlaylists,
   useSaved,
 } from '@bbebee/plugin-library/hooks'
-import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
+import type { MenuAnchor } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import {
@@ -84,11 +84,17 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('creator')
-  const [sortMenuOpen, setSortMenuOpen] = useState(false)
-  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [pendingCreate, setPendingCreate] = useState<'playlist' | 'folder' | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [generation, setGeneration] = useState(0)
+
+  useEffect(() => {
+    const off = ctx.on('library/open-header-menu', () => {
+      setHeaderMenuOpen(true)
+    })
+    return () => void off()
+  }, [ctx])
 
   // Coalesce rapid bursts (a scan emits `library/changed` per batch):
   // without this, every batch triggers a full library hydration.
@@ -613,15 +619,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     return list
   }, [filteredItems, expandedFolderIds, folderItemsMap, toggleFolderExpanded])
 
-  const sortMenuItems: MenuItemSpec[] = (['creator', 'recent-added', 'recent-played', 'alphabetical'] as const).map(
-    (mode) => ({
-      id: mode,
-      label: t(SORT_LABEL_KEYS[mode]),
-      icon: sortMode === mode ? '✓' : undefined,
-      onSelect: () => setSortMode(mode),
-    }),
-  )
-
   const handleImportShare = () => {
     const share = serviceOf<ShareService>(ctx, 'share')
     if (share) {
@@ -631,7 +628,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     }
   }
 
-  const quickEntry = (icon: string, glyph: string, label: string, count: number, viewId: string) =>
+  const quickCard = (icon: string, glyph: string, label: string, count: number, viewId: string) =>
     h(
       native.Pressable as never,
       {
@@ -641,17 +638,39 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         testID: `library-quick-${viewId}`,
         onPress: () => navigate(viewId),
         style: {
+          flex: 1,
+          backgroundColor: c().bg.raised,
+          borderRadius: tokens.radius.md,
+          borderWidth: 1,
+          borderColor: c().border.subtle,
+          paddingHorizontal: tokens.space[3],
+          paddingVertical: tokens.space[3],
           flexDirection: 'row',
           alignItems: 'center',
           gap: tokens.space[3],
-          paddingVertical: tokens.space[2],
-          paddingHorizontal: tokens.space[3],
-          borderRadius: tokens.radius.sm,
         },
       },
-      tablerIcon(icon, { size: 20, color: c().text.primary }) ??
-        h(Text, { style: { fontSize: 18 } }, glyph),
-      h(Text, { variant: 'sm' }, `${label} ·${count}`),
+      h(
+        native.View as never,
+        {
+          style: {
+            width: 38,
+            height: 38,
+            borderRadius: tokens.radius.sm,
+            backgroundColor: c().bg.base,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        },
+        tablerIcon(icon, { size: 20, color: c().accent.base }) ??
+          h(Text, { style: { fontSize: 18, color: c().accent.base } }, glyph),
+      ),
+      h(
+        native.View as never,
+        { style: { flex: 1, minWidth: 0, gap: 2 } },
+        h(Text, { variant: 'sm', numberOfLines: 1, style: { fontWeight: '600' } }, label),
+        h(Text, { variant: 'xs', tone: 'muted', numberOfLines: 1 }, `${count}`),
+      ),
     )
 
   const filterChip = (key: FilterKey, label: string) => {
@@ -715,6 +734,45 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       ),
     )
 
+  const sortOption = (mode: SortMode, label: string) => {
+    const active = sortMode === mode
+    return h(
+      native.Pressable as never,
+      {
+        key: mode,
+        accessibilityRole: 'button',
+        accessibilityLabel: label,
+        testID: `sort-option-${mode}`,
+        onPress: () => {
+          setSortMode(mode)
+          setHeaderMenuOpen(false)
+        },
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: tokens.space[2] + 2,
+          paddingHorizontal: tokens.space[1],
+        },
+      },
+      h(
+        Text,
+        {
+          variant: 'md',
+          style: {
+            color: active ? c().accent.base : c().text.primary,
+            fontWeight: active ? '600' : 'normal',
+          },
+        },
+        label,
+      ),
+      active
+        ? tablerIcon('check', { size: 18, color: c().accent.base }) ??
+            h(Text, { style: { color: c().accent.base, fontWeight: 'bold' } }, '✓')
+        : null,
+    )
+  }
+
   const hasArtists = artistItems.length > 0
   const visibleChips = FILTER_CHIPS.filter(({ key }) => key !== 'artist' || hasArtists)
 
@@ -724,14 +782,17 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       style: { flex: 1, backgroundColor: c().bg.base, padding: tokens.space[4], gap: tokens.space[3] },
       accessibilityLabel: t('library:library.library'),
     },
-    // Quick entries, the desktop nav's two rows.
+    // Quick entries, the desktop nav's two rows -> cards in one row.
     h(
       native.View as never,
-      { accessibilityLabel: t('library:collapsedLibrary.musicLibraryQuickLinks'), style: { gap: tokens.space[1] } },
-      quickEntry('heart', '♥', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
-      quickEntry('download', '⬇', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
+      {
+        accessibilityLabel: t('library:collapsedLibrary.musicLibraryQuickLinks'),
+        style: { flexDirection: 'row', gap: tokens.space[3] },
+      },
+      quickCard('heart', '♥', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
+      quickCard('download', '⬇', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
     ),
-    // Toolbar: filter chips, then search / sort / create at the far right.
+    // Toolbar: filter chips, then search toggle at the far right.
     h(
       native.View as never,
       { style: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.space[2] } },
@@ -745,20 +806,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           accessibilityLabel: t('sources:search.search'),
           testID: 'library-search-toggle',
           children: tablerIcon('search', { size: 20, color: c().text.secondary }) ?? '🔍',
-        }),
-        h(Button, {
-          variant: 'ghost',
-          onPress: () => setSortMenuOpen(true),
-          accessibilityLabel: t('library:favorites.sortBy'),
-          testID: 'library-sort-toggle',
-          children: tablerIcon('arrows-sort', { size: 20, color: c().text.secondary }) ?? '⇅',
-        }),
-        h(Button, {
-          variant: 'ghost',
-          onPress: () => setCreateMenuOpen(true),
-          accessibilityLabel: t('library:libraryCreateDropdown.create'),
-          testID: 'create-dropdown-trigger',
-          children: tablerIcon('plus', { size: 20, color: c().text.secondary }) ?? '＋',
         }),
       ),
     ),
@@ -799,24 +846,32 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           }),
       }),
     ),
-    // Create menu — the desktop dropdown, as a bottom sheet with the same
-    // three options and the same copy.
+    // Combined Header Menu — Create options + Sort options
     h(
       Sheet,
       {
-        open: createMenuOpen,
-        onClose: () => setCreateMenuOpen(false),
-        title: t('library:libraryCreateDropdown.create'),
+        open: headerMenuOpen,
+        onClose: () => setHeaderMenuOpen(false),
+        title: t('library:library.library'),
       },
       h(
         native.View as never,
-        { style: { gap: tokens.space[1] } },
+        { style: { gap: tokens.space[1], paddingBottom: tokens.space[2] } },
+        h(
+          Text,
+          {
+            variant: 'xs',
+            tone: 'muted',
+            style: { fontWeight: '600', textTransform: 'uppercase', marginBottom: tokens.space[1] },
+          },
+          t('library:libraryCreateDropdown.create'),
+        ),
         createOption(
           '♫＋',
           t('library:libraryCreateDropdown.playlist'),
           t('library:libraryCreateDropdown.createAPlaylistWithSongs'),
           () => {
-            setCreateMenuOpen(false)
+            setHeaderMenuOpen(false)
             setPendingCreate('playlist')
           },
           'create-menu-playlist',
@@ -826,7 +881,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           t('library:libraryCreateDropdown.folder'),
           t('library:libraryCreateDropdown.managePlaylists'),
           () => {
-            setCreateMenuOpen(false)
+            setHeaderMenuOpen(false)
             setPendingCreate('folder')
           },
           'create-menu-folder',
@@ -836,10 +891,25 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           t('library:libraryCreateDropdown.importShare'),
           t('library:libraryCreateDropdown.readAShareCardOr'),
           () => {
-            setCreateMenuOpen(false)
+            setHeaderMenuOpen(false)
             handleImportShare()
           },
           'create-menu-import-share',
+        ),
+        h(native.View as never, {
+          style: { height: 1, backgroundColor: c().border.subtle, marginVertical: tokens.space[2] },
+        }),
+        h(
+          Text,
+          {
+            variant: 'xs',
+            tone: 'muted',
+            style: { fontWeight: '600', textTransform: 'uppercase', marginBottom: tokens.space[1] },
+          },
+          t('library:favorites.sortBy'),
+        ),
+        (['creator', 'recent-added', 'recent-played', 'alphabetical'] as const).map((mode) =>
+          sortOption(mode, t(SORT_LABEL_KEYS[mode])),
         ),
       ),
     ),
@@ -927,15 +997,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       y: simpleMenu?.anchor?.y ?? 0,
       items: simpleMenu?.items ?? [],
       ...(simpleMenu ? { title: simpleMenu.title } : {}),
-    }),
-    h(ContextMenu, {
-      ctx,
-      open: sortMenuOpen,
-      onClose: () => setSortMenuOpen(false),
-      x: 0,
-      y: 0,
-      items: sortMenuItems,
-      title: t('library:favorites.sortBy'),
     }),
   )
 }

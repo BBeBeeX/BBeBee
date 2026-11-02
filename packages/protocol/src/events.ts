@@ -167,6 +167,8 @@ declare module 'cordis' {
      * `ctx.library.getProfile()` on this.
      */
     'library/profile-changed'(): void
+    /** Request the mobile library screen to open its header menu (create & sort). */
+    'library/open-header-menu'(): void
     'scan/specified-dirs-changed'(dirs: readonly ScanSpecifiedDir[]): void
     'scan/started'(specifiedDirId: string): void
     'scan/progress'(specifiedDirId: string, done: number, total?: number, dirsListed?: number, currentFile?: string): void

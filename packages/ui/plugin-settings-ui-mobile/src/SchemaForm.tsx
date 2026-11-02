@@ -62,6 +62,62 @@ export function SwitchRow({
   )
 }
 
+function getLocalizedContributionTitle(
+  t: (key: string) => string,
+  contribution: SettingsContribution,
+): string {
+  if (contribution.title?.includes(':')) return t(contribution.title)
+  if (contribution.id === 'player.transition') {
+    if (contribution.title && contribution.title !== 'Transitions') return contribution.title
+    return t('settings:playback.transitionsTitle')
+  }
+  return contribution.title
+}
+
+function getLocalizedContributionDescription(
+  t: (key: string) => string,
+  contribution: SettingsContribution,
+): string | undefined {
+  if (contribution.description?.includes(':')) return t(contribution.description)
+  if (contribution.id === 'player.transition') return t('settings:playback.transitionsDescription')
+  return contribution.description
+}
+
+function getLocalizedFieldLabel(
+  t: (key: string) => string,
+  contributionId: string,
+  field: SettingsFieldDescriptor,
+): string {
+  if (field.label?.includes(':')) return t(field.label)
+  if (contributionId === 'player.transition') {
+    switch (field.key) {
+      case 'gaplessPlayback': return t('settings:playback.gaplessPlaybackLabel')
+      case 'crossfadeEnabled': return t('settings:playback.crossfadeEnabledLabel')
+      case 'crossfadeDurationSeconds':
+        if (field.label && field.label !== 'Crossfade duration') return field.label
+        return t('settings:playback.crossfadeDurationSecondsLabel')
+      case 'pauseOnUnplug': return t('settings:playback.pauseOnUnplugLabel')
+    }
+  }
+  return field.label
+}
+
+function getLocalizedFieldDescription(
+  t: (key: string) => string,
+  contributionId: string,
+  field: SettingsFieldDescriptor,
+): string | undefined {
+  if (field.description?.includes(':')) return t(field.description)
+  if (contributionId === 'player.transition') {
+    switch (field.key) {
+      case 'gaplessPlayback': return t('settings:playback.gaplessPlaybackDesc')
+      case 'crossfadeEnabled': return t('settings:playback.crossfadeEnabledDesc')
+      case 'pauseOnUnplug': return t('settings:playback.pauseOnUnplugDesc')
+    }
+  }
+  return field.description
+}
+
 /**
  * One rendered field. Async data (dynamic options, switch-list entries,
  * notes) resolves here so the form itself stays a pure transform of the
@@ -78,8 +134,8 @@ function FieldRow({
 }): ReactElement | null {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
-  const fieldLabel = field.label.includes(':') ? t(field.label) : field.label
-  const fieldDescription = field.description && field.description.includes(':') ? t(field.description) : field.description
+  const fieldLabel = getLocalizedFieldLabel(t, contribution.id, field)
+  const fieldDescription = getLocalizedFieldDescription(t, contribution.id, field)
   const { values, change } = useSettingsFields(ctx, contribution)
   const [options, setOptions] = useState<readonly SettingsFieldOption[] | undefined>(field.options)
   const [entries, setEntries] = useState<readonly SwitchListEntry[]>([])
@@ -356,14 +412,15 @@ export interface SchemaFormProps {
  */
 export function SchemaForm({ ctx, contribution }: SchemaFormProps): ReactElement {
   const { t } = useI18n(ctx)
-  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
+  const title = getLocalizedContributionTitle(t, contribution)
+  const description = getLocalizedContributionDescription(t, contribution)
   const fields = contribution.fields ?? []
   return h(
     nativePrimitives().View as never,
     { style: { gap: tokens.space[3] } },
-    h(Text, { variant: 'sm', tone: 'accent', children: translateText(contribution.title) ?? contribution.title }),
-    contribution.description
-      ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
+    h(Text, { variant: 'sm', tone: 'accent', children: title }),
+    description
+      ? h(Text, { variant: 'xs', tone: 'muted', children: description })
       : null,
     ...fields.map((field) => h(FieldRow, { key: field.key, ctx, contribution, field })),
   )

@@ -20,6 +20,8 @@
   "dependencies": {
     "@bbebee/plugin-cache": "workspace:*",
     "@bbebee/plugin-settings": "workspace:*",
+    "@bbebee/plugin-sources": "workspace:*",
+    "@bbebee/plugin-sources-ui-mobile": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",

@@ -276,9 +276,12 @@ describe('LibraryScreen on mobile', () => {
     })
 
     expect(container.textContent).toContain('Road trip')
-    // Create (＋) → the create sheet's playlist option → name + confirm.
+    expect(getByTestId('library-quick-library.favorites')).toBeTruthy()
+    expect(getByTestId('library-quick-library.local')).toBeTruthy()
+
+    // Header (⋯) → the combined sheet's playlist option → name + confirm.
     await act(async () => {
-      getByTestId('create-dropdown-trigger').click()
+      ctx.emit('library/open-header-menu')
       await tick()
     })
     await act(async () => {

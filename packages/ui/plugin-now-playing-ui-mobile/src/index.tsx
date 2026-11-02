@@ -35,7 +35,7 @@ import {
   useTransport,
   useTransportAvailability,
 } from '@bbebee/plugin-player/hooks'
-import { c, Artwork, IconButton, Slider, Text, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
+import { c, Artwork, GlassSurface, IconButton, Slider, Text, getScheme, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -681,130 +681,139 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
   // until a duration exists — an indeterminate hairline reads as a glitch.
   const progress = duration && duration > 0 ? Math.min(position / duration, 1) : 0
 
+  const isLight = getScheme() === 'light'
+
   return h(
-    // The floating margin is the card's separation from the screen edges and
-    // from the chrome it sits above — the gap is what makes it read as a
-    // card rather than another docked bar.
     native.View as never,
-    { style: { marginHorizontal: tokens.space[2], marginBottom: tokens.space[2] } },
+    {
+      style: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: isLight ? 0.12 : 0.35,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    },
     h(
-      native.Pressable as never,
+      GlassSurface,
       {
-        accessibilityRole: 'button',
-        accessibilityLabel: t('nowPlaying:nowPlaying.openNowPlaying'),
-        onPress: handleOpen,
+        intensity: 85,
+        tint: isLight ? 'light' : 'dark',
         style: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: tokens.space[3],
-          paddingHorizontal: tokens.space[3],
-          paddingVertical: tokens.space[2],
-          borderRadius: tokens.radius.lg,
-          backgroundColor: palette.bg.sunken,
+          borderRadius: 14,
           borderWidth: 1,
-          borderColor: palette.border.subtle,
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          elevation: 4,
+          borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
         },
       },
-      h(CachedArtwork, { ctx,
-        artwork: state.nowPlaying?.artwork,
-        seed: state.trackUrn,
-        size: tokens.size.artworkThumb,
-        radius: tokens.radius.md,
-      }),
       h(
-        native.View as never,
-        { style: { flex: 1, minWidth: 0, gap: 1, opacity: idle ? 0.6 : 1 } },
-        h(native.Text as never, {
-          numberOfLines: 1,
-          style: { color: palette.text.primary, fontSize: 14, fontWeight: '600' },
-          children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
+        native.Pressable as never,
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: t('nowPlaying:nowPlaying.openNowPlaying'),
+          onPress: handleOpen,
+          style: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: tokens.space[3],
+            paddingHorizontal: tokens.space[3],
+            paddingVertical: tokens.space[2],
+          },
+        },
+        h(CachedArtwork, {
+          ctx,
+          artwork: state.nowPlaying?.artwork,
+          seed: state.trackUrn,
+          size: tokens.size.artworkThumb,
+          radius: tokens.radius.md,
         }),
-        state.nowPlaying?.artist
-          ? h(native.Text as never, {
-              numberOfLines: 1,
-              style: { color: palette.text.secondary, fontSize: 12 },
-              children: state.nowPlaying.artist,
-            })
+        h(
+          native.View as never,
+          { style: { flex: 1, minWidth: 0, gap: 1, opacity: idle ? 0.6 : 1 } },
+          h(native.Text as never, {
+            numberOfLines: 1,
+            style: { color: palette.text.primary, fontSize: 14, fontWeight: '600' },
+            children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
+          }),
+          state.nowPlaying?.artist
+            ? h(native.Text as never, {
+                numberOfLines: 1,
+                style: { color: palette.text.secondary, fontSize: 12 },
+                children: state.nowPlaying.artist,
+              })
+            : null,
+        ),
+        h(
+          native.View as never,
+          { style: { flexDirection: 'row', alignItems: 'center' } },
+          h(IconButton, {
+            icon: saved ? '♥' : '♡',
+            accessibilityLabel: favoriteLabel,
+            variant: 'ghost',
+            size: tokens.size.icon,
+            disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
+            onPress: toggleSaved,
+          }),
+          h(IconButton, {
+            icon: can.canPause ? '⏸' : '▶',
+            accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
+            variant: 'ghost',
+            size: tokens.size.icon,
+            disabled: !can.canPlay && !can.canPause,
+            onPress: () => ctx.player.togglePlay(),
+          }),
+          h(IconButton, {
+            icon: '☰',
+            accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
+            variant: 'ghost',
+            size: tokens.size.icon,
+            // Usable while idle on purpose: the queue is reachable before the
+            // first track ever plays.
+            disabled: false,
+            onPress: () => onOpenQueue?.(),
+          }),
+          ...(() => {
+            const ui = serviceOf<UiService>(ctx, 'ui')
+            return actionSlots
+              .filter((slot) => !slot.when || slot.when({ ctx }))
+              .map((slot) => {
+                const Component = ui?.viewFor?.(slot.id) as
+                  | React.ComponentType<{ ctx: Context }>
+                  | undefined
+                return Component ? h(Component, { key: slot.id, ctx }) : null
+              })
+              .filter(Boolean)
+          })(),
+        ),
+        duration && duration > 0
+          ? h(
+              native.View as never,
+              {
+                style: {
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 1.5,
+                  borderBottomLeftRadius: 14,
+                  borderBottomRightRadius: 14,
+                  overflow: 'hidden',
+                },
+                testID: 'now-playing-bar-progress',
+              },
+              h(
+                native.View as never,
+                { style: { flex: 1, backgroundColor: 'rgba(127, 127, 127, 0.25)' } },
+                h(native.View as never, {
+                  style: {
+                    width: `${Math.round(progress * 100)}%`,
+                    height: '100%',
+                    backgroundColor: palette.accent.base,
+                  },
+                }),
+              ),
+            )
           : null,
       ),
-      h(
-        native.View as never,
-        { style: { flexDirection: 'row', alignItems: 'center' } },
-        h(IconButton, {
-          icon: saved ? '♥' : '♡',
-          accessibilityLabel: favoriteLabel,
-          variant: 'ghost',
-          size: tokens.size.icon,
-          disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
-          onPress: toggleSaved,
-        }),
-        h(IconButton, {
-          icon: can.canPause ? '⏸' : '▶',
-          accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
-          variant: 'ghost',
-          size: tokens.size.icon,
-          disabled: !can.canPlay && !can.canPause,
-          onPress: () => ctx.player.togglePlay(),
-        }),
-        h(IconButton, {
-          icon: '☰',
-          accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
-          variant: 'ghost',
-          size: tokens.size.icon,
-          // Usable while idle on purpose: the queue is reachable before the
-          // first track ever plays.
-          disabled: false,
-          onPress: () => onOpenQueue?.(),
-        }),
-        ...(() => {
-          const ui = serviceOf<UiService>(ctx, 'ui')
-          return actionSlots
-            .filter((slot) => !slot.when || slot.when({ ctx }))
-            .map((slot) => {
-              const Component = ui?.viewFor?.(slot.id) as
-                | React.ComponentType<{ ctx: Context }>
-                | undefined
-              return Component ? h(Component, { key: slot.id, ctx }) : null
-            })
-            .filter(Boolean)
-        })(),
-      ),
-      duration && duration > 0
-        ? h(
-            native.View as never,
-            {
-              // Clipped to the card's own corners, so the hairline never
-              // pokes past the rounding at the bottom edge.
-              style: {
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 3,
-                borderBottomLeftRadius: tokens.radius.lg,
-                borderBottomRightRadius: tokens.radius.lg,
-                overflow: 'hidden',
-              },
-              testID: 'now-playing-bar-progress',
-            },
-            h(
-              native.View as never,
-              { style: { flex: 1, backgroundColor: 'rgba(127, 127, 127, 0.35)' } },
-              h(native.View as never, {
-                style: {
-                  width: `${Math.round(progress * 100)}%`,
-                  height: '100%',
-                  backgroundColor: palette.accent.base,
-                },
-              }),
-            ),
-          )
-        : null,
     ),
   )
 }

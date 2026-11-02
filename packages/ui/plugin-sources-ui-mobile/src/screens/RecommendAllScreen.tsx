@@ -12,7 +12,7 @@ import { createElement as h, Fragment, useState, type ReactElement } from 'react
 import type { Context } from 'cordis'
 import type { BrowseEntry, UiService } from '@BBeBee/protocol'
 import { usePlayAlbum, useRecommendFeed } from '@bbebee/plugin-sources/hooks'
-import { Button, EmptyState, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { BOTTOM_CHROME_HEIGHT, Button, EmptyState, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { RecommendCard } from '../components/RecommendCard.js'
@@ -131,7 +131,7 @@ export function RecommendAllScreen({
                             }),
                           ),
                         ),
-                      contentContainerStyle: { gap: tokens.space[4] },
+                      contentContainerStyle: { gap: tokens.space[4], paddingBottom: BOTTOM_CHROME_HEIGHT },
                     },
                   ),
                   feed.error
