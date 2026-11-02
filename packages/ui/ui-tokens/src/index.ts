@@ -27,15 +27,45 @@ export interface Palette {
    * makes a sidebar feel like furniture instead of another card.
    */
   bg: { sunken: string; base: string; raised: string; overlay: string }
-  text: { primary: string; secondary: string; disabled: string }
+  text: {
+    primary: string
+    secondary: string
+    disabled: string
+    tertiary?: string
+    muted?: string
+    placeholder?: string
+  }
   accent: { base: string; hover: string; muted: string; on: string }
-  state: { error: string; warn: string; ok: string }
+  state: { error: string; warn: string; ok: string; info?: string }
   /**
    * `subtle` separates surfaces and is decorative; `strong` outlines a control
    * or draws a focus ring, so it is held to WCAG 1.4.11's 3:1 against the
    * surface behind it and is checked (`paletteContrastIssues`).
    */
-  border: { subtle: string; strong: string }
+  border: { subtle: string; strong: string; hover?: string; focus?: string }
+  surface?: {
+    s1: string
+    s2: string
+    s3: string
+    hover: string
+    active: string
+    selected: string
+  }
+  music?: {
+    playing: string
+    lyrics: string
+    lyricsActive?: string
+    lyricsHighlight?: string
+    waveform: string
+    waveformActive: string
+  }
+  brand?: {
+    primary: string
+    primaryActive: string
+    primaryHover: string
+    accent: string
+    accentHover: string
+  }
 }
 
 /**
@@ -47,7 +77,14 @@ export interface Palette {
  */
 const dark: Palette = {
   bg: { sunken: '#000000', base: '#121212', raised: '#181818', overlay: '#282828' },
-  text: { primary: '#FFFFFF', secondary: '#B3B3B3', disabled: '#6A6A6A' },
+  text: {
+    primary: '#FFFFFF',
+    secondary: '#B3B3B3',
+    disabled: '#6A6A6A',
+    tertiary: '#8E8E93',
+    muted: '#6A6A6A',
+    placeholder: '#4D4D4D',
+  },
   /**
    * A green accent on near-black, and `on` is **black**.
    *
@@ -57,8 +94,31 @@ const dark: Palette = {
    * why `on` is the darkest value in the palette rather than the lightest.
    */
   accent: { base: '#1DB954', hover: '#1ED760', muted: '#1B3D2B', on: '#000000' },
-  state: { error: '#F15E6C', warn: '#FFA42B', ok: '#1ED760' },
+  state: { error: '#F15E6C', warn: '#FFA42B', ok: '#1ED760', info: '#7598FF' },
   border: { subtle: '#282828', strong: '#7A7A7A' },
+  surface: {
+    s1: '#181818',
+    s2: '#242424',
+    s3: '#2A2A2A',
+    hover: '#2A2A2A',
+    active: '#333333',
+    selected: '#1B3D2B',
+  },
+  music: {
+    playing: '#1DB954',
+    lyrics: '#FFFFFF',
+    lyricsActive: '#1ED760',
+    lyricsHighlight: '#1DB954',
+    waveform: '#1DB954',
+    waveformActive: '#1ED760',
+  },
+  brand: {
+    primary: '#1DB954',
+    primaryActive: '#1AA34A',
+    primaryHover: '#1ED760',
+    accent: '#1ED760',
+    accentHover: '#22E369',
+  },
 }
 
 /**
@@ -72,10 +132,40 @@ const dark: Palette = {
  */
 const light: Palette = {
   bg: { sunken: '#EAEBED', base: '#F7F7F8', raised: '#FAFAFA', overlay: '#FFFFFF' },
-  text: { primary: '#000000', secondary: '#5E5E5E', disabled: '#8C8C8C' },
+  text: {
+    primary: '#000000',
+    secondary: '#5E5E5E',
+    disabled: '#8C8C8C',
+    tertiary: '#6B7280',
+    muted: '#9CA3AF',
+    placeholder: '#9CA3AF',
+  },
   accent: { base: '#12833C', hover: '#0D6E36', muted: '#D7F2E2', on: '#FFFFFF' },
-  state: { error: '#C1291F', warn: '#8A5A00', ok: '#0E7A3D' },
+  state: { error: '#C1291F', warn: '#8A5A00', ok: '#0E7A3D', info: '#2563EB' },
   border: { subtle: '#E5E5E5', strong: '#767676' },
+  surface: {
+    s1: '#F7F7F8',
+    s2: '#FAFAFA',
+    s3: '#EAEBED',
+    hover: '#F0F0F2',
+    active: '#E4E5E8',
+    selected: '#D7F2E2',
+  },
+  music: {
+    playing: '#12833C',
+    lyrics: '#1F2937',
+    lyricsActive: '#12833C',
+    lyricsHighlight: '#0D6E36',
+    waveform: '#12833C',
+    waveformActive: '#0D6E36',
+  },
+  brand: {
+    primary: '#12833C',
+    primaryActive: '#0D6E36',
+    primaryHover: '#16A34A',
+    accent: '#16A34A',
+    accentHover: '#15803D',
+  },
 }
 
 export const palettes: Record<Scheme, Palette> = { light, dark }
@@ -430,9 +520,55 @@ export function themeToCssVariables(
       : '0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.65), 0 24px 48px -8px rgba(0, 0, 0, 0.75)',
     '--shadow-modal': scheme === 'light' ? '0 16px 36px rgba(0, 0, 0, 0.15)' : '0 16px 36px rgba(0, 0, 0, 0.65)',
 
+    // Component tokens systematically generated from ColorTokens
+    // Button
+    '--button-primary-bg': t.gradient.brand,
+    '--button-primary-hover': t.gradient.ice ?? t.brand.primaryHover,
+    '--button-primary-text': '#FFFFFF',
+
+    // Player
+    '--player-progress': t.gradient.progress,
+    '--player-playing': t.music.playing,
+
+    // Slider
+    '--slider-track': scheme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
+    '--slider-active': t.gradient.progress,
+    '--slider-thumb': scheme === 'light' ? t.brand.primary : '#FFFFFF',
+
+    // Waveform
+    '--waveform-idle': t.music.waveform,
+    '--waveform-active': t.gradient.spectrum ?? t.music.waveformActive,
+
+    // Lyrics
+    '--lyrics-normal': t.music.lyrics,
+    '--lyrics-active': t.music.lyricsActive ?? t.music.playing,
+    '--lyrics-highlight': t.music.lyricsHighlight ?? t.text.primary,
+
+    // Sidebar
+    '--sidebar-bg': t.bg.primary,
+    '--sidebar-item-hover': t.surface.hover,
+    '--sidebar-item-active': t.surface.selected,
+    '--sidebar-active-indicator': t.gradient.brand,
+
+    // Tabs
+    '--tab-text': t.text.tertiary,
+    '--tab-text-active': scheme === 'light' ? t.text.primary : '#FFFFFF',
+    '--tab-indicator': t.gradient.brand,
+
+    // Input extra
+    '--input-focus-glow': t.glow.brandSm ?? t.glow.sm,
+
+    // Playing Item
+    '--playing-item-bg': t.surface.selected,
+    '--playing-item-border': t.border.hover,
+    '--playing-item-indicator': t.gradient.brand,
+    '--playing-item-glow': t.glow.brandSm ?? t.glow.sm,
+
     // Card & Settings section tokens
     '--card-bg': scheme === 'light' ? t.surface.s2 : t.surface.s1,
+    '--card-hover': t.surface.hover,
     '--card-border': t.border.subtle,
+    '--card-border-hover': t.border.hover,
     '--card-shadow': scheme === 'light' ? '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)' : 'none',
     '--card-shadow-elevated': scheme === 'light'
       ? '0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.08), 0 16px 32px -4px rgba(0, 0, 0, 0.12)'

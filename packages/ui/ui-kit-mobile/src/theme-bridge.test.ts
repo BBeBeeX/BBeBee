@@ -63,8 +63,13 @@ describe('themeToPalette', () => {
     expect(p.state.error).toBe(t.semantic.error)
     expect(p.state.warn).toBe(t.semantic.warning)
     expect(p.state.ok).toBe(t.semantic.success)
+    expect(p.state.info).toBe(t.semantic.info)
     expect(p.border.subtle).toBe(t.border.subtle)
     expect(p.border.strong).toBe(t.border.default)
+    expect(p.text.tertiary).toBe(t.text.tertiary)
+    expect(p.surface?.s1).toBe(t.surface.s1)
+    expect(p.music?.playing).toBe(t.music.playing)
+    expect(p.brand?.primary).toBe(t.brand.primary)
   })
 
   it('maps a different theme to its own colours, not the first theme', () => {

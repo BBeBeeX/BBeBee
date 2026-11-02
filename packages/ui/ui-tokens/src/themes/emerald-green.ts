@@ -75,97 +75,8 @@ export const emeraldGreenTokens: ColorTokens = {
 }
 
 export const emeraldGreenCssVariables: Record<string, string> = {
-  // Semantic Colors
-  '--color-bg-app': '#000000',
-  '--color-bg-primary': '#121212',
-  '--color-bg-secondary': '#181818',
-  '--color-bg-tertiary': '#242424',
-
-  '--color-surface': '#242424',
-  '--color-surface-hover': '#2A2A2A',
-  '--color-surface-active': '#333333',
-  '--color-surface-selected': 'rgba(29, 185, 84, 0.15)',
-
-  '--color-text-primary': '#FFFFFF',
-  '--color-text-secondary': '#B3B3B3',
-  '--color-text-tertiary': '#8E8E93',
-  '--color-text-muted': '#6A6A6A',
-  '--color-text-disabled': '#4D4D4D',
-
-  '--color-primary': '#1DB954',
-  '--color-primary-hover': '#1ED760',
-  '--color-primary-active': '#1AA34A',
-
-  '--color-accent': '#1ED760',
-  '--color-accent-hover': '#22E369',
-
-  '--color-playing': '#1DB954',
-  '--color-lyrics': '#FFFFFF',
-  '--color-lyrics-active': '#1ED760',
-  '--color-lyrics-highlight': '#1DB954',
-  '--color-waveform': '#1DB954',
-  '--color-waveform-active': '#1ED760',
-
-  // Gradients
-  '--gradient-brand': 'linear-gradient(135deg, #1DB954 0%, #1ED760 100%)',
-  '--gradient-blue-violet': 'linear-gradient(90deg, #1DB954 0%, #1ED760 100%)',
-  '--gradient-ice': 'linear-gradient(135deg, #1ED760 0%, #1DB954 100%)',
-  '--gradient-progress': 'linear-gradient(90deg, #1DB954 0%, #1ED760 100%)',
-  '--gradient-spectrum': 'linear-gradient(90deg, #1DB954, #1ED760, #22E369)',
-
-  // Glow System
-  '--glow-blue-xs': '0 0 6px rgba(29, 185, 84, 0.12)',
-  '--glow-blue-sm': '0 0 10px rgba(29, 185, 84, 0.20)',
-  '--glow-blue-md': '0 0 18px rgba(29, 185, 84, 0.25)',
-  '--glow-purple-xs': '0 0 6px rgba(29, 185, 84, 0.12)',
-  '--glow-purple-sm': '0 0 10px rgba(29, 185, 84, 0.20)',
-  '--glow-purple-md': '0 0 18px rgba(29, 185, 84, 0.25)',
-  '--glow-brand-sm': '0 0 10px rgba(29, 185, 84, 0.20)',
-  '--glow-brand-md': '0 0 18px rgba(29, 185, 84, 0.25)',
-
-  // Component Tokens
-  '--button-primary-bg': '#1DB954',
-  '--button-primary-hover': '#1ED760',
+  // Emerald green primary button uses black text on vivid green fill
   '--button-primary-text': '#000000',
-
-  '--player-bg': 'var(--bg-app)',
-  '--player-progress': 'linear-gradient(90deg, #1DB954 0%, #1ED760 100%)',
-  '--player-playing': '#1DB954',
-
-  '--slider-track': 'rgba(255, 255, 255, 0.15)',
-  '--slider-active': '#1DB954',
-  '--slider-thumb': '#FFFFFF',
-
-  '--waveform-idle': 'rgba(29, 185, 84, 0.35)',
-  '--waveform-active': '#1ED760',
-
-  '--lyrics-normal': 'rgba(255, 255, 255, 0.45)',
-  '--lyrics-active': '#1ED760',
-  '--lyrics-highlight': '#FFFFFF',
-
-  '--sidebar-bg': '#000000',
-  '--sidebar-item-hover': 'rgba(255, 255, 255, 0.05)',
-  '--sidebar-item-active': 'rgba(29, 185, 84, 0.15)',
-  '--sidebar-active-indicator': '#1DB954',
-
-  '--card-bg': '#181818',
-  '--card-hover': '#282828',
-  '--card-border': 'rgba(255, 255, 255, 0.08)',
-  '--card-border-hover': 'rgba(29, 185, 84, 0.35)',
-
-  '--tab-text': 'rgba(255, 255, 255, 0.55)',
-  '--tab-text-active': '#FFFFFF',
-  '--tab-indicator': '#1DB954',
-
-  '--input-bg': 'rgba(255, 255, 255, 0.05)',
-  '--input-border': 'rgba(255, 255, 255, 0.14)',
-  '--input-focus-border': '#1DB954',
-  '--input-focus-glow': '0 0 8px rgba(29, 185, 84, 0.25)',
-
-  '--playing-item-bg': 'rgba(29, 185, 84, 0.08)',
-  '--playing-item-border': 'rgba(29, 185, 84, 0.25)',
-  '--playing-item-indicator': '#1DB954',
-  '--playing-item-glow': '0 0 10px rgba(29, 185, 84, 0.20)',
 }
 
 export const emeraldGreenLightTokens: ColorTokens = {
@@ -242,64 +153,7 @@ export const emeraldGreenLightTokens: ColorTokens = {
   },
 }
 
-export const emeraldGreenLightCssVariables: Record<string, string> = {
-  '--color-bg-app': '#F1F1F1',
-  '--color-bg-primary': '#FFFFFF',
-  '--color-bg-secondary': '#F8F8F8',
-  '--color-bg-tertiary': '#EEEEEE',
-  '--color-surface': '#F6F6F6',
-  '--color-surface-hover': '#E8E8E8',
-  '--color-surface-active': '#DDDDDD',
-  '--color-surface-selected': 'rgba(18, 131, 60, 0.12)',
-  '--color-text-primary': '#000000',
-  '--color-text-secondary': '#4B5563',
-  '--color-text-tertiary': '#6B7280',
-  '--color-text-muted': '#8C8C8C',
-  '--color-text-disabled': '#B0B0B0',
-  '--color-primary': '#12833C',
-  '--color-primary-hover': '#0D6E36',
-  '--color-primary-active': '#0A5C2D',
-  '--color-accent': '#107C41',
-  '--color-accent-hover': '#0D6E36',
-  '--color-playing': '#12833C',
-  '--color-lyrics': '#4B5563',
-  '--color-lyrics-active': '#12833C',
-  '--color-lyrics-highlight': '#0D6E36',
-  '--color-waveform': '#12833C',
-  '--color-waveform-active': '#15803D',
-  '--button-primary-bg': 'linear-gradient(135deg, #12833C 0%, #15803D 100%)',
-  '--button-primary-hover': 'linear-gradient(135deg, #0D6E36 0%, #12833C 100%)',
-  '--button-primary-text': '#FFFFFF',
-  '--player-bg': '#F1F1F1',
-  '--player-progress': 'linear-gradient(90deg, #12833C 0%, #15803D 100%)',
-  '--player-playing': '#12833C',
-  '--slider-track': 'rgba(0, 0, 0, 0.08)',
-  '--slider-active': 'linear-gradient(90deg, #12833C 0%, #15803D 100%)',
-  '--slider-thumb': '#12833C',
-  '--sidebar-bg': '#F1F1F1',
-  '--sidebar-item-hover': 'rgba(18, 131, 60, 0.06)',
-  '--sidebar-item-active': 'rgba(18, 131, 60, 0.12)',
-  '--sidebar-active-indicator': '#12833C',
-  '--card-bg': '#EDEDED',
-  '--card-hover': '#E2E2E2',
-  '--card-border': '#CBD5E1',
-  '--card-border-hover': 'rgba(18, 131, 60, 0.35)',
-  '--card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--settings-card-bg': '#EDEDED',
-  '--settings-card-border': '#CBD5E1',
-  '--settings-card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--switch-off-bg': '#CBD5E1',
-  '--tab-text': '#6B7280',
-  '--tab-text-active': '#12833C',
-  '--tab-indicator': '#12833C',
-  '--input-bg': '#FFFFFF',
-  '--input-border': '#767676',
-  '--input-focus-border': '#12833C',
-  '--input-focus-glow': '0 0 8px rgba(18, 131, 60, 0.25)',
-  '--playing-item-bg': 'rgba(18, 131, 60, 0.06)',
-  '--playing-item-border': 'rgba(18, 131, 60, 0.20)',
-  '--playing-item-indicator': '#12833C',
-}
+export const emeraldGreenLightCssVariables: Record<string, string> = {}
 
 export const emeraldGreenTheme: ThemeDefinition = {
   id: 'emerald-green',

@@ -30,9 +30,11 @@ export interface ColorTokens {
   gradient: {
     brand: string
     progress: string
-    blueViolet?: string
-    ice?: string
     spectrum?: string
+    /** @deprecated Legacy theme-specific token. Prefer `brand` or `progress`. */
+    blueViolet?: string
+    /** @deprecated Legacy theme-specific token. Prefer `brand`. */
+    ice?: string
   }
   text: {
     primary: string
@@ -68,14 +70,20 @@ export interface ColorTokens {
     sm: string
     md: string
     lg: string
-    blueXs?: string
-    blueSm?: string
-    blueMd?: string
-    purpleXs?: string
-    purpleSm?: string
-    purpleMd?: string
     brandSm?: string
     brandMd?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.xs` or `glow.brandSm`. */
+    blueXs?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.sm` or `glow.brandSm`. */
+    blueSm?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.md` or `glow.brandMd`. */
+    blueMd?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.xs` or `glow.brandSm`. */
+    purpleXs?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.sm` or `glow.brandSm`. */
+    purpleSm?: string
+    /** @deprecated Legacy theme-specific token. Prefer `glow.md` or `glow.brandMd`. */
+    purpleMd?: string
   }
 }
 

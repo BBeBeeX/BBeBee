@@ -39,6 +39,9 @@ export function themeToPalette(theme: ThemeDefinition, scheme: Scheme): Palette 
       primary: t.text.primary,
       secondary: t.text.secondary,
       disabled: t.text.disabled,
+      tertiary: t.text.tertiary,
+      muted: t.text.muted,
+      placeholder: t.text.placeholder,
     },
     accent: {
       base: t.brand.primary,
@@ -50,10 +53,36 @@ export function themeToPalette(theme: ThemeDefinition, scheme: Scheme): Palette 
       error: t.semantic.error,
       warn: t.semantic.warning,
       ok: t.semantic.success,
+      info: t.semantic.info,
     },
     border: {
       subtle: t.border.subtle,
       strong: t.border.default,
+      hover: t.border.hover,
+      focus: t.border.focus,
+    },
+    surface: {
+      s1: t.surface.s1,
+      s2: t.surface.s2,
+      s3: t.surface.s3,
+      hover: t.surface.hover,
+      active: t.surface.active,
+      selected: t.surface.selected,
+    },
+    music: {
+      playing: t.music.playing,
+      lyrics: t.music.lyrics,
+      lyricsActive: t.music.lyricsActive ?? t.music.playing,
+      lyricsHighlight: t.music.lyricsHighlight ?? t.text.primary,
+      waveform: t.music.waveform,
+      waveformActive: t.music.waveformActive,
+    },
+    brand: {
+      primary: t.brand.primary,
+      primaryActive: t.brand.primaryActive,
+      primaryHover: t.brand.primaryHover,
+      accent: t.brand.accent,
+      accentHover: t.brand.accentHover,
     },
   }
 }

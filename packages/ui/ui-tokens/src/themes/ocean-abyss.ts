@@ -74,76 +74,7 @@ export const oceanAbyssTokens: ColorTokens = {
   },
 }
 
-export const oceanAbyssCssVariables: Record<string, string> = {
-  '--color-bg-app': '#040B11',
-  '--color-bg-primary': '#08131E',
-  '--color-bg-secondary': '#0D1C2A',
-  '--color-bg-tertiary': '#132638',
-
-  '--color-surface': '#162C42',
-  '--color-surface-hover': '#254464',
-  '--color-surface-active': '#2D5176',
-  '--color-surface-selected': 'rgba(6, 182, 212, 0.16)',
-
-  '--color-text-primary': '#FFFFFF',
-  '--color-text-secondary': '#CBD5E1',
-  '--color-text-tertiary': '#94A3B8',
-  '--color-text-muted': '#64748B',
-  '--color-text-disabled': '#475569',
-
-  '--color-primary': '#06B6D4',
-  '--color-primary-hover': '#22D3EE',
-  '--color-primary-active': '#0891B2',
-
-  '--color-accent': '#14B8A6',
-  '--color-accent-hover': '#2DD4BF',
-
-  '--color-playing': '#22D3EE',
-  '--color-lyrics': '#FFFFFF',
-  '--color-lyrics-active': '#06B6D4',
-  '--color-lyrics-highlight': '#67E8F9',
-  '--color-waveform': '#14B8A6',
-  '--color-waveform-active': '#06B6D4',
-
-  '--gradient-brand': 'linear-gradient(135deg, #06B6D4 0%, #14B8A6 50%, #38BDF8 100%)',
-  '--gradient-blue-violet': 'linear-gradient(90deg, #06B6D4 0%, #6366F1 100%)',
-  '--gradient-ice': 'linear-gradient(135deg, #38BDF8 0%, #A5F3FC 100%)',
-  '--gradient-progress': 'linear-gradient(90deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%)',
-  '--gradient-spectrum': 'linear-gradient(90deg, #0891B2, #06B6D4, #22D3EE, #14B8A6, #6366F1)',
-
-  '--glow-blue-xs': '0 0 6px rgba(6, 182, 212, 0.20)',
-  '--glow-blue-sm': '0 0 12px rgba(6, 182, 212, 0.25)',
-  '--glow-blue-md': '0 0 20px rgba(6, 182, 212, 0.35)',
-  '--glow-purple-xs': '0 0 6px rgba(99, 102, 241, 0.20)',
-  '--glow-purple-sm': '0 0 12px rgba(99, 102, 241, 0.25)',
-  '--glow-purple-md': '0 0 20px rgba(99, 102, 241, 0.35)',
-  '--glow-brand-sm': '0 0 12px rgba(6, 182, 212, 0.22), 0 0 24px rgba(99, 102, 241, 0.12)',
-  '--glow-brand-md': '0 0 18px rgba(6, 182, 212, 0.28), 0 0 36px rgba(99, 102, 241, 0.18)',
-
-  '--button-primary-bg': 'linear-gradient(135deg, #06B6D4 0%, #14B8A6 100%)',
-  '--button-primary-hover': 'linear-gradient(135deg, #22D3EE 0%, #2DD4BF 100%)',
-  '--button-primary-text': '#FFFFFF',
-
-  '--player-bg': 'var(--bg-app)',
-  '--player-progress': 'linear-gradient(90deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%)',
-  '--player-playing': '#22D3EE',
-
-  '--slider-track': 'rgba(255, 255, 255, 0.10)',
-  '--slider-active': 'linear-gradient(90deg, #0891B2 0%, #06B6D4 100%)',
-  '--slider-thumb': '#22D3EE',
-
-  '--waveform-idle': 'rgba(6, 182, 212, 0.35)',
-  '--waveform-active': 'linear-gradient(90deg, #0891B2, #06B6D4, #22D3EE)',
-
-  '--lyrics-normal': 'rgba(255, 255, 255, 0.45)',
-  '--lyrics-active': '#06B6D4',
-  '--lyrics-highlight': '#67E8F9',
-
-  '--sidebar-bg': '#040B11',
-  '--sidebar-item-hover': 'rgba(6, 182, 212, 0.08)',
-  '--sidebar-item-active': 'rgba(6, 182, 212, 0.16)',
-  '--sidebar-active-indicator': '#06B6D4',
-}
+export const oceanAbyssCssVariables: Record<string, string> = {}
 
 export const oceanAbyssLightTokens: ColorTokens = {
   bg: {
@@ -219,67 +150,7 @@ export const oceanAbyssLightTokens: ColorTokens = {
   },
 }
 
-export const oceanAbyssLightCssVariables: Record<string, string> = {
-  '--color-bg-app': '#F0F9FF',
-  '--color-bg-primary': '#FFFFFF',
-  '--color-bg-secondary': '#F5FAFE',
-  '--color-bg-tertiary': '#E0F2FE',
-  '--color-surface': '#F0F9FF',
-  '--color-surface-hover': '#D5EEFD',
-  '--color-surface-active': '#BCE3FB',
-  '--color-surface-selected': 'rgba(8, 126, 150, 0.12)',
-  '--color-text-primary': '#040B11',
-  '--color-text-secondary': '#334155',
-  '--color-text-tertiary': '#64748B',
-  '--color-text-muted': '#94A3B8',
-  '--color-text-disabled': '#CBD5E1',
-  '--color-primary': '#087E96',
-  '--color-primary-hover': '#08697D',
-  '--color-primary-active': '#065565',
-  '--color-accent': '#0D9488',
-  '--color-accent-hover': '#0F766E',
-  '--color-playing': '#087E96',
-  '--color-lyrics': '#334155',
-  '--color-lyrics-active': '#087E96',
-  '--color-lyrics-highlight': '#0D9488',
-  '--button-primary-bg': 'linear-gradient(135deg, #087E96 0%, #0D9488 100%)',
-  '--button-primary-hover': 'linear-gradient(135deg, #08697D 0%, #0F766E 100%)',
-  '--button-primary-text': '#FFFFFF',
-  '--player-bg': '#F0F9FF',
-  '--player-progress': 'linear-gradient(90deg, #087E96 0%, #0D9488 100%)',
-  '--player-playing': '#087E96',
-  '--slider-track': 'rgba(0, 0, 0, 0.08)',
-  '--slider-active': 'linear-gradient(90deg, #087E96 0%, #0D9488 100%)',
-  '--slider-thumb': '#087E96',
-  '--waveform-idle': 'rgba(8, 126, 150, 0.35)',
-  '--waveform-active': 'linear-gradient(90deg, #087E96, #0D9488)',
-  '--lyrics-normal': '#334155',
-  '--lyrics-active': '#087E96',
-  '--lyrics-highlight': '#0D9488',
-  '--sidebar-bg': '#F0F9FF',
-  '--sidebar-item-hover': 'rgba(8, 126, 150, 0.07)',
-  '--sidebar-item-active': 'rgba(8, 126, 150, 0.12)',
-  '--sidebar-active-indicator': '#087E96',
-  '--card-bg': '#E0F2FE',
-  '--card-hover': '#BAE6FD',
-  '--card-border': '#CBD5E1',
-  '--card-border-hover': 'rgba(8, 126, 150, 0.35)',
-  '--card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--settings-card-bg': '#E0F2FE',
-  '--settings-card-border': '#CBD5E1',
-  '--settings-card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--switch-off-bg': '#CBD5E1',
-  '--tab-text': '#64748B',
-  '--tab-text-active': '#087E96',
-  '--tab-indicator': '#087E96',
-  '--input-bg': '#FFFFFF',
-  '--input-border': '#94A3B8',
-  '--input-focus-border': '#087E96',
-  '--input-focus-glow': '0 0 8px rgba(8, 126, 150, 0.25)',
-  '--playing-item-bg': 'rgba(8, 126, 150, 0.06)',
-  '--playing-item-border': 'rgba(13, 148, 136, 0.20)',
-  '--playing-item-indicator': '#087E96',
-}
+export const oceanAbyssLightCssVariables: Record<string, string> = {}
 
 export const oceanAbyssTheme: ThemeDefinition = {
   id: 'ocean-abyss',

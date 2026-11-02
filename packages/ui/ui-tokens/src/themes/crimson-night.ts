@@ -74,76 +74,7 @@ export const crimsonNightTokens: ColorTokens = {
   },
 }
 
-export const crimsonNightCssVariables: Record<string, string> = {
-  '--color-bg-app': '#070709',
-  '--color-bg-primary': '#0E0E14',
-  '--color-bg-secondary': '#16131B',
-  '--color-bg-tertiary': '#201824',
-
-  '--color-surface': '#1E1824',
-  '--color-surface-hover': '#2D2336',
-  '--color-surface-active': '#382B42',
-  '--color-surface-selected': 'rgba(255, 45, 85, 0.16)',
-
-  '--color-text-primary': '#FFFFFF',
-  '--color-text-secondary': '#D4D4D8',
-  '--color-text-tertiary': '#A1A1AA',
-  '--color-text-muted': '#71717A',
-  '--color-text-disabled': '#52525B',
-
-  '--color-primary': '#FF2D55',
-  '--color-primary-hover': '#FF4D70',
-  '--color-primary-active': '#E01E45',
-
-  '--color-accent': '#FF375F',
-  '--color-accent-hover': '#FF5E7E',
-
-  '--color-playing': '#FF4D70',
-  '--color-lyrics': '#FFFFFF',
-  '--color-lyrics-active': '#FF2D55',
-  '--color-lyrics-highlight': '#FF7597',
-  '--color-waveform': '#FF375F',
-  '--color-waveform-active': '#FF2D55',
-
-  '--gradient-brand': 'linear-gradient(135deg, #FF2D55 0%, #FF375F 50%, #FF6482 100%)',
-  '--gradient-blue-violet': 'linear-gradient(90deg, #FF2D55 0%, #C026D3 100%)',
-  '--gradient-ice': 'linear-gradient(135deg, #FF6482 0%, #FFA1B5 100%)',
-  '--gradient-progress': 'linear-gradient(90deg, #E01E45 0%, #FF2D55 50%, #FF5E7E 100%)',
-  '--gradient-spectrum': 'linear-gradient(90deg, #E01E45, #FF2D55, #FF5E7E, #C026D3)',
-
-  '--glow-blue-xs': '0 0 6px rgba(255, 45, 85, 0.20)',
-  '--glow-blue-sm': '0 0 12px rgba(255, 45, 85, 0.25)',
-  '--glow-blue-md': '0 0 20px rgba(255, 45, 85, 0.35)',
-  '--glow-purple-xs': '0 0 6px rgba(192, 38, 211, 0.20)',
-  '--glow-purple-sm': '0 0 12px rgba(192, 38, 211, 0.25)',
-  '--glow-purple-md': '0 0 20px rgba(192, 38, 211, 0.35)',
-  '--glow-brand-sm': '0 0 12px rgba(255, 45, 85, 0.22), 0 0 24px rgba(192, 38, 211, 0.12)',
-  '--glow-brand-md': '0 0 18px rgba(255, 45, 85, 0.28), 0 0 36px rgba(192, 38, 211, 0.18)',
-
-  '--button-primary-bg': 'linear-gradient(135deg, #FF2D55 0%, #FF375F 100%)',
-  '--button-primary-hover': 'linear-gradient(135deg, #FF4D70 0%, #FF6482 100%)',
-  '--button-primary-text': '#FFFFFF',
-
-  '--player-bg': 'var(--bg-app)',
-  '--player-progress': 'linear-gradient(90deg, #E01E45 0%, #FF2D55 50%, #FF5E7E 100%)',
-  '--player-playing': '#FF4D70',
-
-  '--slider-track': 'rgba(255, 255, 255, 0.10)',
-  '--slider-active': 'linear-gradient(90deg, #E01E45 0%, #FF2D55 100%)',
-  '--slider-thumb': '#FF4D70',
-
-  '--waveform-idle': 'rgba(255, 45, 85, 0.35)',
-  '--waveform-active': 'linear-gradient(90deg, #E01E45, #FF2D55, #FF5E7E)',
-
-  '--lyrics-normal': 'rgba(255, 255, 255, 0.45)',
-  '--lyrics-active': '#FF2D55',
-  '--lyrics-highlight': '#FF7597',
-
-  '--sidebar-bg': '#070709',
-  '--sidebar-item-hover': 'rgba(255, 45, 85, 0.08)',
-  '--sidebar-item-active': 'rgba(255, 45, 85, 0.16)',
-  '--sidebar-active-indicator': '#FF2D55',
-}
+export const crimsonNightCssVariables: Record<string, string> = {}
 
 export const crimsonNightLightTokens: ColorTokens = {
   bg: {
@@ -219,67 +150,7 @@ export const crimsonNightLightTokens: ColorTokens = {
   },
 }
 
-export const crimsonNightLightCssVariables: Record<string, string> = {
-  '--color-bg-app': '#FDF2F4',
-  '--color-bg-primary': '#FFFFFF',
-  '--color-bg-secondary': '#FFF5F6',
-  '--color-bg-tertiary': '#FCE7EA',
-  '--color-surface': '#FFF1F3',
-  '--color-surface-hover': '#FADCE1',
-  '--color-surface-active': '#F5C2CB',
-  '--color-surface-selected': 'rgba(201, 24, 74, 0.12)',
-  '--color-text-primary': '#0F172A',
-  '--color-text-secondary': '#4B5563',
-  '--color-text-tertiary': '#6B7280',
-  '--color-text-muted': '#9CA3AF',
-  '--color-text-disabled': '#D1D5DB',
-  '--color-primary': '#C9184A',
-  '--color-primary-hover': '#A01A3F',
-  '--color-primary-active': '#801020',
-  '--color-accent': '#B5179E',
-  '--color-accent-hover': '#831843',
-  '--color-playing': '#C9184A',
-  '--color-lyrics': '#4B5563',
-  '--color-lyrics-active': '#C9184A',
-  '--color-lyrics-highlight': '#B5179E',
-  '--button-primary-bg': 'linear-gradient(135deg, #C9184A 0%, #B5179E 100%)',
-  '--button-primary-hover': 'linear-gradient(135deg, #A01A3F 0%, #831843 100%)',
-  '--button-primary-text': '#FFFFFF',
-  '--player-bg': '#FDF2F4',
-  '--player-progress': 'linear-gradient(90deg, #C9184A 0%, #B5179E 100%)',
-  '--player-playing': '#C9184A',
-  '--slider-track': 'rgba(0, 0, 0, 0.08)',
-  '--slider-active': 'linear-gradient(90deg, #C9184A 0%, #B5179E 100%)',
-  '--slider-thumb': '#C9184A',
-  '--waveform-idle': 'rgba(201, 24, 74, 0.35)',
-  '--waveform-active': 'linear-gradient(90deg, #C9184A, #B5179E)',
-  '--lyrics-normal': '#4B5563',
-  '--lyrics-active': '#C9184A',
-  '--lyrics-highlight': '#B5179E',
-  '--sidebar-bg': '#FDF2F4',
-  '--sidebar-item-hover': 'rgba(201, 24, 74, 0.07)',
-  '--sidebar-item-active': 'rgba(201, 24, 74, 0.12)',
-  '--sidebar-active-indicator': '#C9184A',
-  '--card-bg': '#F7EBEF',
-  '--card-hover': '#EFE0E5',
-  '--card-border': '#CBD5E1',
-  '--card-border-hover': 'rgba(201, 24, 74, 0.35)',
-  '--card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--settings-card-bg': '#F7EBEF',
-  '--settings-card-border': '#CBD5E1',
-  '--settings-card-shadow': '0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
-  '--switch-off-bg': '#D1D5DB',
-  '--tab-text': '#6B7280',
-  '--tab-text-active': '#C9184A',
-  '--tab-indicator': '#C9184A',
-  '--input-bg': '#FFFFFF',
-  '--input-border': '#CBD5E1',
-  '--input-focus-border': '#C9184A',
-  '--input-focus-glow': '0 0 8px rgba(201, 24, 74, 0.25)',
-  '--playing-item-bg': 'rgba(201, 24, 74, 0.06)',
-  '--playing-item-border': 'rgba(201, 24, 74, 0.20)',
-  '--playing-item-indicator': '#C9184A',
-}
+export const crimsonNightLightCssVariables: Record<string, string> = {}
 
 export const crimsonNightTheme: ThemeDefinition = {
   id: 'crimson-night',
