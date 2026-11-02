@@ -239,7 +239,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     it('registers the settings home and one view per category sub-page', async () => {
       const { ctx } = await createHarness()
       expect((ctx.ui as any).viewFor('settings.view')).toBeDefined()
-      for (const id of ['settings.appearance', 'settings.playback', 'settings.sources', 'settings.storage', 'settings.about']) {
+      for (const id of ['settings.appearance', 'settings.playback', 'settings.sources', 'settings.storage', 'settings.about', 'debug.view']) {
         expect((ctx.ui as any).viewFor(id)).toBeDefined()
       }
       // The sub-routes are contributed (placement-less): programmatic
@@ -392,5 +392,85 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       })
       expect(container.textContent).toContain('Restore defaults')
       expect(container.textContent).not.toContain('Confirm reset')
+    })
+
+    it('renders the debug screen with tools gated by view availability', async () => {
+      const { ctx } = await createHarness()
+      // The two tool cards whose views belong to other packages: on the
+      // device those packages are loaded, so stub them here.
+      ;(ctx.ui as any).registerView('sources.test', () => h('div', null))
+      ;(ctx.ui as any).registerView('plugin-manager.screen', () => h('div', null))
+      const DebugPage = (ctx.ui as any).viewFor('debug.view')
+      const { container, getByTestId } = render(h(DebugPage, {}))
+
+      expect(container.textContent).toContain('Current debug status')
+      expect(container.textContent).toContain('Current runtime environment')
+      expect(container.textContent).toContain('RingBuffer (2000 lines)')
+      expect(container.textContent).toContain('QuickJS Realm Isolation')
+
+      // The tool cards all render; the desktop-only DevTools card is the one
+      // surface without a mobile view, and it says so instead of navigating
+      // into the shell's dead end.
+      expect(container.textContent).toContain('System logs (Discover)')
+      expect(container.textContent).toContain('Test sources (Test Sources)')
+      expect(container.textContent).toContain('Plugins')
+      const unavailable = container.textContent!.split('Not available on this platform').length - 1
+      expect(unavailable).toBe(1)
+      expect(getByTestId('debug-open-sources-test')).toBeTruthy()
+      expect(getByTestId('debug-open-plugins')).toBeTruthy()
+      expect(getByTestId('debug-open-devtools')).toBeTruthy()
+    })
+
+    it('renders the appearance page with a language select and no device-feature cards', async () => {
+      const { ctx } = await createHarness()
+      // The theme management card has a view here (plugin-theme registers
+      // one); the device-feature cards' views belong to their own packages.
+      ;(ctx.ui as any).registerView('theme.settings', () => h('div', null, 'theme card body'))
+      ;(ctx.settings as any).contribute({
+        id: 'theme.settings',
+        section: 'general',
+        title: 'Theme and color management',
+        display: 'card',
+        order: 20,
+      })
+      ;(ctx.settings as any).contribute({ id: 'history.view', section: 'general', title: 'history:history.playHistory', order: 70 })
+      ;(ctx.settings as any).contribute({ id: 'car-mode.view', section: 'general', title: 'Car mode', order: 71 })
+      ;(ctx.settings as any).contribute({ id: 'audio-converter.view', section: 'general', title: 'Audio format conversion', order: 72 })
+      ;(ctx.settings as any).contribute({
+        id: 'mobile.layoutMode',
+        section: 'general',
+        title: 'app:common.app.layoutMode',
+        order: 60,
+        fields: [{ key: 'mobile.layoutMode', label: 'app:common.app.layoutMode', type: 'select', options: [] }],
+      })
+
+      const AppearancePage = (ctx.ui as any).viewFor('settings.appearance')
+      const { container, getByTestId } = render(h(AppearancePage, {}))
+
+      // 界面语言 is a dropdown select, not the three-button row.
+      expect(getByTestId('language-select')).toBeTruthy()
+      expect(container.textContent).toContain('Choose the display language')
+
+      // The theme card renders; the device-feature cards — reachable from
+      // the drawer — are gone from the appearance page.
+      expect(container.textContent).toContain('theme card body')
+      expect(container.textContent).not.toContain('Play history')
+      expect(container.textContent).not.toContain('Car mode')
+      expect(container.textContent).not.toContain('Audio format conversion')
+
+      // The layout-mode card is a wide-window (tablet / unfolded foldable)
+      // surface: on a phone-width window it does not render at all.
+      expect(container.textContent).not.toContain('app:common.app.layoutMode')
+    })
+
+    it('reports the i18n service locale as the interface language', async () => {
+      const { ctx } = await createHarness()
+      const DebugPage = (ctx.ui as any).viewFor('debug.view')
+      const { container } = render(h(DebugPage, {}))
+
+      // The device's OS locale is not the app's UI language: the i18n
+      // service's locale is what the 界面语言 row reports (label and value
+      // are adjacent in the rendered text).
+      expect(container.textContent).toContain('Interface languageen')
     })
   })

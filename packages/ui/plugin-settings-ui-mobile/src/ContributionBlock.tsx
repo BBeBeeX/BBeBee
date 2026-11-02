@@ -3,9 +3,9 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { SettingsContribution } from '@BBeBee/protocol'
 import { Button, Text, useI18n } from '@BBeBee/ui-kit-mobile'
-import { tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { SchemaForm } from './SchemaForm.js'
+import { cardSurface } from './layout.js'
 
 export interface ContributionBlockProps {
   ctx: Context
@@ -30,7 +30,7 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     if (CardView) return h(CardView, { key: contribution.id, ctx })
     return h(
       native.View as never,
-      { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}` },
+      { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}`, style: cardSurface() },
       h(Text, { variant: 'md', children: translateText(contribution.title) ?? contribution.title }),
       contribution.description
         ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
@@ -40,7 +40,11 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
   }
 
   if (contribution.fields && contribution.fields.length > 0) {
-    return h(SchemaForm, { key: contribution.id, ctx, contribution })
+    return h(
+      native.View as never,
+      { key: contribution.id, style: cardSurface() },
+      h(SchemaForm, { ctx, contribution }),
+    )
   }
 
   return h(
@@ -48,10 +52,10 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     {
       key: contribution.id,
       style: {
+        ...cardSurface(),
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: tokens.space[3],
       },
     },
     h(

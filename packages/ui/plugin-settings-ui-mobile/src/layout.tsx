@@ -7,7 +7,7 @@
 
 import { createElement as h } from 'react'
 import type { ReactElement, ReactNode } from 'react'
-import { Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { c, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export function renderSectionHeader(title: string, subtitle?: string): ReactElement {
@@ -20,20 +20,23 @@ export function renderSectionHeader(title: string, subtitle?: string): ReactElem
   )
 }
 
+/**
+ * The one card surface every settings block sits on — built-in and
+ * contributed alike. A function, not a constant: the palette is theme-driven
+ * and changes at runtime, so the surface must resolve per render.
+ */
+export function cardSurface() {
+  return {
+    backgroundColor: c().bg.raised,
+    borderRadius: tokens.radius.md,
+    padding: tokens.space[3],
+    gap: tokens.space[3],
+  }
+}
+
 export function renderCard(children: ReactNode[]): ReactElement {
   const native = nativePrimitives()
-  return h(
-    native.View as never,
-    {
-      style: {
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: tokens.radius.md,
-        padding: tokens.space[3],
-        gap: tokens.space[3],
-      },
-    },
-    ...children,
-  )
+  return h(native.View as never, { style: cardSurface() }, ...children)
 }
 
 export function renderRow(title: string, description: string | undefined, control: ReactNode): ReactElement {

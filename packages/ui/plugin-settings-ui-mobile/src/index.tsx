@@ -17,12 +17,17 @@ import type { Context } from 'cordis'
 import type { UiService } from '@BBeBee/protocol'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@bbebee/plugin-settings/hooks'
-import { c, Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Button, Select, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 import { SwitchRow } from './SchemaForm.js'
 import { renderCard, renderRow, renderSectionHeader } from './layout.js'
 import { AboutSection } from './AboutSection.js'
+import { DebugScreen } from './DebugScreen.js'
+import { LogsScreen } from './LogsScreen.js'
+import { HttpLogsScreen } from './HttpLogsScreen.js'
+import { ThemePaletteScreen } from './ThemePaletteScreen.js'
+import { InspectorScreen } from './InspectorScreen.js'
 
 const p = () => c()
 
@@ -39,6 +44,37 @@ type SectionKey = (typeof SECTIONS)[number]['key']
 
 /** The section ids the fixed pages own; anything else renders inline at home. */
 const FIXED_SECTION_IDS = ['general', 'playback', 'audio', 'sources', 'storage', 'about']
+
+/**
+ * The width (dp) where the window counts as wide — the same 600dp divider
+ * `apps/mobile/src/layout.ts` uses for the tablet/foldable dual pane.
+ */
+const WIDE_MIN_WIDTH = 600
+
+/**
+ * Cards excluded from the appearance & language page. The play-history,
+ * car-mode and audio-converter screens keep their drawer entrances; their
+ * settings cards are device features, not appearance preferences, so they
+ * do not belong on this page.
+ */
+const APPEARANCE_EXCLUDED_CARD_IDS: ReadonlySet<string> = new Set([
+  'history.view',
+  'car-mode.view',
+  'audio-converter.view',
+])
+
+/** The layout-mode card's contribution id (the composition root owns it). */
+const LAYOUT_MODE_CARD_ID = 'mobile.layoutMode'
+
+/**
+ * The window width, through the injected hook. The injection's presence is
+ * fixed at boot, so the conditional inside is stable across renders.
+ */
+function useWindowWidth(): number | undefined {
+  const useDimensions = nativePrimitives().useWindowDimensions
+  if (!useDimensions) return undefined
+  return useDimensions().width
+}
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return '0 B'
@@ -175,6 +211,11 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   // One page per category, carrying over the exact blocks the single page
   // used to render — nothing about a section's content changes, only where
   // it lives.
+  // The appearance page's own width signal: the layout-mode card — which
+  // picks the tablet/foldable dual pane — only means something on a window
+  // wide enough to host one (the same 600dp divider the shell uses).
+  const windowWidth = useWindowWidth()
+
   const content =
     sectionKey === 'appearance'
       ? [
@@ -182,33 +223,33 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
           renderCard([
             renderRow(
               t('settings:general.interfaceLanguage'),
-              // Native names by convention (see GeneralSection.tsx): proper names,
-              // identical in every locale, never translated.
-              settings.language === 'zh' ? '中文' : settings.language === 'en' ? 'English' : t('settings:index.followSystem'),
-              h(
-                native.View as never,
-                { style: { flexDirection: 'row', gap: tokens.space[1] } },
-                h(Button, {
-                  variant: settings.language === 'zh' ? 'primary' : 'secondary',
-                  onPress: () => void update({ language: 'zh' }),
-                  children: '中文',
-                }),
-                h(Button, {
-                  variant: settings.language === 'en' ? 'primary' : 'secondary',
-                  onPress: () => void update({ language: 'en' }),
-                  children: 'English',
-                }),
-                h(Button, {
-                  variant: settings.language === 'system' ? 'primary' : 'secondary',
-                  onPress: () => void update({ language: 'system' }),
-                  children: t('settings:index.followSystem'),
-                }),
-              ),
+              t('settings:general.chooseTheDisplayLanguage'),
+              h(Select<'zh' | 'en' | 'system'>, {
+                value: settings.language,
+                options: [
+                  // Native names by convention (see GeneralSection.tsx): proper
+                  // names, identical in every locale, never translated.
+                  { value: 'zh', label: '中文' },
+                  { value: 'en', label: 'English' },
+                  { value: 'system', label: t('settings:index.followSystem') },
+                ] as const,
+                onChange: (language) => void update({ language }),
+                accessibilityLabel: t('settings:general.interfaceLanguage'),
+                testID: 'language-select',
+              }),
             ),
           ]),
-          ...(grouped.get('general') ?? []).map((contribution) =>
-            h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate }),
-          ),
+          ...(grouped.get('general') ?? [])
+            .filter((contribution) => {
+              if (APPEARANCE_EXCLUDED_CARD_IDS.has(contribution.id)) return false
+              if (contribution.id === LAYOUT_MODE_CARD_ID) {
+                return windowWidth !== undefined && windowWidth >= WIDE_MIN_WIDTH
+              }
+              return true
+            })
+            .map((contribution) =>
+              h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate }),
+            ),
         ]
       : sectionKey === 'playback'
         ? [
@@ -317,6 +358,12 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   )
 }
 
+export { DebugScreen } from './DebugScreen.js'
+export { LogsScreen } from './LogsScreen.js'
+export { HttpLogsScreen } from './HttpLogsScreen.js'
+export { ThemePaletteScreen } from './ThemePaletteScreen.js'
+export { InspectorScreen } from './InspectorScreen.js'
+
 export const name = 'plugin-settings-ui-mobile'
 export const inject = ['ui', 'settings']
 
@@ -333,6 +380,19 @@ export async function apply(ctx: Context) {
   ctx.logger.info('plugin-settings-ui-mobile: loaded')
   return ctx.effect(function* () {
     yield ctx.ui.registerView(SETTINGS_VIEWS.main, bound(ctx, SettingsScreen))
+    // The debug & diagnostics page — the mobile twin of the desktop's
+    // DebugScreen, reachable from the About page's "Open Debug center" row.
+    yield ctx.ui.registerView(SETTINGS_VIEWS.debug, bound(ctx, DebugScreen))
+    // The debug center's tool screens: the mobile twins of the desktop's
+    // LogsScreen / HttpLogsScreen / ThemePaletteScreen, and the topology
+    // list standing in for the desktop's Inspector canvas.
+    yield ctx.ui.registerView(SETTINGS_VIEWS.logs, bound(ctx, LogsScreen))
+    yield ctx.ui.registerView(SETTINGS_VIEWS.httpLogs, bound(ctx, HttpLogsScreen))
+    yield ctx.ui.registerView(SETTINGS_VIEWS.themePalette, bound(ctx, ThemePaletteScreen))
+    // `plugin-inspector` has no mobile view package; its panel is a debug
+    // center tool first, so its view id fills here rather than in a new
+    // package whose only content would be this screen.
+    yield ctx.ui.registerView('inspector.panel', bound(ctx, InspectorScreen))
     // One route + view per fixed category: no placement, so the sub-pages
     // surface only through the settings home's rows — never in the desktop
     // sidebar/tray, and (via the shell's excluded set) never in the drawer.

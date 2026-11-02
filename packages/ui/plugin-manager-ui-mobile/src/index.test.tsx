@@ -250,23 +250,17 @@ async function screenHarness(options: ManagerStubOptions = {}) {
 /* ── the plugin entry ────────────────────────────────────────────────────── */
 
 describe('plugin-manager-ui-mobile', () => {
-  it('registers the screen view and adds the settings link-row in the plugins section', async () => {
+  it('registers the screen view without a settings-home row', async () => {
     const parts = await makeHarness()
     await parts.root.plugin(plugin)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(parts.views.has(MANAGER_VIEWS.screen)).toBe(true)
 
-    // The mobile entrance: a settings link-row that hands `plugin-manager.screen`
-    // to `ui.navigate` — the history/registry-UI pattern, in the `plugins`
-    // section (the section id desktop's settings screen reserves for plugin
-    // management), titled by the same key as the desktop tab.
-    const linkRow = parts.contributions.find((c) => c['id'] === MANAGER_VIEWS.screen)
-    expect(linkRow).toBeTruthy()
-    expect(linkRow?.['kind']).toBe('settings')
-    expect(linkRow?.['section']).toBe('plugins')
-    expect(linkRow?.['title']).toBe('settings:settings.plugins')
-    expect(linkRow?.['order']).toBe(20)
+    // No settings-home row any more: plugin management enters through the
+    // debug center's tool cards (`plugin-settings-ui-mobile`'s DebugScreen),
+    // which navigate straight to `plugin-manager.screen`.
+    expect(parts.contributions.find((c) => c['id'] === MANAGER_VIEWS.screen)).toBeUndefined()
   })
 })
 

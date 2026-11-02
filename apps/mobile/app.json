@@ -25,7 +25,7 @@
       "package": "org.bbebee.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B0B0F"
+        "backgroundColor": "#1A1A24"
       },
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",

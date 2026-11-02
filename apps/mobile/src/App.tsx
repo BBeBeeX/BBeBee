@@ -41,7 +41,7 @@ import type {
   UiService,
 } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
-import { useI18n, usePalette, Sheet, Toast } from '@BBeBee/ui-kit-mobile'
+import { useI18n, usePalette, Sheet, Toast, tablerIcon } from '@BBeBee/ui-kit-mobile'
 import { usePlayHistoryHeatmap } from '@bbebee/plugin-player/hooks'
 // The stats page's heatmap chart, reused here for the drawer's three-month
 // slice — one chart, one colour scale, two homes (docs/ui/architecture.md §7.4).
@@ -117,11 +117,12 @@ interface Tab {
   titleKey: string
   /**
    * The icon above the label — Apple-Music chrome style puts a glyph over a
-   * 10pt label per tab. Unicode symbols, because the mobile dependency set
-   * has no SVG/icon-font module to borrow (docs/ui/architecture.md §7.4 keeps
-   * it that way on purpose).
+   * 10pt label per tab. The Tabler geometry (`tabler`) renders through
+   * react-native-svg when the shell wired it; the unicode `icon` stays as the
+   * fallback for that seam, and as the test host's answer.
    */
   icon: string
+  tabler: string
 }
 
 /**
@@ -136,10 +137,10 @@ interface Tab {
  * follow the user's locale.
  */
 const TABS: readonly Tab[] = [
-  { id: 'sources.recommend', titleKey: 'app:common.app.tabs.home', icon: '⌂' },
-  { id: 'library.home', titleKey: 'app:common.app.tabs.library', icon: '♫' },
-  { id: 'settings.view', titleKey: 'app:common.app.tabs.settings', icon: '⚙︎' },
-  { id: 'sources.search', titleKey: 'app:common.app.tabs.search', icon: '⌕' },
+  { id: 'sources.recommend', titleKey: 'app:common.app.tabs.home', icon: '⌂', tabler: 'home' },
+  { id: 'library.home', titleKey: 'app:common.app.tabs.library', icon: '♫', tabler: 'books' },
+  { id: 'settings.view', titleKey: 'app:common.app.tabs.settings', icon: '⚙︎', tabler: 'settings' },
+  { id: 'sources.search', titleKey: 'app:common.app.tabs.search', icon: '⌕', tabler: 'search' },
 ]
 
 /**
@@ -166,6 +167,12 @@ const DETAIL_TITLES: Readonly<Record<string, string>> = {
   'settings.sources': 'settings:mobile.sectionSources',
   'settings.storage': 'settings:mobile.sectionStorage',
   'settings.about': 'settings:mobile.sectionAbout',
+  'debug.view': 'settings:debug.title',
+  'debug.logs': 'settings:logs.title',
+  'debug.http-logs': 'settings:httpLogs.title',
+  'debug.theme-palette': 'settings:debug.themeVariablePaletteThemePalette',
+  'inspector.panel': 'settings:debug.systemArchitecturePluginTopologyInspector',
+  'plugin-manager.screen': 'settings:settings.plugins',
 }
 
 /**
@@ -178,6 +185,9 @@ const DETAIL_TITLES: Readonly<Record<string, string>> = {
  */
 const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
   'album.view',
+  // The source test bench is reachable from the debug center's tool cards;
+  // a drawer entry for a developer surface is noise.
+  'sources.test',
   'library.collection',
   'queue.view',
   'now-playing.view',
@@ -851,7 +861,8 @@ function Shell({ ctx }: { ctx: Context }) {
             accessibilityState: { selected: isSelected },
             style: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8, gap: 1 },
           },
-          h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
+          tablerIcon(tab.tabler, { size: 24, color: tint }) ??
+            h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
           h(Text, { numberOfLines: 1, style: { color: tint, fontSize: 10 } }, tabTitle),
         )
       }),

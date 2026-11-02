@@ -14,6 +14,7 @@ import type { Context } from 'cordis'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 
 export { LibraryScreen } from './screens/LibraryScreen.js'
+export { UserProfileCard } from './components/UserProfileCard.js'
 export { LocalMusicScreen } from './screens/LocalMusicScreen.js'
 export { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 export { FavoritesScreen } from './screens/FavoritesScreen.js'
@@ -28,6 +29,7 @@ import { LocalMusicScreen } from './screens/LocalMusicScreen.js'
 import { PlaylistDetailScreen } from './screens/PlaylistDetailScreen.js'
 import { FavoritesScreen } from './screens/FavoritesScreen.js'
 import { CollectionScreen } from './screens/CollectionScreen.js'
+import { UserProfileCard } from './components/UserProfileCard.js'
 
 export const name = 'plugin-library-ui-mobile'
 
@@ -54,6 +56,9 @@ export async function apply(ctx: Context) {
     yield ctx.ui.registerView(LIBRARY_VIEWS.collection, bound(ctx, CollectionScreen))
     yield ctx.ui.registerView(LIBRARY_VIEWS.favorites, bound(ctx, FavoritesScreen))
     yield ctx.ui.registerView(LIBRARY_VIEWS.local, bound(ctx, LocalMusicScreen))
+    // The local user profile card — the settings screen embeds it wherever
+    // the profile contribution lands (the appearance & language page here).
+    yield ctx.ui.registerView(LIBRARY_VIEWS.profileSettings, bound(ctx, UserProfileCard))
   }, 'library-ui-mobile')
 }
 

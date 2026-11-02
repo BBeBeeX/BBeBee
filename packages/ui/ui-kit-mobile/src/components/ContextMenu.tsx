@@ -6,6 +6,7 @@ import type { ContextMenuProps, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { I18nService } from '@BBeBee/protocol'
 import { c, common, nativePrimitives } from '../primitives.js'
+import { hasSvgIcons, tablerIcon } from '../icons/tabler.js'
 import { Text } from './Text.js'
 import { TextField } from './TextField.js'
 import { Button } from './Button.js'
@@ -42,6 +43,13 @@ const MENU_ICON_GLYPHS: Record<string, string> = {
 function menuIconGlyph(icon: ReactNode): ReactNode {
   // Non-string icons are already rendered elements — pass them through.
   if (typeof icon !== 'string') return icon
+  // The shared menus hand over Tabler icon names; with SVG primitives wired
+  // the real Tabler geometry renders, exactly as the desktop kit does. The
+  // glyph map stays as the fallback for shells and tests without SVG.
+  if (hasSvgIcons()) {
+    const drawn = tablerIcon(icon, { size: 20 })
+    if (drawn) return drawn
+  }
   const mapped = MENU_ICON_GLYPHS[icon]
   if (mapped) return mapped
   return /^[a-z0-9-]+$/i.test(icon) ? null : icon

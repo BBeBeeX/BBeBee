@@ -39,6 +39,7 @@ import {
   TextField,
   c,
   nativePrimitives,
+  tablerIcon,
   useI18n,
 } from '@BBeBee/ui-kit-mobile'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
@@ -630,7 +631,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     }
   }
 
-  const quickEntry = (glyph: string, label: string, count: number, viewId: string) =>
+  const quickEntry = (icon: string, glyph: string, label: string, count: number, viewId: string) =>
     h(
       native.Pressable as never,
       {
@@ -648,7 +649,8 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           borderRadius: tokens.radius.sm,
         },
       },
-      h(Text, { style: { fontSize: 18 } }, glyph),
+      tablerIcon(icon, { size: 20, color: c().text.primary }) ??
+        h(Text, { style: { fontSize: 18 } }, glyph),
       h(Text, { variant: 'sm' }, `${label} ·${count}`),
     )
 
@@ -723,14 +725,20 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       accessibilityLabel: t('library:library.library'),
     },
     // Title — the desktop header's collapse/expand windowing controls stay
-    // desktop-only; a phone has exactly one pane.
-    h(Text, { variant: 'xl' }, t('library:expandedLibrary.musicLibrary')),
+    // desktop-only; a phone has exactly one pane. The books glyph is the
+    // desktop header's `books` icon, transcribed.
+    h(
+      native.View as never,
+      { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+      tablerIcon('books', { size: 26, color: c().text.primary }) ?? h(Text, { style: { fontSize: 22 } }, '📚'),
+      h(Text, { variant: 'xl' }, t('library:expandedLibrary.musicLibrary')),
+    ),
     // Quick entries, the desktop nav's two rows.
     h(
       native.View as never,
       { accessibilityLabel: t('library:collapsedLibrary.musicLibraryQuickLinks'), style: { gap: tokens.space[1] } },
-      quickEntry('♥', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
-      quickEntry('⬇', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
+      quickEntry('heart', '♥', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
+      quickEntry('download', '⬇', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
     ),
     // Toolbar: filter chips, then search / sort / create at the far right.
     h(
@@ -745,21 +753,21 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           onPress: () => setSearchOpen((open) => !open),
           accessibilityLabel: t('sources:search.search'),
           testID: 'library-search-toggle',
-          children: '🔍',
+          children: tablerIcon('search', { size: 20, color: c().text.secondary }) ?? '🔍',
         }),
         h(Button, {
           variant: 'ghost',
           onPress: () => setSortMenuOpen(true),
           accessibilityLabel: t('library:favorites.sortBy'),
           testID: 'library-sort-toggle',
-          children: '⇅',
+          children: tablerIcon('arrows-sort', { size: 20, color: c().text.secondary }) ?? '⇅',
         }),
         h(Button, {
           variant: 'ghost',
           onPress: () => setCreateMenuOpen(true),
           accessibilityLabel: t('library:libraryCreateDropdown.create'),
           testID: 'create-dropdown-trigger',
-          children: '＋',
+          children: tablerIcon('plus', { size: 20, color: c().text.secondary }) ?? '＋',
         }),
       ),
     ),

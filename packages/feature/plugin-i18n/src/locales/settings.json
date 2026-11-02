@@ -64,7 +64,8 @@
       "openThemePalette": "Open theme palette →",
       "openSourceTests": "Open source tests →",
       "openInspector": "Open architecture topology (Inspector) →",
-      "openDevTools": "Open developer tools →"
+      "openDevTools": "Open developer tools →",
+      "openPlugins": "Open plugin manager →"
     },
     "general": {
       "chooseTheDisplayLanguage": "Choose the display language",
@@ -607,7 +608,8 @@
       "openThemePalette": "打开主题调色板 →",
       "openSourceTests": "调试音源 →",
       "openInspector": "打开架构拓扑（Inspector）→",
-      "openDevTools": "打开开发者工具 →"
+      "openDevTools": "打开开发者工具 →",
+      "openPlugins": "打开插件管理 →"
     },
     "general": {
       "chooseTheDisplayLanguage": "选择显示语言",

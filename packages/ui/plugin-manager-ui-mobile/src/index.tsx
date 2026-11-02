@@ -4,12 +4,8 @@
  *
  * Desktop manages plugins inside its settings screen's own `plugins`
  * section (`plugin-settings-ui-desktop`); mobile has no equivalent native
- * section, so this screen ships reachable through a settings link-row —
- * the same entrance `plugin-history-ui-mobile` and
- * `plugin-registry-ui-mobile` established. The row lives in section
- * `plugins`, the section id desktop's settings screen already reserves for
- * plugin management, so the mobile settings screen draws it as its own
- * "Plugins" group.
+ * section, so this screen ships reachable through the debug center's tool
+ * cards — the aggregation point for the phone's developer surfaces.
  */
 
 import type { ReactElement } from 'react'
@@ -56,19 +52,12 @@ export async function apply(ctx: Context) {
   return ctx.effect(function* () {
     yield ctx.ui.registerView(MANAGER_VIEWS.screen, bound(ctx, PluginManagerScreen))
     /*
-     * The screen's mobile entrance, mirroring where desktop puts plugin
-     * management: a settings link-row in the `plugins` section. A
-     * contribution with no `action` renders as a row whose button hands the
-     * id to `ui.navigate`, pushing `plugin-manager.screen` onto the stack,
-     * so Back returns to Settings exactly as from any detail page.
+     * No settings-home row: plugin management used to enter through a
+     * `plugins`-section link-row here, and now enters through the debug
+     * center's tool cards (`plugin-settings-ui-mobile`'s DebugScreen), which
+     * navigate to `plugin-manager.screen` directly. Back unwinds to the debug
+     * center as from any detail page.
      */
-    yield ctx.ui.contribute({
-      kind: 'settings',
-      id: MANAGER_VIEWS.screen,
-      section: 'plugins',
-      title: 'settings:settings.plugins',
-      order: 20,
-    })
   }, 'manager-ui-mobile')
 }
 

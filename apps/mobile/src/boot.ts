@@ -17,6 +17,8 @@
  */
 
 import { Appearance, Platform } from 'react-native'
+import { useWindowDimensions } from 'react-native'
+import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg'
 import {
   ActivityIndicator,
   Image,
@@ -173,6 +175,13 @@ configureNative({
   ActivityIndicator,
   TextInput,
   ScrollView,
+  /*
+   * The Tabler icon set draws through react-native-svg (the kit's
+   * `icons/tabler.tsx`); without this group the kit falls back to text
+   * glyphs. Same seam as every other native module here.
+   */
+  svg: { Svg, Path, Circle, Rect, Line, Polyline, Polygon, G },
+  useWindowDimensions,
   /*
    * The OS light/dark answer, for the theme layer: without it, appearance
    * mode 'system' degrades to dark even when the phone is set to light.

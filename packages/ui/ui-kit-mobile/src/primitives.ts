@@ -48,6 +48,31 @@ export interface NativePrimitives {
    * `plugin-theme-ui-mobile` reads it to resolve `system` mode natively.
    */
   Appearance?: AppearanceLike
+  /**
+   * The `react-native-svg` components the Tabler icon set draws through (see
+   * `icons/tabler.tsx`). Optional: a shell that does not wire it keeps the
+   * kit's text-glyph fallbacks, and unit tests typecheck unchanged.
+   */
+  svg?: SvgPrimitives
+  /**
+   * React Native's `useWindowDimensions`, injected like everything else
+   * native. Optional: a shell that does not wire it leaves callers without a
+   * window-size signal (they degrade to their narrow layouts). The hook form
+   * keeps screens reactive to rotation and foldable posture changes.
+   */
+  useWindowDimensions?: () => { width: number; height: number }
+}
+
+/** The `react-native-svg` exports the Tabler icon geometry needs. */
+export interface SvgPrimitives {
+  Svg: unknown
+  Path: unknown
+  Circle: unknown
+  Rect: unknown
+  Line: unknown
+  Polyline: unknown
+  Polygon: unknown
+  G: unknown
 }
 
 /**

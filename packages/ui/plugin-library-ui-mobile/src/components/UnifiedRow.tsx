@@ -12,7 +12,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ArtworkRef } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { c, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, IconButton, Text, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from './CachedArtwork.js'
 
@@ -97,7 +97,8 @@ export function UnifiedRow({
                 backgroundColor: '#8e8ee5',
               },
             },
-            h(Text, { style: { color: '#FFFFFF', fontSize: 22 } }, '♥'),
+            tablerIcon('heart-filled', { size: 26, color: '#FFFFFF' }) ??
+              h(Text, { style: { color: '#FFFFFF', fontSize: 22 } }, '♥'),
           )
         : isFolder || item.kind === 'collection'
           ? h(
@@ -111,7 +112,8 @@ export function UnifiedRow({
                   backgroundColor: c().bg.overlay,
                 },
               },
-              h(Text, { style: { fontSize: 22 } }, '📁'),
+              tablerIcon('folder', { size: 26, color: c().text.secondary }) ??
+                h(Text, { style: { fontSize: 22 } }, '📁'),
             )
           : h(CachedArtwork, {
               ctx,
@@ -128,7 +130,10 @@ export function UnifiedRow({
       h(
         native.View as never,
         { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[1], marginTop: 2 } },
-        item.pinned ? h(Text, { style: { fontSize: 12 } }, '📌') : null,
+        item.pinned
+          ? tablerIcon('pin', { size: 14, color: c().accent.base }) ??
+            h(Text, { style: { fontSize: 12 } }, '📌')
+          : null,
         h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: item.subtitle }),
       ),
     ),
@@ -160,7 +165,10 @@ export function UnifiedRow({
               justifyContent: 'center',
             },
           },
-          h(Text, { style: { fontSize: 16, color: c().text.secondary } }, isExpanded ? '▴' : '▾'),
+          tablerIcon('chevron-down', {
+            size: 18,
+            color: c().text.secondary,
+          }) ?? h(Text, { style: { fontSize: 16, color: c().text.secondary } }, isExpanded ? '▴' : '▾'),
         )
       : null,
   )
