@@ -188,7 +188,10 @@ const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
   // The source test bench is reachable from the debug center's tool cards;
   // a drawer entry for a developer surface is noise.
   'sources.test',
+  'sources.import',
   'library.collection',
+  'library.playlist',
+  'history.view',
   'queue.view',
   'now-playing.view',
   'settings.appearance',
@@ -327,8 +330,13 @@ function NavDrawerContents({ ctx, currentPageId, translate, onSelectPage }: {
       ScrollView,
       { style: { flex: 1 } },
       h(
-        View,
-        { style: { paddingHorizontal: 12 } },
+        Pressable,
+        {
+          onPress: () => onSelectPage('history.view'),
+          accessibilityRole: 'button',
+          accessibilityLabel: t('history:history.playHistory'),
+          style: { paddingHorizontal: 12 },
+        },
         loading
           ? null
           : heatmap.length > 0
@@ -636,7 +644,11 @@ function Shell({ ctx }: { ctx: Context }) {
     | ComponentType<{ ctx: Context; onClose?: () => void }>
     | undefined
   const QueueView = ctx.ui.viewFor('queue.view') as
-    | ComponentType<{ ctx: Context }>
+    | ComponentType<{
+        ctx: Context
+        onClose?: () => void
+        [key: string]: unknown
+      }>
     | undefined
 
   /* ── the page surface, shared by every layout ─────────────────────────── */
@@ -1082,12 +1094,11 @@ function Shell({ ctx }: { ctx: Context }) {
         {
           open: isQueueOpen,
           onClose: () => setIsQueueOpen(false),
-          title: t('queue:index.queue'),
         },
         h(
           View,
-          { style: { maxHeight: Math.round(height * 0.7) } },
-          h(QueueView, { ctx }),
+          { style: { height: Math.round(height * 0.7) } },
+          h(QueueView, { ctx, onClose: () => setIsQueueOpen(false) }),
         ),
       )
     : null

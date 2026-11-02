@@ -1,25 +1,57 @@
 /**
  * React Native views for `@bbebee/plugin-queue`.
  *
- * The up-next list, moved here from `plugin-player-ui-mobile`. The same hooks
- * and the same behaviour as the desktop twin — only the elements and the
- * *shape* differ. Anything here that would also be true on desktop belongs in
- * `@bbebee/plugin-player/hooks` (docs/08 §1).
+ * Screen: the up-next list and recently played history tabs.
+ * Every value comes from the shared bindings in `@BBeBee/toolkit/hooks` /
+ * `@bbebee/plugin-player/hooks` — the queue model belongs to the player,
+ * this package handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, Fragment } from 'react'
+import { createElement as h, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { QueueItem } from '@BBeBee/protocol'
+import type { PlayRecord, QueueItem, QueueSourceContext, Track } from '@BBeBee/protocol'
 import { QUEUE_VIEWS } from '@bbebee/plugin-queue/views'
-import { queueTrackFallback, useQueue, useTracksByUrn, useTransport } from '@bbebee/plugin-player/hooks'
-import { ContextMenu, EmptyState, List, TrackRow, useI18n } from '@BBeBee/ui-kit-mobile'
+import {
+  queueTrackFallback,
+  usePlayHistory,
+  useQueue,
+  useTracksByUrn,
+  useTransport,
+  useUpcoming,
+} from '@bbebee/plugin-player/hooks'
+import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 
+/** Catalogue keys for the label shown for a context that carries a kind but no label. */
+const CONTEXT_KIND_LABEL_KEYS: Record<QueueSourceContext['kind'], string> = {
+  album: 'queue:index.contextKindLabels.album',
+  playlist: 'queue:index.contextKindLabels.playlist',
+  artist: 'queue:index.contextKindLabels.artist',
+  search: 'queue:index.contextKindLabels.search',
+  radio: 'queue:index.contextKindLabels.radio',
+  local: 'queue:index.contextKindLabels.local',
+  favorites: 'queue:index.contextKindLabels.favorites',
+}
+
+function formatRelativeTime(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  timestamp: number,
+): string {
+  const diff = Date.now() - timestamp
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return t('queue:index.justNow')
+  if (minutes < 60) return t('queue:index.minAgo', { minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('queue:index.hrAgo', { hours })
+  const days = Math.floor(hours / 24)
+  if (days < 7) return t('queue:index.daysAgo', { days })
+  return new Date(timestamp).toLocaleDateString()
+}
 
 /** `TrackRow` renders its own `Artwork`; this is the same resolution for its track. */
 function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): ReactElement {
@@ -30,50 +62,347 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
   })
 }
 
-/** The up-next list. */
-export function QueueScreen({ ctx }: { ctx: Context }): ReactElement {
-  const { t } = useI18n(ctx)
-  const queue = useQueue(ctx)
-  const state = useTransport(ctx)
-  // Cover, title and artist come from the catalogue read the list does for
-  // itself. A row the read has not answered for yet — a write in flight, a
-  // removed source — never shows the URN: the playing item borrows the
-  // transport's metadata, the rest say they are loading.
-  const tracks = useTracksByUrn(ctx, queue.map((item) => item.trackUrn))
-  const menu = useTrackMenu(ctx)
+export interface QueueScreenProps {
+  ctx: Context
+  onClose?: () => void
+}
 
-  if (queue.length === 0) {
-    return h(EmptyState, {
-      icon: '🎵',
-      title: t('queue:index.nothingQueued'),
-      description: t('queue:index.playSomethingFromYourLibrary'),
-    })
+/** The up-next list and recently played history screen. */
+export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
+  const { t } = useI18n(ctx)
+  const [tab, setTab] = useState<'queue' | 'history'>('queue')
+  const queue = useQueue(ctx)
+  const upcoming = useUpcoming(ctx)
+  const state = useTransport(ctx)
+  const menu = useTrackMenu(ctx)
+  const native = nativePrimitives()
+
+  // Track hydration for queue
+  const queueTracks = useTracksByUrn(ctx, queue.map((item) => item.trackUrn))
+
+  const currentIdx = useMemo(() => {
+    let idx = queue.findIndex(
+      (item) =>
+        item.id === state.currentItemId ||
+        (state.trackUrn && item.trackUrn === state.trackUrn),
+    )
+    if (idx === -1 && queue.length > 0) idx = 0
+    return idx
+  }, [queue, state.currentItemId, state.trackUrn])
+
+  const currentItem = queue[currentIdx] ?? queue[0]
+
+  // Play history resolution (de-duplicated by trackUrn, preserving most recent occurrence, capped at 50)
+  const { records: historyRecords, loading: historyLoading } = usePlayHistory(ctx, { limit: 100 })
+  const { uniqueHistoryRecords, uniqueHistoryUrns } = useMemo(() => {
+    const seen = new Set<string>()
+    const list: PlayRecord[] = []
+    const urns: string[] = []
+    for (const record of historyRecords) {
+      if (!seen.has(record.trackUrn)) {
+        seen.add(record.trackUrn)
+        list.push(record)
+        urns.push(record.trackUrn)
+        if (list.length >= 50) {
+          break
+        }
+      }
+    }
+    return { uniqueHistoryRecords: list, uniqueHistoryUrns: urns }
+  }, [historyRecords])
+
+  const historyTracks = useTracksByUrn(ctx, uniqueHistoryUrns)
+
+  const renderHeader = () =>
+    h(
+      native.View as never,
+      {
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: tokens.space[4],
+          paddingTop: tokens.space[2],
+          paddingBottom: tokens.space[2],
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+        },
+      },
+      h(
+        native.View as never,
+        {
+          style: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: tokens.space[4],
+          },
+        },
+        h(
+          native.Pressable as never,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: t('queue:index.queue'),
+            onPress: () => setTab('queue'),
+            style: {
+              alignItems: 'flex-start',
+            },
+          },
+          h(Text, {
+            variant: 'md',
+            tone: tab === 'queue' ? 'accent' : 'muted',
+            style: { fontWeight: '700' },
+            children: t('queue:index.queue'),
+          }),
+          tab === 'queue'
+            ? h(native.View as never, {
+                style: {
+                  height: 3,
+                  width: '100%',
+                  backgroundColor: '#1DB954',
+                  borderRadius: 2,
+                  marginTop: 4,
+                },
+              })
+            : h(native.View as never, { style: { height: 3, marginTop: 4 } }),
+        ),
+        h(
+          native.Pressable as never,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: t('queue:index.recentlyPlayed'),
+            onPress: () => setTab('history'),
+            style: {
+              alignItems: 'flex-start',
+            },
+          },
+          h(Text, {
+            variant: 'md',
+            tone: tab === 'history' ? 'accent' : 'muted',
+            style: { fontWeight: '700' },
+            children: t('queue:index.recentlyPlayed'),
+          }),
+          tab === 'history'
+            ? h(native.View as never, {
+                style: {
+                  height: 3,
+                  width: '100%',
+                  backgroundColor: '#1DB954',
+                  borderRadius: 2,
+                  marginTop: 4,
+                },
+              })
+            : h(native.View as never, { style: { height: 3, marginTop: 4 } }),
+        ),
+      ),
+      onClose
+        ? h(
+            native.Pressable as never,
+            {
+              accessibilityRole: 'button',
+              accessibilityLabel: t('queue:index.close'),
+              onPress: onClose,
+              hitSlop: 8,
+              style: {
+                padding: tokens.space[1],
+              },
+            },
+            tablerIcon('x', { size: 20 }) ?? h(Text, { variant: 'md', tone: 'muted', children: '✕' }),
+          )
+        : null,
+    )
+
+  const renderQueueContent = () => {
+    if (queue.length === 0 || !currentItem) {
+      return h(
+        native.View as never,
+        { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
+        h(EmptyState, {
+          icon: '🎵',
+          title: t('queue:index.nothingQueued'),
+          description: t('queue:index.playSomethingFromYourLibrary'),
+        }),
+      )
+    }
+
+    const currentTrack =
+      queueTracks.get(currentItem.trackUrn) ??
+      queueTrackFallback(currentItem, state.nowPlaying, true)
+
+    const nextItem = upcoming[0]
+    const nextContext = nextItem?.sourceContext
+    const contextLabel = nextContext
+      ? (nextContext.label ?? t(CONTEXT_KIND_LABEL_KEYS[nextContext.kind]))
+      : undefined
+    const nextTitle =
+      nextItem && contextLabel
+        ? t('queue:index.nextUpFrom', { contextLabel })
+        : t('queue:index.nextUp')
+
+    return h(
+      native.View as never,
+      { style: { flex: 1, minHeight: 0 } },
+      // Section 1: Now playing
+      h(
+        native.View as never,
+        {
+          role: 'list',
+          accessibilityLabel: t('queue:index.nowPlaying'),
+          style: { marginBottom: tokens.space[3] },
+        },
+        h(
+          Text,
+          {
+            variant: 'sm',
+            tone: 'muted',
+            style: { fontWeight: '700', marginBottom: tokens.space[2] },
+            children: t('queue:index.nowPlaying'),
+          },
+        ),
+        h(
+          native.View as never,
+          { role: 'listitem' },
+          h(CachedTrackRow, {
+            ctx,
+            track: currentTrack,
+            active: true,
+            onPress: () => void ctx.player.playFromContext(currentItem.trackUrn),
+            onMore: (anchor) => menu.open({ track: currentTrack, queueItemId: currentItem.id }, anchor),
+          }),
+        ),
+      ),
+      // Section 2: Next up title & shuffle note
+      h(
+        native.View as never,
+        { style: { marginTop: tokens.space[1], marginBottom: tokens.space[2] } },
+        h(
+          Text,
+          {
+            variant: 'sm',
+            tone: 'muted',
+            style: { fontWeight: '700', marginBottom: state.shuffle ? tokens.space[1] : 0 },
+            children: nextTitle,
+          },
+        ),
+        state.shuffle
+          ? h(Text, { variant: 'xs', tone: 'muted', children: t('queue:index.shuffleOnNote') })
+          : null,
+      ),
+      // Section 3: Upcoming list
+      h(
+        native.View as never,
+        { style: { flex: 1, minHeight: 0 } },
+        h(List<QueueItem>, {
+          items: upcoming,
+          accessibilityLabel: t('queue:index.nextUp'),
+          estimatedItemSize: tokens.size.row,
+          keyExtractor: (item) => item.id,
+          empty: h(
+            native.View as never,
+            { style: { paddingVertical: tokens.space[3] } },
+            h(Text, { variant: 'xs', tone: 'muted', children: t('queue:index.noMoreSongsQueued') }),
+          ),
+          renderItem: (item) => {
+            const track =
+              queueTracks.get(item.trackUrn) ??
+              queueTrackFallback(item, state.nowPlaying, item.id === state.currentItemId)
+            return h(CachedTrackRow, {
+              ctx,
+              track,
+              active: item.id === state.currentItemId,
+              onPress: () => void ctx.player.playFromContext(item.trackUrn),
+              onMore: (anchor) => menu.open({ track, queueItemId: item.id }, anchor),
+            })
+          },
+        }),
+      ),
+    )
+  }
+
+  const renderHistoryContent = () => {
+    if (uniqueHistoryRecords.length === 0 && !historyLoading) {
+      return h(
+        native.View as never,
+        { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
+        h(EmptyState, {
+          icon: '🎵',
+          title: t('queue:index.noPlayRecordsYet'),
+          description: t('queue:index.afterPlayingMusicFromThe'),
+        }),
+      )
+    }
+
+    return h(
+      native.View as never,
+      { style: { flex: 1, minHeight: 0 } },
+      h(List<PlayRecord>, {
+        accessibilityLabel: t('queue:index.recentlyPlayed'),
+        items: uniqueHistoryRecords,
+        estimatedItemSize: tokens.size.row,
+        keyExtractor: (record) => record.id,
+        renderItem: (record) => {
+          const track: Track = historyTracks.get(record.trackUrn) ?? {
+            urn: record.trackUrn,
+            title: record.trackUrn.split(':').pop() ?? record.trackUrn,
+            artists: [],
+          }
+          const isActive = state.trackUrn === record.trackUrn
+          return h(
+            native.View as never,
+            {
+              style: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                flex: 1,
+                minWidth: 0,
+              },
+            },
+            h(
+              native.View as never,
+              { style: { flex: 1, minWidth: 0 } },
+              h(CachedTrackRow, {
+                ctx,
+                track,
+                active: isActive,
+                showArtwork: true,
+                onPress: () => void ctx.player.playFromContext(record.trackUrn, uniqueHistoryUrns),
+                onMore: (anchor) => menu.open({ track, historyRecordId: record.id }, anchor),
+              }),
+            ),
+            h(
+              native.View as never,
+              {
+                style: {
+                  paddingRight: tokens.space[2],
+                },
+              },
+              h(
+                Text,
+                { variant: 'xs', tone: 'muted' },
+                formatRelativeTime(t, record.startedAt),
+              ),
+            ),
+          )
+        },
+      }),
+    )
   }
 
   return h(
-    Fragment,
-    null,
-    h(List<QueueItem>, {
-      items: queue,
-      accessibilityLabel: t('queue:index.queue'),
-      estimatedItemSize: tokens.size.row,
-      keyExtractor: (item) => item.id,
-      renderItem: (item) => {
-        const track =
-          tracks.get(item.trackUrn) ??
-          queueTrackFallback(item, state.nowPlaying, item.id === state.currentItemId)
-        return h(CachedTrackRow, {
-          ctx,
-          track,
-          active: item.id === state.currentItemId,
-          // A row tap means "play that one", and the track is in the queue by
-          // definition — so playFromContext jumps to it without touching the
-          // queue the user already has.
-          onPress: () => void ctx.player.playFromContext(item.trackUrn),
-          onMore: (anchor) => menu.open({ track }, anchor),
-        })
+    native.View as never,
+    { style: { flex: 1, minHeight: 0 } },
+    renderHeader(),
+    h(
+      native.View as never,
+      {
+        style: {
+          flex: 1,
+          minHeight: 0,
+          paddingHorizontal: tokens.space[4],
+          paddingTop: tokens.space[3],
+        },
       },
-    }),
+      tab === 'queue' ? renderQueueContent() : renderHistoryContent(),
+    ),
     h(ContextMenu, menu.menuProps),
   )
 }

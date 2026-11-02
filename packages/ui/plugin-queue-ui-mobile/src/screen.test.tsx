@@ -19,7 +19,7 @@ afterEach(cleanup)
 
 function hostComponent(name: string) {
   return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
-    const { children, accessibilityLabel, accessibilityRole, onPress, testID } = props
+    const { children, accessibilityLabel, accessibilityRole, onPress, testID, role } = props
     return h(
       'div',
       {
@@ -27,6 +27,7 @@ function hostComponent(name: string) {
         'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
+        role: typeof role === 'string' ? role : undefined,
         onClick: typeof onPress === 'function' ? (e: { stopPropagation: () => void }) => {
           e.stopPropagation()
           ;(onPress as () => void)()
@@ -95,6 +96,11 @@ async function harness(
     get queue() {
       return queue
     }
+    upcoming = () => {
+      const at = queue.findIndex((i) => i.id === transport.currentItemId)
+      return at < 0 ? queue : [...queue.slice(at + 1), ...queue.slice(0, at)]
+    }
+    getHistory = async () => []
     togglePlay = () => void calls.push('togglePlay')
     next = async () => void calls.push('next')
     previous = async () => void calls.push('previous')
@@ -221,5 +227,21 @@ describe('QueueScreen on mobile', () => {
     expect(container.textContent, 'the raw URN is gone once resolved').not.toContain(
       'BBeBee:local:track:1',
     )
+  })
+
+  it('switches between Queue and Recently Played tabs', async () => {
+    const { ctx } = await harness({}, [{ id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' }])
+    const { container } = render(h(QueueScreen, { ctx }))
+
+    expect(container.textContent).toContain('Queue')
+    expect(container.textContent).toContain('Recently played')
+
+    const historyTab = container.querySelector('[data-label="Recently played"]') as HTMLElement
+    expect(historyTab).toBeTruthy()
+    await act(async () => {
+      historyTab.click()
+    })
+
+    expect(container.textContent).toContain('No play records yet')
   })
 })

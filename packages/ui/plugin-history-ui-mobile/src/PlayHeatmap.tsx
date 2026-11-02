@@ -25,6 +25,8 @@ export type TranslateFn = (key: string, params?: Record<string, string | number>
 
 export interface PlayHeatmapProps {
   heatmap: readonly PlayHistoryHeatmapDay[]
+  selectedDate?: string | null
+  onSelectDate?: (date: string | null) => void
   /** From the owning screen's `useI18n` — the chart carries no context of its own. */
   t: TranslateFn
   /** Right-aligned header line (the stats page's "played N times" summary). Absent → title only. */
@@ -82,7 +84,14 @@ interface MonthHeader {
   weekIndex: number
 }
 
-export function PlayHeatmap({ heatmap, t, summary, variant = 'full' }: PlayHeatmapProps): ReactElement | null {
+export function PlayHeatmap({
+  heatmap,
+  selectedDate,
+  onSelectDate,
+  t,
+  summary,
+  variant = 'full',
+}: PlayHeatmapProps): ReactElement | null {
   const native = nativePrimitives()
   const bare = variant === 'bare'
 
@@ -160,23 +169,68 @@ export function PlayHeatmap({ heatmap, t, summary, variant = 'full' }: PlayHeatm
       ? h(
           Scroller as never,
           { horizontal: true, showsHorizontalScrollIndicator: false },
-          heatmapGrid(native, weeks, monthHeaders, bare, t),
+          heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
         )
-      : heatmapGrid(native, weeks, monthHeaders, bare, t),
-    // Legend: the level scale itself, less → more — full variant only.
+      : heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
+    // Footer: Filter status and Legend — full variant only.
     bare
       ? null
       : h(
           native.View as never,
-          { style: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: tokens.space[2] } },
-          h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.less') }),
-          ...HEATMAP_LEVEL_COLORS.map((color, idx) =>
-            h(native.View as never, {
-              key: idx,
-              style: { width: CELL, height: CELL, borderRadius: 2, backgroundColor: color },
-            }),
+          {
+            style: {
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: tokens.space[3],
+              paddingTop: tokens.space[2],
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255, 255, 255, 0.06)',
+            },
+          },
+          selectedDate
+            ? h(
+                native.View as never,
+                { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+                h(
+                  Text,
+                  { variant: 'xs', style: { color: '#57f287' } },
+                  t('history:playHeatmap.filteredDate', { selectedDate }),
+                ),
+                h(
+                  native.Pressable as never,
+                  {
+                    accessibilityRole: 'button',
+                    accessibilityLabel: t('history:playHeatmap.clearFilter'),
+                    onPress: () => onSelectDate?.(null),
+                    style: {
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      borderRadius: tokens.radius.sm,
+                      paddingHorizontal: tokens.space[2],
+                      paddingVertical: 2,
+                    },
+                  },
+                  h(Text, { variant: 'xs', children: t('history:playHeatmap.clearFilter') }),
+                ),
+              )
+            : h(
+                Text,
+                { variant: 'xs', tone: 'muted' },
+                t('history:playHeatmap.clickACellToFilter'),
+              ),
+          // Legend: the level scale itself, less → more
+          h(
+            native.View as never,
+            { style: { flexDirection: 'row', alignItems: 'center', gap: 4 } },
+            h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.less') }),
+            ...HEATMAP_LEVEL_COLORS.map((color, idx) =>
+              h(native.View as never, {
+                key: idx,
+                style: { width: CELL, height: CELL, borderRadius: 2, backgroundColor: color },
+              }),
+            ),
+            h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.more') }),
           ),
-          h(Text, { variant: 'xs', tone: 'muted', children: t('history:playHeatmap.more') }),
         ),
   )
 }
@@ -188,6 +242,8 @@ function heatmapGrid(
   monthHeaders: MonthHeader[],
   bare: boolean,
   t: TranslateFn,
+  selectedDate?: string | null,
+  onSelectDate?: (date: string | null) => void,
 ): ReactElement {
   return h(
     native.View as never,
@@ -251,9 +307,12 @@ function heatmapGrid(
                 style: { width: CELL, height: CELL, backgroundColor: 'transparent' },
               })
             }
-            return h(native.View as never, {
+            const isSelected = selectedDate === day.date
+            const CellComp = onSelectDate ? native.Pressable : native.View
+            return h(CellComp as never, {
               key: day.date,
               testID: `heatmap-cell-${day.date}`,
+              accessibilityRole: onSelectDate ? 'button' : undefined,
               accessibilityLabel:
                 day.count === 0
                   ? t('history:playHeatmap.noPlayRecords', { date: day.date })
@@ -262,11 +321,14 @@ function heatmapGrid(
                       count: day.count,
                       duration: formatPlayDuration(t, day.msPlayed),
                     }),
+              onPress: onSelectDate ? () => onSelectDate(isSelected ? null : day.date) : undefined,
               style: {
                 width: CELL,
                 height: CELL,
                 borderRadius: 2,
                 backgroundColor: HEATMAP_LEVEL_COLORS[getHeatmapLevel(day.count)],
+                borderWidth: isSelected ? 2 : 0,
+                borderColor: isSelected ? '#57f287' : 'transparent',
               },
             })
           }),

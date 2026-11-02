@@ -4,7 +4,7 @@
  * One screen: playback history and activity statistics.
  */
 
-import { createElement as h, Fragment, useMemo } from 'react'
+import { createElement as h, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
@@ -36,9 +36,82 @@ function fallbackTrack(urn: string, title = ''): Track {
   return { urn, title, artists: [] }
 }
 
+function formatHistoryTime(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  timestamp: number,
+): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate()
+
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const timeStr = `${hours}:${minutes}`
+
+  if (isToday) return t('history:history.todayAt', { time: timeStr })
+  if (isYesterday) return t('history:history.yesterdayAt', { time: timeStr })
+
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${month}/${day} ${timeStr}`
+  }
+  return `${date.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeStr}`
+}
+
+function StatCard({
+  title,
+  value,
+  subtext,
+}: {
+  title: string
+  value: string
+  subtext?: string
+}): ReactElement {
+  const native = nativePrimitives()
+  return h(
+    native.View as never,
+    {
+      style: {
+        width: 135,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: tokens.radius.md,
+        padding: tokens.space[3],
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.06)',
+      },
+    },
+    h(Text, { variant: 'xs', tone: 'muted', style: { marginBottom: 4 }, children: title }),
+    h(Text, { variant: 'md', style: { fontWeight: '700' }, children: value }),
+    subtext
+      ? h(Text, { variant: 'xs', tone: 'muted', numberOfLines: 1, style: { marginTop: 4 }, children: subtext })
+      : null,
+  )
+}
+
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
-  const { records, loading } = usePlayHistory(ctx, { limit: 200 })
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const native = nativePrimitives()
+
+  const { stats } = usePlayHistoryStats(ctx)
+  const { heatmap } = usePlayHistoryHeatmap(ctx, 365)
+  const { records, loading } = usePlayHistory(ctx, {
+    limit: 500,
+    date: selectedDate ?? undefined,
+  })
+
   const { uniqueRecords, playCountMap } = useMemo(() => {
     const counts = new Map<string, number>()
     const seen = new Set<string>()
@@ -53,10 +126,6 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
     return { uniqueRecords: list, playCountMap: counts }
   }, [records])
 
-  const { stats } = usePlayHistoryStats(ctx)
-  // The stats page's heatmap: a year of daily play counts, the same chart the
-  // shell's navigation drawer mounts with the most recent three months.
-  const { heatmap } = usePlayHistoryHeatmap(ctx, 365)
   const transport = useTransport(ctx)
   const tracks = useTracksByUrn(
     ctx,
@@ -64,114 +133,298 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   )
   const menu = useTrackMenu(ctx)
 
-  if (uniqueRecords.length === 0 && !loading) {
-    return h(EmptyState, {
-      icon: '🎵',
-      title: t('history:index.noPlayRecordsYet'),
-      description: t('history:index.afterPlayingMusicFromThe'),
-    })
+  const handleClear = async () => {
+    try {
+      await ctx.player?.clearHistory?.()
+    } finally {
+      setConfirmClear(false)
+    }
   }
 
-  return h(
-    Fragment,
-    null,
-    // Mobile Header Stats Summary
+  const completionRate =
+    stats.totalPlays > 0
+      ? `${((stats.completedPlays / stats.totalPlays) * 100).toFixed(1)}%`
+      : '0%'
+
+  const renderTopBar = () =>
     h(
-      nativePrimitives().View as never,
+      native.View as never,
+      {
+        style: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: tokens.space[4],
+          paddingTop: tokens.space[3],
+          paddingBottom: tokens.space[2],
+        },
+      },
+      h(
+        native.View as never,
+        { style: { flex: 1, minWidth: 0, marginRight: tokens.space[2] } },
+        h(Text, { variant: 'lg', style: { fontWeight: '700' }, children: t('history:history.playHistory') }),
+        h(
+          Text,
+          { variant: 'xs', tone: 'muted', numberOfLines: 1, style: { marginTop: 2 } },
+          t('history:history.subtitle'),
+        ),
+      ),
+      confirmClear
+        ? h(
+            native.View as never,
+            { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+            h(Text, { variant: 'xs', style: { color: '#ff453a' }, children: t('history:history.clearPlayHistory') }),
+            h(
+              native.Pressable as never,
+              {
+                accessibilityRole: 'button',
+                onPress: handleClear,
+                style: {
+                  backgroundColor: '#ff453a',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: tokens.radius.sm,
+                },
+              },
+              h(Text, { variant: 'xs', style: { color: '#ffffff', fontWeight: '700' }, children: t('app:common.confirm') }),
+            ),
+            h(
+              native.Pressable as never,
+              {
+                accessibilityRole: 'button',
+                onPress: () => setConfirmClear(false),
+                style: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: tokens.radius.sm,
+                },
+              },
+              h(Text, { variant: 'xs', children: t('app:common.cancel') }),
+            ),
+          )
+        : h(
+            native.Pressable as never,
+            {
+              accessibilityRole: 'button',
+              onPress: () => setConfirmClear(true),
+              disabled: stats.totalPlays === 0,
+              style: {
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: tokens.radius.sm,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                opacity: stats.totalPlays === 0 ? 0.4 : 1,
+              },
+            },
+            h(Text, { variant: 'xs', tone: 'muted', children: t('history:history.clearHistory') }),
+          ),
+    )
+
+  const renderStatCards = () =>
+    h(
+      native.ScrollView as never,
+      {
+        horizontal: true,
+        showsHorizontalScrollIndicator: false,
+        style: { flexGrow: 0, marginBottom: tokens.space[2] },
+        contentContainerStyle: {
+          gap: tokens.space[2],
+          paddingHorizontal: tokens.space[4],
+          paddingVertical: tokens.space[1],
+        },
+      },
+      h(StatCard, {
+        title: t('history:history.totalPlays'),
+        value:
+          stats.totalPlays === 1
+            ? t('history:history.plays.one', { count: stats.totalPlays.toLocaleString() })
+            : t('history:history.plays.other', { count: stats.totalPlays.toLocaleString() }),
+        subtext: t('history:history.allTimePlayCount'),
+      }),
+      h(StatCard, {
+        title: t('history:history.totalListeningTime'),
+        value: formatPlayDuration(t, stats.totalMsPlayed),
+        subtext: t('history:history.timeImmersedInMusic'),
+      }),
+      h(StatCard, {
+        title: t('history:history.playedToday'),
+        value:
+          stats.todayPlays === 1
+            ? t('history:history.tracks.one', { count: stats.todayPlays })
+            : t('history:history.tracks.other', { count: stats.todayPlays }),
+        subtext: t('history:history.tracksHeardToday'),
+      }),
+      h(StatCard, {
+        title: t('history:history.completionRate'),
+        value: completionRate,
+        subtext: t('history:history.playedToCompletion', { completedPlays: stats.completedPlays }),
+      }),
+    )
+
+  return h(
+    native.View as never,
+    {
+      style: {
+        flex: 1,
+        minHeight: 0,
+      },
+    },
+    renderTopBar(),
+    renderStatCards(),
+    h(
+      native.View as never,
       {
         style: {
           paddingHorizontal: tokens.space[4],
-          paddingTop: tokens.space[3],
-          paddingBottom: tokens.space[3],
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+          marginBottom: tokens.space[2],
         },
       },
-      h(Text, { variant: 'lg', children: t('history:history.playHistory') }),
-      h(
-        nativePrimitives().View as never,
-        {
-          style: {
-            flexDirection: 'row',
-            gap: tokens.space[4],
-            marginTop: tokens.space[2],
-          },
-        },
-        h(
-          Text,
-          { variant: 'xs', tone: 'muted' },
-          t('history:index.totalPlays', { totalPlays: stats.totalPlays }),
-        ),
-        h(
-          Text,
-          { variant: 'xs', tone: 'muted' },
-          t('history:index.totalTime', { duration: formatPlayDuration(t, stats.totalMsPlayed) }),
-        ),
-        h(
-          Text,
-          { variant: 'xs', tone: 'muted' },
-          t('history:index.todayTracks', { todayPlays: stats.todayPlays }),
-        ),
-      ),
-    ),
-    h(PlayHeatmap, {
-      heatmap,
-      t,
-      summary: t('history:playHeatmap.playedSummary', {
-        plays: stats.totalPlays,
-        duration: formatPlayDuration(t, stats.totalMsPlayed),
+      h(PlayHeatmap, {
+        heatmap,
+        selectedDate,
+        onSelectDate: (date) => setSelectedDate(date),
+        t,
+        summary: t('history:playHeatmap.playedSummary', {
+          plays: stats.totalPlays,
+          duration: formatPlayDuration(t, stats.totalMsPlayed),
+        }),
       }),
-    }),
-    h(List<PlayRecord>, {
-      items: uniqueRecords,
-      accessibilityLabel: t('history:history.playHistory'),
-      estimatedItemSize: tokens.size.row,
-      keyExtractor: (item) => item.id,
-      renderItem: (item) => {
-        const track =
-          tracks.get(item.trackUrn) ??
-          { ...fallbackTrack(item.trackUrn), title: t('history:history.loading') }
-        const isActive = transport.trackUrn === item.trackUrn
-        const playCount = playCountMap.get(item.trackUrn) ?? 1
-        return h(
-          nativePrimitives().View as never,
-          { style: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 } },
-          h(
-            nativePrimitives().View as never,
-            { style: { flex: 1, minWidth: 0 } },
-            h(CachedTrackRow, {
-              ctx,
-              track,
-              active: isActive,
-              showArtwork: true,
-              onPress: () => {
-                void ctx.player?.playNow?.([item.trackUrn])
-              },
-              onMore: (anchor) => menu.open({ track }, anchor),
-            }),
-          ),
-          h(
-            nativePrimitives().View as never,
-            {
-              style: {
-                paddingHorizontal: tokens.space[2],
-                paddingVertical: 2,
-                borderRadius: tokens.radius.sm,
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                marginRight: tokens.space[2],
-              },
-            },
-            h(
-              Text,
-              { variant: 'xs', tone: 'muted' },
-              playCount === 1
-                ? t('history:history.plays.one', { count: playCount })
-                : t('history:history.plays.other', { count: playCount }),
-            ),
-          ),
-        )
+    ),
+    h(
+      native.View as never,
+      {
+        style: {
+          paddingHorizontal: tokens.space[4],
+          paddingVertical: tokens.space[2],
+        },
       },
-    }),
+      h(Text, {
+        variant: 'sm',
+        style: { fontWeight: '700' },
+        children: selectedDate
+          ? (uniqueRecords.length === 1
+              ? t('history:history.playRecordsFor.one', {
+                  date: selectedDate,
+                  count: uniqueRecords.length,
+                })
+              : t('history:history.playRecordsFor.other', {
+                  date: selectedDate,
+                  count: uniqueRecords.length,
+                }))
+          : (uniqueRecords.length === 1
+              ? t('history:history.recentPlayRecords.one', { count: uniqueRecords.length })
+              : t('history:history.recentPlayRecords.other', { count: uniqueRecords.length })),
+      }),
+    ),
+    uniqueRecords.length === 0 && !loading
+      ? h(EmptyState, {
+          icon: '🎵',
+          title: selectedDate
+            ? t('history:history.noPlayRecordsFor', { selectedDate })
+            : t('history:index.noPlayRecordsYet'),
+          description: selectedDate
+            ? t('history:history.noListeningOnThisDay')
+            : t('history:index.afterPlayingMusicFromThe'),
+        })
+      : h(
+          native.View as never,
+          {
+            style: {
+              flex: 1,
+              minHeight: 0,
+            },
+          },
+          h(List<PlayRecord>, {
+            items: uniqueRecords,
+            accessibilityLabel: t('history:history.playHistory'),
+            estimatedItemSize: tokens.size.row,
+            keyExtractor: (item) => item.id,
+            renderItem: (item) => {
+              const track =
+                tracks.get(item.trackUrn) ??
+                { ...fallbackTrack(item.trackUrn), title: t('history:history.loading') }
+              const isActive = transport.trackUrn === item.trackUrn
+              const playCount = playCountMap.get(item.trackUrn) ?? 1
+              return h(
+                native.View as never,
+                { style: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 } },
+                h(
+                  native.View as never,
+                  { style: { flex: 1, minWidth: 0 } },
+                  h(CachedTrackRow, {
+                    ctx,
+                    track,
+                    active: isActive,
+                    showArtwork: true,
+                    onPress: () => {
+                      void ctx.player?.playNow?.([item.trackUrn])
+                    },
+                    onMore: (anchor) => menu.open({ track, historyRecordId: item.id }, anchor),
+                  }),
+                ),
+                h(
+                  native.View as never,
+                  {
+                    style: {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: tokens.space[2],
+                      paddingRight: tokens.space[3],
+                    },
+                  },
+                  h(
+                    native.View as never,
+                    {
+                      style: {
+                        paddingHorizontal: tokens.space[2],
+                        paddingVertical: 2,
+                        borderRadius: tokens.radius.sm,
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      },
+                    },
+                    h(
+                      Text,
+                      { variant: 'xs', tone: 'muted' },
+                      playCount === 1
+                        ? t('history:history.plays.one', { count: playCount })
+                        : t('history:history.plays.other', { count: playCount }),
+                    ),
+                  ),
+                  item.completed
+                    ? h(
+                        native.View as never,
+                        {
+                          style: {
+                            paddingHorizontal: tokens.space[2],
+                            paddingVertical: 2,
+                            borderRadius: tokens.radius.sm,
+                            backgroundColor: 'rgba(57, 211, 83, 0.15)',
+                          },
+                        },
+                        h(Text, { variant: 'xs', style: { color: '#39d353' } }, t('history:history.completed')),
+                      )
+                    : item.skipped
+                      ? h(
+                          native.View as never,
+                          {
+                            style: {
+                              paddingHorizontal: tokens.space[2],
+                              paddingVertical: 2,
+                              borderRadius: tokens.radius.sm,
+                              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                            },
+                          },
+                          h(Text, { variant: 'xs', tone: 'muted' }, t('history:history.skipped')),
+                        )
+                      : null,
+                  h(Text, { variant: 'xs', tone: 'muted' }, formatHistoryTime(t, item.startedAt)),
+                ),
+              )
+            },
+          }),
+        ),
     h(ContextMenu, menu.menuProps),
   )
 }

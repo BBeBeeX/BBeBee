@@ -355,9 +355,9 @@ export class Sources extends Service implements SourcesService {
           kind: 'settings',
           id: SOURCES_ROUTES.sourceImport,
           section: 'sources',
-          title: 'Import Sources',
-          description: 'Import third-party source scripts (JSON rule format) from clipboard text, a local JSON rule file, or a network URL',
-          actionText: 'Import sources',
+          title: 'settings:sources.importSources',
+          description: 'settings:sources.importThirdPartySourceScripts',
+          actionText: 'settings:sources.importSources',
           order: 20,
         })
         yield scoped.ui.contribute({

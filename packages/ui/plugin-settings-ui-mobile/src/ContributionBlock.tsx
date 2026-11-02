@@ -21,7 +21,30 @@ export interface ContributionBlockProps {
 export function ContributionBlock({ ctx, contribution, onNavigate }: ContributionBlockProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
-  const translateText = (text?: string): string | undefined => (text && text.includes(':') ? t(text) : text)
+
+  const localizeTitle = (item: SettingsContribution): string => {
+    if (item.title?.includes(':')) return t(item.title)
+    if (item.id === 'sources.import' || item.title === 'Import Sources') {
+      return t('settings:sources.importSources')
+    }
+    return item.title
+  }
+
+  const localizeDescription = (item: SettingsContribution): string | undefined => {
+    if (item.description?.includes(':')) return t(item.description)
+    if (item.id === 'sources.import' || item.description?.startsWith('Import third-party')) {
+      return t('settings:sources.importThirdPartySourceScripts')
+    }
+    return item.description
+  }
+
+  const localizeAction = (item: SettingsContribution): string => {
+    if (item.actionText?.includes(':')) return t(item.actionText)
+    if (item.id === 'sources.import' || item.actionText === 'Import sources') {
+      return t('settings:sources.importSources')
+    }
+    return item.actionText ?? t('settings:contributionBlock.open')
+  }
 
   if (contribution.display === 'card') {
     const CardView = ctx.ui?.viewFor?.(contribution.id) as
@@ -31,9 +54,9 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     return h(
       native.View as never,
       { key: contribution.id, 'data-testid': `contribution-unavailable-${contribution.id}`, style: cardSurface() },
-      h(Text, { variant: 'md', children: translateText(contribution.title) ?? contribution.title }),
+      h(Text, { variant: 'md', children: localizeTitle(contribution) }),
       contribution.description
-        ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
+        ? h(Text, { variant: 'xs', tone: 'muted', children: localizeDescription(contribution) })
         : null,
       h(Text, { variant: 'xs', tone: 'muted', children: t('settings:contributionBlock.notAvailableOnPlatform') }),
     )
@@ -61,14 +84,14 @@ export function ContributionBlock({ ctx, contribution, onNavigate }: Contributio
     h(
       native.View as never,
       { style: { flex: 1 } },
-      h(Text, { variant: 'md', children: translateText(contribution.title) ?? contribution.title }),
+      h(Text, { variant: 'md', children: localizeTitle(contribution) }),
       contribution.description
-        ? h(Text, { variant: 'xs', tone: 'muted', children: translateText(contribution.description) })
+        ? h(Text, { variant: 'xs', tone: 'muted', children: localizeDescription(contribution) })
         : null,
     ),
     h(Button, {
       variant: 'secondary',
-      children: (contribution.actionText ? translateText(contribution.actionText) : undefined) ?? t('settings:contributionBlock.open'),
+      children: localizeAction(contribution),
       onPress: () => {
         if (contribution.action) void contribution.action()
         else onNavigate?.(contribution.id)
