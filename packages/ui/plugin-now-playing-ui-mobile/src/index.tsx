@@ -700,8 +700,9 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
           paddingHorizontal: tokens.space[3],
           paddingVertical: tokens.space[2],
           borderRadius: tokens.radius.lg,
-          backgroundColor: palette.bg.raised,
-          opacity: idle ? 0.6 : 1,
+          backgroundColor: palette.bg.sunken,
+          borderWidth: 1,
+          borderColor: palette.border.subtle,
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.2,
@@ -717,7 +718,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
       }),
       h(
         native.View as never,
-        { style: { flex: 1, minWidth: 0, gap: 1 } },
+        { style: { flex: 1, minWidth: 0, gap: 1, opacity: idle ? 0.6 : 1 } },
         h(native.Text as never, {
           numberOfLines: 1,
           style: { color: palette.text.primary, fontSize: 14, fontWeight: '600' },

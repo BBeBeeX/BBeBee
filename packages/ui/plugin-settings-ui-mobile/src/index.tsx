@@ -148,22 +148,26 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
       },
       h(
         native.View as never,
-        { style: { marginTop: tokens.space[2] } },
-        ...SECTIONS.map((section) =>
-          categoryRow(section.key, section.icon, t(section.titleKey), () => navigate(section.id)),
-        ),
-      ),
-      // Plugin-contributed sections outside the five fixed ones: rendered
-      // inline — they are dynamic, and a page per unknown id buys nothing.
-      ...customSectionIds.map((secId) => {
-        const secContribs = usable.filter((contribution) => contribution.section === secId)
-        return h(
+        { style: { gap: tokens.space[4] } },
+        h(
           native.View as never,
-          { key: secId, style: { paddingHorizontal: tokens.space[4] } },
-          renderSectionHeader(secId.charAt(0).toUpperCase() + secId.slice(1)),
-          renderCard(secContribs.map((contribution) => h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: (route: string) => navigate(route) }))),
-        )
-      }),
+          { style: { marginTop: tokens.space[2] } },
+          ...SECTIONS.map((section) =>
+            categoryRow(section.key, section.icon, t(section.titleKey), () => navigate(section.id)),
+          ),
+        ),
+        // Plugin-contributed sections outside the five fixed ones: rendered
+        // inline — they are dynamic, and a page per unknown id buys nothing.
+        ...customSectionIds.map((secId) => {
+          const secContribs = usable.filter((contribution) => contribution.section === secId)
+          return h(
+            native.View as never,
+            { key: secId, style: { paddingHorizontal: tokens.space[4] } },
+            renderSectionHeader(secId.charAt(0).toUpperCase() + secId.slice(1)),
+            renderCard(secContribs.map((contribution) => h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: (route: string) => navigate(route) }))),
+          )
+        }),
+      ),
     ),
   )
 }
@@ -268,18 +272,22 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
         : sectionKey === 'sources'
           ? [
               renderSectionHeader(t('settings:settings.librarySources'), t('settings:mobile.musicSourceManagement')),
-              renderCard(sourcesContribs.map((contribution) => h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate }))),
+              ...sourcesContribs.map((contribution) =>
+                renderCard([h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate })]),
+              ),
             ]
           : sectionKey === 'storage'
             ? [
                 renderSectionHeader(t('settings:settings.storageCache'), t('settings:mobile.localTempFiles')),
                 renderCard([
-                  renderRow(
-                    t('settings:storage.downloadFormat'),
-                    t('settings:storage.downloadFormatDesc'),
+                  h(
+                    native.View as never,
+                    { style: { gap: tokens.space[1] } },
+                    h(Text, { variant: 'md', children: t('settings:storage.downloadFormat') }),
+                    h(Text, { variant: 'xs', tone: 'muted', children: t('settings:storage.downloadFormatDesc') }),
                     h(
                       native.View as never,
-                      { style: { flexDirection: 'row', gap: tokens.space[1] } },
+                      { style: { flexDirection: 'row', gap: tokens.space[1], flexWrap: 'wrap', marginTop: tokens.space[1] } },
                       h(Button, {
                         variant: (settings.downloadFormat ?? 'auto') === 'auto' ? 'primary' : 'secondary',
                         onPress: () => void update({ downloadFormat: 'auto' }),
@@ -314,6 +322,8 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                       },
                     }),
                   ),
+                ]),
+                renderCard([
                   renderRow(
                     t('settings:storage.cacheUsage'),
                     t('settings:mobile.totalArtwork', { total: formatBytes(usage.totalBytes), artwork: formatBytes(usage.artworkBytes) }),
@@ -325,8 +335,10 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                       children: t('settings:mobile.clearCache'),
                     }),
                   ),
-                  ...storageContribs.map((contribution) => h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate })),
                 ]),
+                ...storageContribs.map((contribution) =>
+                  renderCard([h(ContributionBlock, { key: contribution.id, ctx, contribution, onNavigate: handleNavigate })]),
+                ),
               ]
             : [
                 // about — the desktop twin's AboutSection, on the phone's
@@ -353,7 +365,11 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
         style: { flex: 1 },
         contentContainerStyle: { padding: tokens.space[4], paddingBottom: 320 },
       },
-      ...content,
+      h(
+        native.View as never,
+        { style: { gap: tokens.space[4] } },
+        ...content,
+      ),
     ),
   )
 }

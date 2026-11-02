@@ -79,7 +79,7 @@ export function AboutSection({
 
   return h(
     native.View as never,
-    null,
+    { style: { gap: tokens.space[4] } },
     renderSectionHeader(t('settings:about.aboutBBeBee'), t('settings:about.appArchitectureAndVersionInformation')),
     renderCard([
       // Brand header badge
@@ -144,27 +144,23 @@ export function AboutSection({
       renderRow(t('settings:about.openSourceLicense'), t('settings:about.openSourcedUnderTheMIT'), null),
     ]),
     // Advanced settings toggle — persisted under the desktop twin's store key.
-    h(
-      native.View as never,
-      { style: { marginTop: tokens.space[4] } },
-      renderCard([
-        renderRow(
-          t('settings:about.advancedSettings'),
-          undefined,
-          h(SwitchRow, {
-            checked: showAdvancedSettings,
-            accessibilityLabel: t('settings:about.advancedSettings'),
-            testID: 'about-advanced-toggle',
-            onChange: handleToggleAdvancedSettings,
-          }),
-        ),
-      ]),
-    ),
+    renderCard([
+      renderRow(
+        t('settings:about.advancedSettings'),
+        undefined,
+        h(SwitchRow, {
+          checked: showAdvancedSettings,
+          accessibilityLabel: t('settings:about.advancedSettings'),
+          testID: 'about-advanced-toggle',
+          onChange: handleToggleAdvancedSettings,
+        }),
+      ),
+    ]),
     // Developer diagnostics and Danger zone appear only when advanced is on.
     showAdvancedSettings
       ? h(
           native.View as never,
-          null,
+          { style: { gap: tokens.space[2] } },
           renderSectionHeader(
             t('settings:about.developerSystemDiagnostics'),
             t('settings:about.viewTheRuntimeEnvironmentLive'),
@@ -186,7 +182,7 @@ export function AboutSection({
     showAdvancedSettings
       ? h(
           native.View as never,
-          null,
+          { style: { gap: tokens.space[2] } },
           renderSectionHeader(t('settings:about.dangerZone'), t('settings:about.lowLevelConfigurationResetOptions')),
           renderCard([
             renderRow(

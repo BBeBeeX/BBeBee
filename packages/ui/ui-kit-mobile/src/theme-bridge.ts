@@ -32,7 +32,7 @@ export function themeToPalette(theme: ThemeDefinition, scheme: Scheme): Palette 
       // stay distinguishable from the canvas it overlays.
       sunken: t.bg.primary,
       base: t.bg.app,
-      raised: t.surface.s1,
+      raised: scheme === 'light' ? t.surface.s2 : t.surface.s1,
       overlay: t.surface.s2,
     },
     text: {

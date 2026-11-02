@@ -88,6 +88,9 @@ describe('themeToPalette', () => {
       expect(themeToPalette(midnightPurpleTheme, 'light').bg.base).toBe(
         midnightPurpleTheme.lightTokens.bg.app,
       )
+      expect(themeToPalette(midnightPurpleTheme, 'light').bg.raised).toBe(
+        midnightPurpleTheme.lightTokens.surface.s2,
+      )
     }
 
     const dark = themeToPalette(DUAL_SCHEME, 'dark')

@@ -113,16 +113,15 @@ export function NavDrawerOverlay({
     // Panel FIRST: in a row the first child takes the left edge — the drawer
     // opens from the left, and the flex: 1 backdrop takes what remains. The
     // panel's own right border is the seam between the two. The panel reads
-    // the same theme-driven token the shell and the page family paint
-    // (`palette.bg.base`), so drawer and pages follow theme switches
-    // together.
+    // the music library background token (palette.bg.sunken / t.bg.primary),
+    // matching desktop library sidebar.
     h(
       native.View as never,
       {
         style: {
           width: Math.min(320, Math.round(width * 0.8)),
           paddingTop: topInset,
-          backgroundColor: palette.bg.base,
+          backgroundColor: palette.bg.sunken,
           borderRightWidth: 1,
           borderRightColor: palette.border.subtle,
         },

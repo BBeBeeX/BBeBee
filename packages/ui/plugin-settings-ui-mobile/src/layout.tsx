@@ -14,7 +14,7 @@ export function renderSectionHeader(title: string, subtitle?: string): ReactElem
   const native = nativePrimitives()
   return h(
     native.View as never,
-    { style: { marginBottom: tokens.space[2], marginTop: tokens.space[4] } },
+    { style: { marginTop: tokens.space[2], marginBottom: tokens.space[1] } },
     h(Text, { variant: 'sm', tone: 'accent', children: title }),
     subtitle ? h(Text, { variant: 'xs', tone: 'muted', children: subtitle }) : null,
   )
