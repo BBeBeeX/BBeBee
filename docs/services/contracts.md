@@ -947,12 +947,12 @@ export interface ColorTokens {
   bg: { app: string; primary: string; secondary: string; tertiary: string }
   surface: { s1: string; s2: string; s3: string; hover: string; active: string; selected: string }
   brand: { primary: string; primaryActive: string; primaryHover: string; accent: string; accentHover: string }
-  gradient: { brand: string; progress: string; blueViolet?: string; ice?: string; spectrum?: string }
+  gradient: { brand: string; progress: string; spectrum?: string; [k: string]: string | undefined }
   text: { primary: string; secondary: string; tertiary: string; muted: string; disabled: string; placeholder: string }
   border: { subtle: string; default: string; hover: string; active: string; focus: string }
   semantic: { success: string; warning: string; error: string; info: string }
   music: { playing: string; lyrics: string; lyricsActive?: string; lyricsHighlight?: string; waveform: string; waveformActive: string }
-  glow: { xs: string; sm: string; md: string; lg: string; [k: string]: string | undefined }
+  glow: { xs: string; sm: string; md: string; lg: string; brandSm?: string; brandMd?: string; [k: string]: string | undefined }
 }
 
 export interface ThemeDefinition {
@@ -1032,12 +1032,13 @@ export interface ThemeService {
 
 | | Desktop (DOM) | Expo (Mobile / Native) |
 |---|---|---|
-| Backing | `@bbebee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@bbebee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` consumption |
+| Backing | `@bbebee/plugin-theme` with `applyThemeToDom` injecting CSS custom properties on `document.documentElement` | `@bbebee/plugin-theme` emitting reactive theme snapshot for `StyleSheet` / `usePalette` consumption |
 | Persistence | `ctx.store` key `theme_active_id`; packs persist split by origin — custom packs under `theme_packs_custom`, registry packs under `theme_packs_registry` (legacy flat `theme_custom_themes` is migrated once, on first read of the new key). Built-in, plugin and dynamic packs are memory-only | `ctx.store` |
 | Built-in Themes | `midnight-purple` (`Bee Music · Cyber Neon`), `emerald-green` (`Emerald Green`), `crimson-night`, `ocean-abyss` — each its own single-variant pack, grouped only in the settings UI | Same |
 | Custom Themes | Pack or legacy single-theme JSON import (file / text) with fallback token hydration; deletable per variant or per pack, with fallback protection | Same |
 
-- **DOM Synchronization**: `plugin-theme` evaluates `themeToCssVariables(theme)` and injects them onto the root document element, alongside `data-theme="{id}"`.
+- **DOM Synchronization & CSS Variable Generation**: `plugin-theme` evaluates `themeToCssVariables(theme)` (`ui-tokens`) and injects them onto the root document element, alongside `data-theme="{id}"`. Component-level CSS variables (`--button-primary-*`, `--player-*`, `--slider-*`, `--waveform-*`, `--lyrics-*`, `--sidebar-*`, `--tab-*`, `--card-*`, `--settings-card-*`, `--playing-item-*`) are systematically generated directly from `ColorTokens`, keeping `ThemeDefinition.cssVariables` strictly for theme-unique customizations rather than duplicate boilerplate.
+- **Mobile Live Palette Integration**: On mobile, `themeToPalette(theme, scheme)` (`ui-kit-mobile`) parses the active theme's `ColorTokens` into semantic tokens (`bg`, `surface`, `brand`, `music`, `text`, `border`, `state`) consumed universally via `usePalette()`, maintaining 1:1 color and visual hierarchy parity with desktop without DOM variables.
 - **Protection of Built-In Themes**: see the spec at [rules/testing-and-gotchas.md §2](../../rules/testing-and-gotchas.md#2-common-gotchas) (L2) — `removeTheme(themeId)` protects built-in themes; deleting the active custom theme falls back to the default (`midnight-purple`) immediately.
 - **Event Bus Integration**: Emits `theme/changed` when active theme changes, `theme/registry-changed` whenever themes are added or removed, and `theme/packs-changed` whenever the pack set changes.
 - **Origins & Categories**: A pack's `origin` (`builtin` / `plugin` / `custom` / `registry` / `dynamic`) decides its persistence bucket and the settings-page category it is listed under (`themeCategoryOf`): plugin packs (e.g. Catppuccin) appear inside the built-in ("General") group, while `dynamic` is the cover-derived pack the theme service regenerates from the playing track's `artwork.dominantColor`, or — when undeclared — from the cover pixels (see [design-system.md §6.2](../ui/design-system.md)).

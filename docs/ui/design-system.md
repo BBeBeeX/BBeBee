@@ -13,7 +13,7 @@ Tokens are **plain data, not components** — maintaining 100% parity between de
 The color architecture is divided into three layers:
 1. **Layer 1: Color Primitives** — Pure hex/rgba color constants extracted from brand references.
 2. **Layer 2: Semantic Color Tokens (`ColorTokens`)** — Purpose-driven design tokens structured by category: `bg`, `surface`, `brand`, `gradient`, `text`, `border`, `semantic`, `music`, and `glow`.
-3. **Layer 3: Component Mappings & CSS Custom Properties** — Flat CSS variables injected into the DOM by `themeToCssVariables()` and `applyThemeToDom()`.
+3. **Layer 3: Component Mappings & CSS Custom Properties** — Flat CSS variables systematically generated from `ColorTokens` by `themeToCssVariables()` and injected into the DOM by `applyThemeToDom()`. Theme implementations no longer duplicate mechanical component CSS variables.
 
 ```ts
 // @BBeBee/protocol — ColorTokens and ThemeDefinition
@@ -42,9 +42,8 @@ export interface ColorTokens {
   gradient: {
     brand: string
     progress: string
-    blueViolet?: string
-    ice?: string
     spectrum?: string
+    [k: string]: string | undefined
   }
   text: {
     primary: string
@@ -80,14 +79,9 @@ export interface ColorTokens {
     sm: string
     md: string
     lg: string
-    blueXs?: string
-    blueSm?: string
-    blueMd?: string
-    purpleXs?: string
-    purpleSm?: string
-    purpleMd?: string
     brandSm?: string
     brandMd?: string
+    [k: string]: string | undefined
   }
 }
 
@@ -148,7 +142,7 @@ The active theme maps its own `ColorTokens` on top of this core palette: the pla
   - Large text & key UI borders contrast $\ge 3.0:1$
   - Tested across both `dark` and `light` schemes in CI parity suites.
 - **Component Tokenization & Contrast Preservation Rule**: see the spec at [rules/ui.md §4](../../rules/ui.md#4-visual-design-language--color-system) (L2) — no hardcoded `#FFFFFF`/`#000000` foregrounds (semantic CSS variables only); fixed black containers keep light foregrounds / on-color tokens (Fixed Dark Container Exception).
-- **Effective Scheme Resolution:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes. On mobile there is no DOM to write and no `matchMedia`, so the contract is mirrored rather than shared: `plugin-theme-ui-mobile`'s palette drive owns scheme resolution (explicit modes pass straight through; `'system'` asks the `Appearance` primitive the shell injects) and applies the resolved `ThemeDefinition` kit-wide through `themeToPalette` + `setPalette`. The mobile bridge maps the page family onto the theme's own app background: `bg.base` resolves from the theme's `bg.app` (never a derived or hand-picked tone) in both schemes, and `bg.sunken` — the tab-bar/rail chrome — from `bg.primary`, one step removed so the chrome stays distinguishable from the canvas it overlays.
+- **Effective Scheme Resolution & Palette Alignment:** `settings.theme` supports `'dark' | 'light' | 'system'`. When `'system'` is chosen, `plugin-theme` resolves the scheme in real-time via `window.matchMedia('(prefers-color-scheme: dark)')` and listens to OS theme preference changes. On mobile there is no DOM to write and no `matchMedia`, so the contract is mirrored rather than shared: `plugin-theme-ui-mobile`'s palette drive owns scheme resolution (explicit modes pass straight through; `'system'` asks the `Appearance` primitive the shell injects) and applies the resolved `ThemeDefinition` kit-wide through `themeToPalette` + `setPalette`. The mobile bridge maps the page family onto the theme's own app background: `bg.base` resolves from the theme's `bg.app` (never a derived or hand-picked tone) in both schemes, and `bg.sunken` — the tab-bar/rail chrome — from `bg.primary`, one step removed so the chrome stays distinguishable from the canvas it overlays. Furthermore, `themeToPalette` systematically projects all `ColorTokens` into unified semantic categories (`palette.surface`, `palette.music`, `palette.brand`, `palette.text`, `palette.border`, `palette.state`), enabling mobile components reading `usePalette()` to maintain 1:1 color token equivalence with desktop CSS variables.
 - **DOM Single-Writer Principle:** DOM theme attributes are strictly converged into a single writer (`applyThemeToDom()` in `ui-tokens` invoked by `plugin-theme` — the desktop writer; mobile's single writer is `plugin-theme-ui-mobile`'s palette drive, which installs one resolved palette at a time via `setPalette`):
   - `data-theme="{theme.id}"` (e.g., `midnight-purple`, `emerald-green`)
   - `data-color-scheme="{effectiveScheme}"` (`dark` or `light`)
