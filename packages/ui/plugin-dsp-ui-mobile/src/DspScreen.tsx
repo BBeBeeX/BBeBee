@@ -35,6 +35,15 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
     void setParam('eq10', `band${index}`, next[index]!)
   }
 
+  const handleVerticalDrag = (index: number, locationY: number, trackHeight: number) => {
+    const clampedY = Math.max(0, Math.min(trackHeight, locationY))
+    const fraction = 1 - clampedY / trackHeight
+    const dbVal = Math.round(fraction * 24 - 12)
+    handleBandChange(index, dbVal)
+  }
+
+  const formatFreq = (freq: number) => (freq >= 1000 ? `${freq / 1000}k` : `${freq}`)
+
   const handleMoveUp = async (index: number) => {
     if (index <= 0) return
     const current = chain[index]
@@ -83,13 +92,16 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
     )
 
   return h(
-    native.View as never,
+    native.ScrollView as never,
     {
       style: {
         flex: 1,
         backgroundColor: p().bg.base,
+      },
+      contentContainerStyle: {
         padding: tokens.space[4],
         gap: tokens.space[4],
+        paddingBottom: tokens.space[8],
       },
     },
     // Header
@@ -209,46 +221,134 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
             ),
           ),
 
-        // EQ Bands list (vertical list on mobile for better touch control)
+        // 10-Band EQ Vertical Sliders (side-by-side columns, rotated 90deg clockwise)
         h(
-          native.View as never,
-          { style: { gap: tokens.space[2], marginTop: 8 } },
+          native.ScrollView as never,
+          {
+            horizontal: true,
+            showsHorizontalScrollIndicator: false,
+            style: { marginTop: 8 },
+            contentContainerStyle: {
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              minWidth: '100%',
+              paddingVertical: tokens.space[2],
+              paddingHorizontal: tokens.space[1],
+            },
+          },
           EQ10_BANDS.map((freq, idx) => {
             const gain = eqGains[idx] ?? 0
-            const label = freq >= 1000 ? `${freq / 1000} kHz` : `${freq} Hz`
+            const label = formatFreq(freq)
+            const clampedGain = Math.max(-12, Math.min(12, gain))
+            const fraction = (clampedGain + 12) / 24
+            const travel = 140
+            const knobTop = (1 - fraction) * travel
+            const centerY = travel / 2
+            const isPositive = gain > 0
+            const isNegative = gain < 0
+            const fillTop = isPositive ? knobTop + 9 : centerY + 9
+            const fillHeight = isPositive ? centerY - knobTop : isNegative ? knobTop - centerY : 0
+
             return h(
               native.View as never,
               {
                 key: freq,
                 style: {
-                  flexDirection: 'row',
+                  width: 32,
                   alignItems: 'center',
-                  gap: tokens.space[2],
                 },
               },
+              // Gain readout
               h(
-                native.View as never,
-                { style: { width: 70 } },
-                h(Text, { variant: 'xs', children: label }),
-              ),
-              h(
-                native.View as never,
-                { style: { flex: 1 } },
-                h(Slider, {
-                  value: gain + 12,
-                  max: 24,
-                  accessibilityLabel: t('dsp:dsp.eqBandGainAria', { label }),
-                  onChange: (v) => handleBandChange(idx, v - 12),
-                }),
-              ),
-              h(
-                native.View as never,
-                { style: { width: 45, alignItems: 'flex-end' } },
-                h(Text, {
+                Text,
+                {
                   variant: 'xs',
                   tone: gain !== 0 ? 'accent' : 'muted',
-                  children: `${gain > 0 ? '+' : ''}${gain}dB`,
+                  style: { fontSize: 10, height: 16, textAlign: 'center' },
+                },
+                `${gain > 0 ? '+' : ''}${gain}`,
+              ),
+              // Vertical Track Area with touch responder
+              h(
+                native.View as never,
+                {
+                  accessibilityLabel: t('dsp:dsp.eqBandGainAria', { label }),
+                  style: {
+                    width: 32,
+                    height: 158,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  },
+                  onStartShouldSetResponder: () => true,
+                  onMoveShouldSetResponder: () => true,
+                  onResponderGrant: (e: { nativeEvent: { locationY: number } }) => {
+                    handleVerticalDrag(idx, e.nativeEvent.locationY, 158)
+                  },
+                  onResponderMove: (e: { nativeEvent: { locationY: number } }) => {
+                    handleVerticalDrag(idx, e.nativeEvent.locationY, 158)
+                  },
+                },
+                // Background Track Line
+                h(native.View as never, {
+                  style: {
+                    position: 'absolute',
+                    top: 9,
+                    bottom: 9,
+                    width: 4,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  },
                 }),
+                // 0dB Center Reference Mark
+                h(native.View as never, {
+                  style: {
+                    position: 'absolute',
+                    top: 78,
+                    width: 14,
+                    height: 2,
+                    borderRadius: 1,
+                    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+                  },
+                }),
+                // Active Fill Bar
+                fillHeight > 0
+                  ? h(native.View as never, {
+                      style: {
+                        position: 'absolute',
+                        top: fillTop,
+                        height: fillHeight,
+                        width: 4,
+                        borderRadius: 2,
+                        backgroundColor: p().accent.base,
+                      },
+                    })
+                  : null,
+                // Thumb Knob
+                h(native.View as never, {
+                  style: {
+                    position: 'absolute',
+                    top: knobTop,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: '#ffffff',
+                    borderWidth: 2,
+                    borderColor: gain !== 0 ? p().accent.base : 'rgba(255, 255, 255, 0.8)',
+                    elevation: 3,
+                  },
+                }),
+              ),
+              // Frequency Label
+              h(
+                Text,
+                {
+                  variant: 'xs',
+                  tone: 'muted',
+                  style: { fontSize: 10, marginTop: 4, textAlign: 'center' },
+                },
+                label,
               ),
             )
           }),

@@ -33,6 +33,7 @@ import { configureNative } from '@BBeBee/ui-kit-mobile'
 import registryCatalogue from '../../../feature/plugin-i18n/src/locales/registry.json'
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 import plugin, { RegistryScreen, RegistrySettingsCard } from './index.js'
+import { InstallConfirmSheet } from './components/InstallConfirmSheet.js'
 
 afterEach(cleanup)
 
@@ -532,13 +533,13 @@ describe('plugin-registry-ui-mobile', () => {
 /* ── RegistryScreen ──────────────────────────────────────────────────────── */
 
 describe('RegistryScreen on mobile', () => {
-  it('renders the four kind tabs with counts and the entries of the active one', async () => {
+  it('renders the kind tabs with counts and the entries of the active one', async () => {
     const { getByTestId, findByTestId, queryByTestId } = await screenHarness()
     await findByTestId('registry-entry-music-new')
     // Counts come from the whole catalog, independent of the active kind.
     expect(getByTestId('registry-tab-music-source').textContent).toContain('Music source')
     expect(getByTestId('registry-tab-music-source').textContent).toContain('2')
-    expect(getByTestId('registry-tab-plugin').textContent).toContain('1')
+    expect(queryByTestId('registry-tab-plugin')).toBeNull()
 
     expect(getByTestId('registry-entry-music-current')).toBeTruthy()
     expect(queryByTestId('registry-entry-theme-neon')).toBeNull()
@@ -609,11 +610,31 @@ describe('RegistryScreen on mobile', () => {
       missingServices: [],
       warnings: [],
     }
-    const { getByTestId, findByTestId, calls, queryByTestId } = await screenHarness({ plan })
-
-    fireEvent.click(getByTestId('registry-tab-plugin'))
-    await findByTestId('registry-entry-plugin-ok')
-    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+    const { root } = await makeHarness()
+    const pluginEntry: RegistryEntry = {
+      id: 'plugin-ok',
+      kind: 'plugin',
+      name: 'Plugin OK',
+      npm: '@bbebee/plugin-ok',
+    }
+    const details: RegistryEntryDetails = {
+      entry: pluginEntry,
+      plan,
+    }
+    let confirmed = false
+    const { getByTestId, findByTestId } = render(
+      h(InstallConfirmSheet, {
+        ctx: root,
+        details,
+        action: 'install',
+        busy: false,
+        error: null,
+        onConfirm: () => {
+          confirmed = true
+        },
+        onClose: () => {},
+      }),
+    )
 
     await findByTestId('registry-confirm-dialog')
     expect(getByTestId('registry-plugin-plan-version').textContent).toContain('v1.2.0')
@@ -621,24 +642,34 @@ describe('RegistryScreen on mobile', () => {
     expect(getByTestId('registry-plugin-npm').textContent).toContain('@bbebee/plugin-ok')
 
     fireEvent.click(getByTestId('registry-confirm-accept'))
-    await waitFor(() => expect(calls).toContain('install:plugin-ok:true:plan:1.2.0'))
-    expect(queryByTestId('registry-confirm-dialog')).toBeNull()
+    expect(confirmed).toBe(true)
   })
 
   it('surfaces the service refusal when a plugin install is not supported', async () => {
     const refusal = 'npm 插件安装需要 composition root 接线 PluginLifecycleBridge.installPlugin（mobile 等平台不支持动态安装）'
-    const { getByTestId, findByTestId } = await screenHarness({ installError: refusal })
-
-    fireEvent.click(getByTestId('registry-tab-plugin'))
-    await findByTestId('registry-entry-plugin-ok')
-    fireEvent.click(getByTestId('registry-action-plugin-ok'))
+    const { root } = await makeHarness()
+    const pluginEntry: RegistryEntry = {
+      id: 'plugin-ok',
+      kind: 'plugin',
+      name: 'Plugin OK',
+      npm: '@bbebee/plugin-ok',
+    }
+    const details: RegistryEntryDetails = {
+      entry: pluginEntry,
+    }
+    const { getByTestId, findByTestId } = render(
+      h(InstallConfirmSheet, {
+        ctx: root,
+        details,
+        action: 'install',
+        busy: false,
+        error: refusal,
+        onConfirm: () => {},
+        onClose: () => {},
+      }),
+    )
     await findByTestId('registry-confirm-dialog')
-
-    fireEvent.click(getByTestId('registry-confirm-accept'))
-    // The refusal is shown verbatim in the sheet — never hidden, never
-    // special-cased into a friendlier lie.
-    await waitFor(() => expect(getByTestId('registry-confirm-error').textContent).toContain(refusal))
-    expect(getByTestId('registry-confirm-dialog')).toBeTruthy()
+    expect(getByTestId('registry-confirm-error').textContent).toContain(refusal)
   })
 
   it('requires an explicit overwrite confirmation when a music source was locally modified', async () => {

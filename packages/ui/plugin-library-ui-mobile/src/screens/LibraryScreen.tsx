@@ -724,15 +724,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       style: { flex: 1, backgroundColor: c().bg.base, padding: tokens.space[4], gap: tokens.space[3] },
       accessibilityLabel: t('library:library.library'),
     },
-    // Title — the desktop header's collapse/expand windowing controls stay
-    // desktop-only; a phone has exactly one pane. The books glyph is the
-    // desktop header's `books` icon, transcribed.
-    h(
-      native.View as never,
-      { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
-      tablerIcon('books', { size: 26, color: c().text.primary }) ?? h(Text, { style: { fontSize: 22 } }, '📚'),
-      h(Text, { variant: 'xl' }, t('library:expandedLibrary.musicLibrary')),
-    ),
     // Quick entries, the desktop nav's two rows.
     h(
       native.View as never,

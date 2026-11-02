@@ -169,14 +169,17 @@ export function ConverterScreen({ ctx }: ConverterScreenProps): ReactElement {
     )
 
   return h(
-    native.View as never,
+    native.ScrollView as never,
     {
       testID: 'audio-converter-workbench',
       style: {
         flex: 1,
         backgroundColor: p().bg.base,
+      },
+      contentContainerStyle: {
         padding: tokens.space[4],
         gap: tokens.space[3],
+        paddingBottom: tokens.space[8],
       },
     },
     // Header

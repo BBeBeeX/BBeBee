@@ -46,6 +46,7 @@ configureNative({
   FlashList: hostComponent('FlashList'),
   ActivityIndicator: hostComponent('ActivityIndicator'),
   TextInput: hostComponent('TextInput'),
+  ScrollView: hostComponent('ScrollView'),
 })
 
 /**

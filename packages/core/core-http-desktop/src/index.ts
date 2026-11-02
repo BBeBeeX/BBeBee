@@ -575,22 +575,28 @@ export class HttpNode extends Service {
         // capture off means no tee at all — the summary line is the entry.
         const body = response.body
         if (this.journal.captureEnabled && body && bodyWorthCapturing(req, response)) {
-          const [main, copy] = body.tee()
-          response = new Response(main, {
-            status: response.status,
-            statusText: response.statusText,
-            // As a plain record, not as the Headers object: the global
-            // `Response` here is whichever one the runtime has, and a record is
-            // the one HeadersInit *every* of them understands — undici's
-            // dictionary branch, React Native's whatwg-fetch object branch.
-            // Handing the transport's own Headers object over relies on the
-            // two classes being the same class, which holds on desktop and
-            // nowhere else.
-            headers: headersOf(response),
-          })
-          void drainCapped(copy, HTTP_JOURNAL_BODY_BYTES).then((text) => {
-            entry.responseBody = text
-          })
+          if (typeof response.clone === 'function') {
+            try {
+              const copy = response.clone()
+              if (copy.body) {
+                void drainCapped(copy.body, HTTP_JOURNAL_BODY_BYTES).then((text) => {
+                  entry.responseBody = text
+                })
+              }
+            } catch {
+              // Cloning failed; journal drops body detail rather than failing the request
+            }
+          } else {
+            const [main, copy] = body.tee()
+            response = new Response(main, {
+              status: response.status,
+              statusText: response.statusText,
+              headers: headersOf(response),
+            })
+            void drainCapped(copy, HTTP_JOURNAL_BODY_BYTES).then((text) => {
+              entry.responseBody = text
+            })
+          }
         }
         return wrap(response, req.onProgress, onSettled)
       }

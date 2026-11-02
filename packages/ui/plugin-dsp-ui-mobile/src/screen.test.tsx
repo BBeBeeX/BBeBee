@@ -58,6 +58,7 @@ function hostComponent(name: string) {
 
 configureNative({
   View: hostComponent('View'),
+  ScrollView: hostComponent('ScrollView'),
   Text: hostComponent('Text'),
   Pressable: hostComponent('Pressable'),
   Image: hostComponent('Image'),

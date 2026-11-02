@@ -96,7 +96,7 @@ interface PluginManagerLike {
   uninstall?(id: string): Promise<void>
 }
 
-const KIND_TABS: readonly RegistryEntryKind[] = ['music-source', 'lyric-source', 'theme', 'plugin']
+const KIND_TABS: readonly RegistryEntryKind[] = ['music-source', 'lyric-source', 'theme']
 
 export type RegistrySortKey = 'name' | 'stars' | 'downloads' | 'contributors'
 export type RegistrySortDir = 'asc' | 'desc'

@@ -189,8 +189,10 @@ const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
   // a drawer entry for a developer surface is noise.
   'sources.test',
   'sources.import',
+  'sources.recommend.all',
   'library.collection',
   'library.playlist',
+  'library.favorites',
   'history.view',
   'queue.view',
   'now-playing.view',
