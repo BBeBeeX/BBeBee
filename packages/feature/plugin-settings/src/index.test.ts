@@ -78,6 +78,23 @@ describe('plugin-settings', () => {
     expect(settings.language).toBe(DEFAULT_APP_SETTINGS.language)
   })
 
+  it('deep-merges liquid glass tiers so a general-only patch keeps advanced', async () => {
+    const ctx = await harness()
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    const updated = await ctx.settings.update({
+      liquidGlass: { general: { variant: 'clear' } },
+    })
+    expect(updated.liquidGlass?.general.variant).toBe('clear')
+    expect(updated.liquidGlass?.general.enabled).toBe(
+      DEFAULT_APP_SETTINGS.liquidGlass!.general.enabled,
+    )
+    expect(updated.liquidGlass?.advanced).toEqual(
+      DEFAULT_APP_SETTINGS.liquidGlass!.advanced,
+    )
+  })
+
   it('normalizes manual mirror URL overrides', async () => {
     const ctx = await harness({
       npmRegistryUrl: 'https://registry.example.com/ ',

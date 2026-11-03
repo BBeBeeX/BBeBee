@@ -36,6 +36,7 @@
     },
     "plugins": [
       "expo-dev-client",
+      "react-native-liquid-glassmorphism",
       "expo-background-task",
       "expo-quick-actions",
       [

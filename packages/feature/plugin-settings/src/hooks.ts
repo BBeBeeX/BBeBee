@@ -10,15 +10,16 @@ import type {
   AppSettings,
   CacheService,
   SettingsContribution,
+  SettingsPatch,
   SettingsService,
   UiService,
 } from '@BBeBee/protocol'
-import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
+import { DEFAULT_APP_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 
 export interface UseAppSettingsResult {
   settings: AppSettings
   loading: boolean
-  update: (partial: Partial<AppSettings>) => Promise<AppSettings>
+  update: (partial: SettingsPatch) => Promise<AppSettings>
   reset: () => Promise<AppSettings>
 }
 
@@ -60,7 +61,7 @@ export function useAppSettings(ctx: Context): UseAppSettingsResult {
   }, [ctx])
 
   const update = useCallback(
-    async (partial: Partial<AppSettings>) => {
+    async (partial: SettingsPatch) => {
       const service = serviceOf<SettingsService>(ctx, 'settings')
       if (service) {
         return service.update(partial)
@@ -68,6 +69,18 @@ export function useAppSettings(ctx: Context): UseAppSettingsResult {
       const next: AppSettings = {
         ...settings,
         ...partial,
+        // Same deep merge as the service's mergeSettings, so the no-service
+        // fallback does not wipe the untouched liquid glass tier.
+        liquidGlass: resolveMobileLiquidGlassSettings({
+          general: {
+            ...settings.liquidGlass?.general,
+            ...(partial.liquidGlass?.general ?? {}),
+          },
+          advanced: {
+            ...settings.liquidGlass?.advanced,
+            ...(partial.liquidGlass?.advanced ?? {}),
+          },
+        }),
         desktopLyrics: {
           ...settings.desktopLyrics,
           ...(partial.desktopLyrics ?? {}),

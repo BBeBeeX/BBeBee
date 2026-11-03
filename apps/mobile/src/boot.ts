@@ -33,6 +33,7 @@ import { FlashList } from '@shopify/flash-list'
 import { AudioContext, AudioManager } from 'react-native-audio-api'
 import { File, Paths } from 'expo-file-system'
 import { BlurView } from 'expo-blur'
+import { LiquidGlassView } from 'react-native-liquid-glassmorphism'
 import { createApp, createShellGrantResolver, type App } from '@BBeBee/kernel'
 import {
   isCriticalServiceKey,
@@ -177,6 +178,15 @@ configureNative({
   TextInput,
   ScrollView,
   BlurView,
+  /*
+   * Liquid Glass for `GlassSurface`'s first tier. Same seam as `BlurView`:
+   * the kit never imports the native module itself. This is a native
+   * module, so the effect only exists in a development build / prebuild —
+   * never in Expo Go — and needs a native rebuild after adding it, not
+   * just a JS reload. Without a real view here, `GlassSurface` falls back
+   * to the blur tier, then to a translucent View.
+   */
+  LiquidGlassView,
   /*
    * The Tabler icon set draws through react-native-svg (the kit's
    * `icons/tabler.tsx`); without this group the kit falls back to text

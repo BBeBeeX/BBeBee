@@ -66,6 +66,14 @@ export interface NativePrimitives {
    * Optional: when absent (or in tests), components fall back to translucent Views.
    */
   BlurView?: unknown
+  /**
+   * Native Liquid Glass view (e.g. `LiquidGlassView` from
+   * `react-native-liquid-glassmorphism`). Optional like `BlurView`, and
+   * injected for the same reason: importing a native module here would
+   * make the kit untestable off-device, and the composition root
+   * (`apps/mobile/src/boot.ts`) is the one place allowed to touch it.
+   */
+  LiquidGlassView?: unknown
 }
 
 /** The `react-native-svg` exports the Tabler icon geometry needs. */
@@ -99,6 +107,7 @@ const PLACEHOLDER: NativePrimitives = {
   TextInput: 'TextInput',
   ScrollView: 'ScrollView',
   BlurView: 'View',
+  LiquidGlassView: 'View',
 }
 
 /**

@@ -16,6 +16,7 @@ import { Button, Slider, Text, nativePrimitives, useI18n, usePalette } from '@BB
 import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Chip } from './Chip.js'
 import { ImportSheet } from './ImportSheet.js'
+import { LiquidGlassSection } from './LiquidGlassSection.js'
 import type { ThemeImportResult } from '../import.js'
 
 /**
@@ -29,8 +30,9 @@ import type { ThemeImportResult } from '../import.js'
  * 自定义 (paste/file import, deletable), 浏览 (a link into the registry's
  * Discover route, which owns theme browsing on mobile — the card does not
  * duplicate the registry UI). Appearance mode (system/dark/light) sits above
- * the tabs. Glass settings are desktop-only (CSS-variable and OS-window
- * effects) and are deliberately absent here.
+ * the tabs. The desktop glass settings (CSS-variable and OS-window
+ * effects) stay desktop-only and are deliberately absent here; the mobile
+ * Liquid Glass section below edits the separate `liquidGlass` field.
  */
 
 type SettingsLike = { getSync(): AppSettings; update(p: unknown): Promise<unknown> }
@@ -416,6 +418,7 @@ export function ThemeManagementCard({ ctx }: { ctx: Context }): ReactElement {
         ),
       ),
     ),
+    h(LiquidGlassSection, { ctx }),
     h(
       native.View as never,
       { style: { gap: 3 } },

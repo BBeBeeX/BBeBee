@@ -24,8 +24,8 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { HapticsService, I18nService, LibraryService, NowPlayingStyleId, SourcesService, UiService } from '@BBeBee/protocol'
-import { NOW_PLAYING_STYLES } from '@BBeBee/protocol'
+import type { HapticsService, I18nService, LibraryService, NowPlayingStyleId, SettingsService, SourcesService, UiService } from '@BBeBee/protocol'
+import { NOW_PLAYING_STYLES, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
 import { useNowPlayingStyle } from '@bbebee/plugin-now-playing/hooks'
@@ -618,6 +618,13 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
   const duration = useDuration(ctx)
   const can = useTransportAvailability(ctx)
   const saved = useTrackSaved(ctx, state.trackUrn)
+  // Same Liquid Glass settings as the tab bar: the bar hands the resolved
+  // value to `GlassSurface`, which picks the rendering tier.
+  const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
+    resolveMobileLiquidGlassSettings(
+      serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+    ),
+  )
   const actionSlots = useServiceState(
     ctx,
     ['ui/changed'],
@@ -699,6 +706,8 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
       {
         intensity: 85,
         tint: isLight ? 'light' : 'dark',
+        liquid: liquidGlass,
+        borderRadius: 14,
         style: {
           borderRadius: 14,
           borderWidth: 1,

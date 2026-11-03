@@ -73,7 +73,27 @@
       "surfacePopovers": "Popovers & dialogs",
       "glassSurfaces": "Per-surface adjustments",
       "expand": "Expand",
-      "collapse": "Collapse"
+      "collapse": "Collapse",
+      "liquidGlassTitle": "Liquid Glass",
+      "liquidGlassDesc": "Translucent glass for the tab bar and playback bar: native glass on iOS 26, a refraction shader on Android 13+, automatic fallbacks below those.",
+      "liquidGlassGeneral": "General",
+      "liquidGlassAdvanced": "Advanced (Android only)",
+      "liquidGlassAdvancedDesc": "These only affect Android; setting them on iOS changes nothing.",
+      "liquidGlassOn": "On",
+      "liquidGlassOff": "Off",
+      "liquidGlassEnabled": "Liquid Glass",
+      "liquidGlassVariant": "Style",
+      "liquidGlassVariantRegular": "Regular",
+      "liquidGlassVariantClear": "Clear",
+      "liquidGlassInteractive": "Interactive",
+      "liquidGlassIntensity": "Intensity",
+      "liquidGlassIntensityNote": "Scales the Android blur and the pre-iOS 26 fallback. Native iOS 26 glass is unaffected.",
+      "liquidGlassThickness": "Thickness",
+      "liquidGlassRefraction": "Refraction",
+      "liquidGlassTilt": "Tilt specular",
+      "liquidGlassTiltNote": "Uses the motion sensor; keep off on persistent bars to save battery.",
+      "liquidGlassEdgeReflection": "Edge reflection",
+      "liquidGlassLegibilityFloor": "Legibility floor"
     }
   },
   "zh": {
@@ -150,7 +170,27 @@
       "surfacePopovers": "浮层与对话框",
       "glassSurfaces": "按表面调整",
       "expand": "展开",
-      "collapse": "收起"
+      "collapse": "收起",
+      "liquidGlassTitle": "液态玻璃",
+      "liquidGlassDesc": "底部 tab 栏与播放栏的半透明玻璃：iOS 26 走原生玻璃，Android 13+ 走折射 shader，低版本自动降级。",
+      "liquidGlassGeneral": "通用档",
+      "liquidGlassAdvanced": "附加档（仅 Android）",
+      "liquidGlassAdvancedDesc": "仅对 Android 生效，在 iOS 上设置后无变化。",
+      "liquidGlassOn": "开",
+      "liquidGlassOff": "关",
+      "liquidGlassEnabled": "液态玻璃",
+      "liquidGlassVariant": "样式",
+      "liquidGlassVariantRegular": "标准",
+      "liquidGlassVariantClear": "通透",
+      "liquidGlassInteractive": "交互效果",
+      "liquidGlassIntensity": "强度",
+      "liquidGlassIntensityNote": "调节 Android 模糊与 iOS 26 之前的回退效果，iOS 26 原生玻璃不受影响。",
+      "liquidGlassThickness": "厚度",
+      "liquidGlassRefraction": "折射",
+      "liquidGlassTilt": "倾斜高光",
+      "liquidGlassTiltNote": "使用运动传感器；常驻栏上保持关闭以省电。",
+      "liquidGlassEdgeReflection": "边缘反射",
+      "liquidGlassLegibilityFloor": "可读性底层"
     }
   }
 }

@@ -40,6 +40,7 @@ import type {
   StoreService,
   UiService,
 } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from '@BBeBee/ui-core'
 import { useI18n, usePalette, getScheme, GlassSurface, Sheet, Toast, tablerIcon } from '@BBeBee/ui-kit-mobile'
 import { usePlayHistoryHeatmap } from '@bbebee/plugin-player/hooks'
@@ -401,6 +402,14 @@ function Shell({ ctx }: { ctx: Context }) {
    * everything it renders with it.
    */
   const palette = usePalette()
+  // Liquid Glass settings for the tab bar, resolved on every settings
+  // change. `GlassSurface` decides which tier renders (liquid > blur >
+  // translucent); the shell only hands it the resolved values.
+  const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
+    resolveMobileLiquidGlassSettings(
+      serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+    ),
+  )
   const uiTick = useUiChangedTick(ctx)
   const defaultTab = TABS[0]
   const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
@@ -931,6 +940,7 @@ function Shell({ ctx }: { ctx: Context }) {
         {
           intensity: 85,
           tint: getScheme() === 'light' ? 'light' : 'dark',
+          liquid: liquidGlass,
           style: {
             flexDirection: 'row',
             borderTopWidth: StyleSheet.hairlineWidth,

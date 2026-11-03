@@ -6,8 +6,18 @@
 
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
-import type { AppSettings, Disposable, SettingsContribution, SettingsService } from '@BBeBee/protocol'
-import { APP_SETTINGS_STORE_KEY, DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
+import type {
+  AppSettings,
+  Disposable,
+  SettingsContribution,
+  SettingsPatch,
+  SettingsService,
+} from '@BBeBee/protocol'
+import {
+  APP_SETTINGS_STORE_KEY,
+  DEFAULT_APP_SETTINGS,
+  resolveMobileLiquidGlassSettings,
+} from '@BBeBee/protocol'
 import { SETTINGS_ROUTES, SETTINGS_VIEWS } from './views.js'
 import { watchGlobalShortcuts } from './shortcuts.js'
 
@@ -31,7 +41,7 @@ function normalizeMirrorUrl(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSettings {
+function mergeSettings(base: AppSettings, patch?: SettingsPatch): AppSettings {
   if (!patch) return { ...base }
   return {
     ...base,
@@ -117,6 +127,21 @@ function mergeSettings(base: AppSettings, patch?: Partial<AppSettings>): AppSett
         ...(patch.glass?.surfaces ?? {}),
       },
     },
+    // Mobile Liquid Glass: deep-merge per tier (a general-only patch must
+    // not wipe the advanced tier, and vice versa), then resolve so a
+    // hand-edited store value is clamped/guarded like every other field.
+    liquidGlass: resolveMobileLiquidGlassSettings({
+      general: {
+        ...(base.liquidGlass?.general ??
+          DEFAULT_APP_SETTINGS.liquidGlass!.general),
+        ...(patch.liquidGlass?.general ?? {}),
+      },
+      advanced: {
+        ...(base.liquidGlass?.advanced ??
+          DEFAULT_APP_SETTINGS.liquidGlass!.advanced),
+        ...(patch.liquidGlass?.advanced ?? {}),
+      },
+    }),
   }
 }
 
@@ -201,7 +226,7 @@ export class SettingsPlugin extends Service implements SettingsService {
     return { ...this.current }
   }
 
-  async update(partial: Partial<AppSettings>): Promise<AppSettings> {
+  async update(partial: SettingsPatch): Promise<AppSettings> {
     this.ownCtx.logger.debug('settings: update', partial)
     this.current = mergeSettings(this.current, partial)
     await this.ownCtx.store.set(STORE_KEY, this.current)

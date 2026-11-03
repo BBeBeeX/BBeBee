@@ -167,6 +167,107 @@ export interface GlassSettings {
   surfaces: Partial<Record<GlassSurfaceId, GlassSurfaceOverride>>
 }
 
+/**
+ * Mobile Liquid Glass preferences, rendered by `react-native-liquid-glassmorphism`
+ * (native `UIGlassEffect` on iOS 26, an AGSL refraction shader on Android 13+,
+ * blur/tint fallbacks below those). This is deliberately separate from
+ * `GlassSettings`: that one is the desktop CSS-variable + OS-window glass
+ * plan, and its window layer never applies on mobile.
+ *
+ * Ownership: plugin-theme (appearance). The mobile theme card edits it;
+ * `GlassSurface` in ui-kit-mobile only renders the resolved values it is
+ * handed, so the kit stays testable off-device.
+ *
+ * Two tiers, mirroring what the library itself can honour:
+ * - general: props that mean something on both platforms. `intensity`
+ *   scales the Android blur and buckets the pre-iOS-26 blur fallback; on
+ *   iOS 26 native glass the OS fixes the optics and `intensity` is ignored.
+ * - advanced: Android-only props. The library documents them as safe to
+ *   set unconditionally because they have no effect on iOS, so callers pass
+ *   them through on both platforms rather than branching on `Platform.OS`.
+ */
+export type LiquidGlassVariant = 'regular' | 'clear'
+
+export interface LiquidGlassGeneralSettings {
+  /** Master switch: off falls back to the previous expo-blur surface. */
+  enabled: boolean
+  /** `regular` is the default chrome material; `clear` is more transparent. */
+  variant: LiquidGlassVariant
+  /** Touch bloom / magnification on iOS 26, bloom + tilt highlight on Android. */
+  interactive: boolean
+  /** 0–100. Android blur scale + pre-iOS-26 fallback bucket, not iOS 26 glass. */
+  intensity: number
+}
+
+export interface LiquidGlassAdvancedSettings {
+  /** Android only, 0–2: "liquid volume", 0 = flat pane, 1 = default. */
+  thickness: number
+  /** Android only: edge-refraction lens strength multiplier (~1.35x when on). */
+  refraction: boolean
+  /** Android only: tilt-driven specular from the gravity sensor. Off on
+   * persistent chrome (tab bar, playback bar) so the sensor stays unregistered. */
+  tilt: boolean
+  /** Android only, 0–1: mirrored rim echo strength, independent of thickness. */
+  edgeReflectionStrength: number
+  /** Android only, 0–1: adaptive veil under foreground children for legibility. */
+  legibilityFloor: number
+}
+
+export interface MobileLiquidGlassSettings {
+  general: LiquidGlassGeneralSettings
+  advanced: LiquidGlassAdvancedSettings
+}
+
+export const DEFAULT_MOBILE_LIQUID_GLASS_SETTINGS: MobileLiquidGlassSettings = {
+  general: { enabled: true, variant: 'regular', interactive: false, intensity: 60 },
+  advanced: {
+    thickness: 1,
+    refraction: true,
+    tilt: false,
+    edgeReflectionStrength: 1,
+    legibilityFloor: 0,
+  },
+}
+
+function clampLiquid(value: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  return Math.min(max, Math.max(min, n))
+}
+
+/** Fills a stored (possibly partial, possibly hand-edited) value with defaults
+ * and clamps every numeric field, so junk in the store can never leak a NaN
+ * or an out-of-range shader uniform into a native view. */
+export function resolveMobileLiquidGlassSettings(
+  input?: {
+    general?: Partial<LiquidGlassGeneralSettings>
+    advanced?: Partial<LiquidGlassAdvancedSettings>
+  } | null,
+): MobileLiquidGlassSettings {
+  const d = DEFAULT_MOBILE_LIQUID_GLASS_SETTINGS
+  const general = input?.general ?? {}
+  const advanced = input?.advanced ?? {}
+  return {
+    general: {
+      enabled: general.enabled === undefined ? d.general.enabled : Boolean(general.enabled),
+      variant: general.variant === 'clear' || general.variant === 'regular' ? general.variant : d.general.variant,
+      interactive: general.interactive === undefined ? d.general.interactive : Boolean(general.interactive),
+      intensity: clampLiquid(general.intensity, 0, 100, d.general.intensity),
+    },
+    advanced: {
+      thickness: clampLiquid(advanced.thickness, 0, 2, d.advanced.thickness),
+      refraction: advanced.refraction === undefined ? d.advanced.refraction : Boolean(advanced.refraction),
+      tilt: advanced.tilt === undefined ? d.advanced.tilt : Boolean(advanced.tilt),
+      edgeReflectionStrength: clampLiquid(
+        advanced.edgeReflectionStrength,
+        0,
+        1,
+        d.advanced.edgeReflectionStrength,
+      ),
+      legibilityFloor: clampLiquid(advanced.legibilityFloor, 0, 1, d.advanced.legibilityFloor),
+    },
+  }
+}
+
 export type DownloadRegion = 'global' | 'mainland-china'
 
 export type AudioOutputEngine = 'mpv' | 'wasapi'
@@ -191,6 +292,12 @@ export interface AppSettings {
   dynamicTheme: DynamicThemeSettings
   /** Glassmorphism preferences (window layer B + component layer A). */
   glass: GlassSettings
+  /**
+   * Mobile Liquid Glass preferences (general + Android-only advanced tiers).
+   * Optional so records stored before this field existed keep working;
+   * readers resolve absent values through `resolveMobileLiquidGlassSettings`.
+   */
+  liquidGlass?: MobileLiquidGlassSettings
   /** Full-screen player style layout identifier (e.g. 'classic', 'cinematic'). */
   nowPlayingStyle: string
   /** User interface language. */
@@ -387,6 +494,10 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     components: { ...DEFAULT_GLASS_SETTINGS.components },
     surfaces: {},
   },
+  liquidGlass: {
+    general: { ...DEFAULT_MOBILE_LIQUID_GLASS_SETTINGS.general },
+    advanced: { ...DEFAULT_MOBILE_LIQUID_GLASS_SETTINGS.advanced },
+  },
   nowPlayingStyle: 'cinematic',
   /**
    * New installs follow the OS language. `plugin-settings` merges stored
@@ -434,6 +545,20 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   visualizer: { ...DEFAULT_VISUALIZER_SETTINGS },
 }
 
+/**
+ * What `SettingsService.update` accepts: a shallow `Partial<AppSettings>`
+ * for every field, except `liquidGlass`, whose two tiers may be patched
+ * independently. A general-only patch must not wipe the advanced tier —
+ * `mergeSettings` in plugin-settings deep-merges it, and this type is what
+ * makes that patch expressible without a cast.
+ */
+export type SettingsPatch = Omit<Partial<AppSettings>, 'liquidGlass'> & {
+  liquidGlass?: {
+    general?: Partial<LiquidGlassGeneralSettings>
+    advanced?: Partial<LiquidGlassAdvancedSettings>
+  }
+}
+
 export interface SettingsService {
   /** Returns the current application settings snapshot. */
   get(): Promise<AppSettings>
@@ -442,7 +567,7 @@ export interface SettingsService {
   getSync(): AppSettings
 
   /** Updates settings partially and persists the changes. */
-  update(partial: Partial<AppSettings>): Promise<AppSettings>
+  update(partial: SettingsPatch): Promise<AppSettings>
 
   /** Resets settings back to default values. */
   reset(): Promise<AppSettings>
