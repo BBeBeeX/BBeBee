@@ -690,6 +690,15 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
 
   const isLight = getScheme() === 'light'
 
+  /*
+   * The bar as Apple Music draws its mini-player: a floating pill above
+   * the tab bar — 64pt tall, 44pt artwork with an 8pt radius, 12pt insets,
+   * title 15pt/500 over artist 13pt/secondary, and 22pt trailing controls
+   * led by play/pause then forward. BBeBee keeps its own two trailing
+   * controls (favorite, queue) after that pair rather than dropping them:
+   * the bar is the only in-player favorite button on mobile, and the
+   * queue button is the idle placeholder's one live control.
+   */
   return h(
     native.View as never,
     {
@@ -707,9 +716,9 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
         intensity: 85,
         tint: isLight ? 'light' : 'dark',
         liquid: liquidGlass,
-        borderRadius: 14,
+        borderRadius: 20,
         style: {
-          borderRadius: 14,
+          borderRadius: 20,
           borderWidth: 1,
           borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
         },
@@ -725,14 +734,15 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
             alignItems: 'center',
             gap: tokens.space[3],
             paddingHorizontal: tokens.space[3],
-            paddingVertical: tokens.space[2],
+            // 64pt tall with 44pt artwork: 44 + 2×10.
+            paddingVertical: 10,
           },
         },
         h(CachedArtwork, {
           ctx,
           artwork: state.nowPlaying?.artwork,
           seed: state.trackUrn,
-          size: tokens.size.artworkThumb,
+          size: 44,
           radius: tokens.radius.md,
         }),
         h(
@@ -740,13 +750,13 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
           { style: { flex: 1, minWidth: 0, gap: 1, opacity: idle ? 0.6 : 1 } },
           h(native.Text as never, {
             numberOfLines: 1,
-            style: { color: palette.text.primary, fontSize: 14, fontWeight: '600' },
+            style: { color: palette.text.primary, fontSize: 15, fontWeight: '500' },
             children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
           }),
           state.nowPlaying?.artist
             ? h(native.Text as never, {
                 numberOfLines: 1,
-                style: { color: palette.text.secondary, fontSize: 12 },
+                style: { color: palette.text.secondary, fontSize: 13 },
                 children: state.nowPlaying.artist,
               })
             : null,
@@ -755,26 +765,36 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
           native.View as never,
           { style: { flexDirection: 'row', alignItems: 'center' } },
           h(IconButton, {
-            icon: saved ? '♥' : '♡',
-            accessibilityLabel: favoriteLabel,
-            variant: 'ghost',
-            size: tokens.size.icon,
-            disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
-            onPress: toggleSaved,
-          }),
-          h(IconButton, {
             icon: can.canPause ? '⏸' : '▶',
             accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
             variant: 'ghost',
-            size: tokens.size.icon,
+            size: 22,
             disabled: !can.canPlay && !can.canPause,
             onPress: () => ctx.player.togglePlay(),
+          }),
+          h(IconButton, {
+            icon: '⏭',
+            accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
+            variant: 'ghost',
+            size: 22,
+            // Stood down while idle like play/favorite: the queue button
+            // below is the idle placeholder's one live control.
+            disabled: idle || !can.canNext,
+            onPress: () => void ctx.player.next(),
+          }),
+          h(IconButton, {
+            icon: saved ? '♥' : '♡',
+            accessibilityLabel: favoriteLabel,
+            variant: 'ghost',
+            size: 22,
+            disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
+            onPress: toggleSaved,
           }),
           h(IconButton, {
             icon: '☰',
             accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
             variant: 'ghost',
-            size: tokens.size.icon,
+            size: 22,
             // Usable while idle on purpose: the queue is reachable before the
             // first track ever plays.
             disabled: false,
@@ -803,8 +823,8 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
                   right: 0,
                   bottom: 0,
                   height: 1.5,
-                  borderBottomLeftRadius: 14,
-                  borderBottomRightRadius: 14,
+                  borderBottomLeftRadius: 20,
+                  borderBottomRightRadius: 20,
                   overflow: 'hidden',
                 },
                 testID: 'now-playing-bar-progress',

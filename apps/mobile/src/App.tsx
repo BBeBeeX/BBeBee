@@ -919,8 +919,10 @@ function Shell({ ctx }: { ctx: Context }) {
             {
               pointerEvents: 'box-none',
               style: {
-                paddingHorizontal: 8,
-                paddingBottom: 6,
+                // The iOS 26 floating pill's breathing room: inset from the
+                // screen edges, and a gap down to the tab bar.
+                paddingHorizontal: 10,
+                paddingBottom: 8,
               },
             },
             h(BottomBar, {
@@ -931,9 +933,15 @@ function Shell({ ctx }: { ctx: Context }) {
           )
         : null,
       /*
-       * The tab bar as Apple Music draws its chrome: a translucent frosted
-       * glass surface under a hairline, each tab a glyph over a 10pt label,
-       * and the selection spoken in the accent colour rather than weight alone.
+       * The tab bar as Apple Music draws its chrome: a full-width glass
+       * surface (not a pill — the pill above is the player), each tab a
+       * 24pt glyph over a 10pt label, the selection spoken in the accent
+       * colour plus a semibold label. The tab set itself stays the settled
+       * four tabs in their settled order. No top hairline: on iOS 26 glass
+       * the material edge is the separator, and on the blur/translucent
+       * tiers the glass fill still reads against the page. (A filled
+       * selected glyph, Apple's other selected treatment, is not available:
+       * the kit's Tabler defs carry only the outline forms of these four.)
        */
       h(
         GlassSurface,
@@ -943,8 +951,6 @@ function Shell({ ctx }: { ctx: Context }) {
           liquid: liquidGlass,
           style: {
             flexDirection: 'row',
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: getScheme() === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)',
             paddingBottom: insets.bottom,
           },
         },

@@ -293,6 +293,47 @@ describe('NowPlayingBar on mobile', () => {
     expect(calls).toContain('navigate:now-playing.view')
   })
 
+  it('skips to the next track from the bar, and stands the button down at the queue end', async () => {
+    const queue: QueueItem[] = [
+      { id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' },
+      { id: 'q-2', trackUrn: 'BBeBee:local:track:2', addedBy: 'user' },
+    ]
+    const { ctx, calls } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        currentItemId: 'q-1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'playing',
+      },
+      queue,
+    )
+    const { container } = render(h(NowPlayingBar, { ctx }))
+    const nextBtn = container.querySelector('[data-label="Next track"]') as HTMLElement
+    expect(nextBtn).toBeTruthy()
+    await act(async () => {
+      nextBtn.click()
+    })
+    expect(calls).toContain('next')
+
+    // At the last queue item there is nothing to skip to: pressing the
+    // stood-down button must not skip.
+    const end = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:2',
+        currentItemId: 'q-2',
+        nowPlaying: { title: 'Walkin', artist: 'Miles Davis' },
+        status: 'playing',
+      },
+      queue,
+    )
+    const endContainer = render(h(NowPlayingBar, { ctx: end.ctx })).container
+    const endNextBtn = endContainer.querySelector('[data-label="Next track"]') as HTMLElement
+    await act(async () => {
+      endNextBtn.click()
+    })
+    expect(end.calls).not.toContain('next')
+  })
+
   it('stays mounted while idle as a placeholder: nothing to play, queue still reachable', async () => {
     let opened = false
     let queueOpened = false
