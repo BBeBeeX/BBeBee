@@ -87,7 +87,7 @@ jobs:
           node scripts/assemble-plugin.mjs
           --feature packages/feature/plugin-visualizer
           --ui packages/ui/plugin-visualizer-ui-desktop
-          --id bbebeex-visualizer
+          --id @bbebee/plugin-visualizer
           --name @bbebee/plugin-visualizer
           --version "${{ inputs.version }}"
           --repository "https://github.com/${{ github.repository }}"
@@ -106,7 +106,7 @@ jobs:
             const want = process.argv[1]
             if (p.name !== "@bbebee/plugin-visualizer") throw new Error(`package name drift: ${p.name}`)
             if (p.version !== want) throw new Error(`package version drift: ${p.version} != ${want}`)
-            if (m.id !== "bbebeex-visualizer") throw new Error(`manifest id drift: ${m.id}`)
+            if (m.id !== "@bbebee/plugin-visualizer") throw new Error(`manifest id drift: ${m.id}`)
             if (m.version !== p.version) throw new Error(`manifest version ${m.version} != package version ${p.version}`)
             const repoUrl = p.repository && p.repository.url
             if (repoUrl !== process.argv[2]) throw new Error(`package.json repository.url "${repoUrl}" != provenance source "${process.argv[2]}" — npm would refuse the publish (E422)`)
