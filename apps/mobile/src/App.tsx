@@ -12,8 +12,10 @@
 import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import {
   ActivityIndicator,
+  Animated,
   BackHandler,
   Image,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +36,7 @@ import {
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Context } from 'cordis'
 import type {
+  HapticsService,
   LifecycleService,
   QuickActionsService,
   SettingsService,
@@ -143,6 +146,9 @@ const TABS: readonly Tab[] = [
   { id: 'settings.view', titleKey: 'app:common.app.tabs.settings', icon: '⚙︎', tabler: 'settings' },
   { id: 'sources.search', titleKey: 'app:common.app.tabs.search', icon: '⌕', tabler: 'search' },
 ]
+
+const MAIN_TABS: readonly Tab[] = TABS.slice(0, 3)
+const SEARCH_TAB: Tab = TABS[3]!
 
 /**
  * Header titles for the detail routes the shell can push. The shell's own
@@ -357,6 +363,114 @@ function NavDrawerContents({ ctx, currentPageId, translate, onSelectPage }: {
   )
 }
 
+/**
+ * iOS 26 Apple Music animated tab bar item:
+ * Features tactile spring bounce on press (`scale: 0.92`), selection haptic feedback,
+ * active accent glow, and long-press deep glass highlight ring.
+ */
+function AnimatedTabButton({
+  tab,
+  isSelected,
+  palette,
+  isLight,
+  t,
+  ctx,
+  onPress,
+}: {
+  tab: Tab
+  isSelected: boolean
+  palette: ReturnType<typeof usePalette>
+  isLight: boolean
+  t: (key: string) => string
+  ctx: Context
+  onPress: () => void
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current
+  const [isLongPressed, setIsLongPressed] = useState(false)
+  const tabTitle = t(tab.titleKey)
+  const tint = isSelected ? palette.accent.base : palette.text.secondary
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.92,
+      useNativeDriver: false,
+      friction: 7,
+      tension: 100,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      friction: 6,
+      tension: 80,
+    }).start()
+    setIsLongPressed(false)
+  }
+
+  const handleLongPress = () => {
+    setIsLongPressed(true)
+    serviceOf<HapticsService>(ctx, 'haptics')?.impact?.('medium')
+  }
+
+  return h(
+    Animated.View,
+    {
+      style: {
+        flex: 1,
+        alignItems: 'center',
+        transform: [{ scale: scaleAnim }],
+      },
+    },
+    h(
+      Pressable,
+      {
+        key: tab.id,
+        onPress: () => {
+          serviceOf<HapticsService>(ctx, 'haptics')?.selection?.()
+          onPress()
+        },
+        onPressIn: handlePressIn,
+        onPressOut: handlePressOut,
+        onLongPress: handleLongPress,
+        accessibilityRole: 'tab',
+        accessibilityLabel: tabTitle,
+        accessibilityState: { selected: isSelected },
+        testID: `tab-${tab.id}`,
+        style: [
+          {
+            alignItems: 'center',
+            paddingTop: 6,
+            paddingBottom: 8,
+            width: '100%',
+            gap: 1,
+            borderRadius: 16,
+          },
+          isLongPressed && {
+            backgroundColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.14)',
+          },
+        ],
+      },
+      tablerIcon(tab.tabler, { size: 24, color: tint }) ??
+        h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
+      h(
+        Text,
+        {
+          numberOfLines: 1,
+          style: {
+            color: tint,
+            fontSize: 10,
+            fontWeight: isSelected ? '600' : '400',
+            letterSpacing: -0.2,
+          },
+        },
+        tabTitle,
+      ),
+    ),
+  )
+}
+
 function Shell({ ctx }: { ctx: Context }) {
   const { t } = useI18n(ctx)
   /*
@@ -385,7 +499,6 @@ function Shell({ ctx }: { ctx: Context }) {
   )
   const uiTick = useUiChangedTick(ctx)
   const defaultTab = TABS[0]
-  const [isFullscreenNowPlaying, setIsFullscreenNowPlaying] = useState(false)
   /*
    * The queue drawer's open state. Shell-owned by design: the drawer layers
    * above the fullscreen player (Android Back closes it first, and reopening
@@ -447,6 +560,118 @@ function Shell({ ctx }: { ctx: Context }) {
   const { width, height } = useWindowDimensions()
   const layout = resolveMobileLayout({ width, height, layoutMode })
 
+  /* ── iOS 26 Apple Music animated sheets & scroll-linked morphing ────────── */
+
+  const [isFullscreenNowPlaying, setIsFullscreenNowPlayingState] = useState(false)
+  const [isSheetMounted, setIsSheetMounted] = useState(false)
+  const sheetAnim = useRef(new Animated.Value(height || 800)).current
+
+  const openFullscreenNowPlaying = useCallback(() => {
+    setIsFullscreenNowPlayingState(true)
+    setIsSheetMounted(true)
+    sheetAnim.setValue(height || 800)
+    Animated.spring(sheetAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      friction: 9,
+      tension: 65,
+    }).start()
+  }, [height, sheetAnim])
+
+  const closeFullscreenNowPlaying = useCallback(() => {
+    Animated.timing(sheetAnim, {
+      toValue: height || 800,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => {
+      setIsFullscreenNowPlayingState(false)
+      setIsSheetMounted(false)
+    })
+  }, [height, sheetAnim])
+
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 10,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          sheetAnim.setValue(gestureState.dy)
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+          closeFullscreenNowPlaying()
+        } else {
+          Animated.spring(sheetAnim, {
+            toValue: 0,
+            useNativeDriver: false,
+            friction: 9,
+            tension: 65,
+          }).start()
+        }
+      },
+    }),
+  ).current
+
+  const collapseAnim = useRef(new Animated.Value(0)).current // 0 = expanded (Phase A), 1 = collapsed (Phase C)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  useEffect(() => {
+    const id = collapseAnim.addListener(({ value }) => {
+      setIsCollapsed(value > 0.35)
+    })
+    return () => collapseAnim.removeListener(id)
+  }, [collapseAnim])
+
+  const isDraggingPage = useRef(false)
+  const touchStartY = useRef(0)
+
+  const handlePageTouchStart = (e: { nativeEvent?: { pageY?: number } }) => {
+    touchStartY.current = e.nativeEvent?.pageY ?? 0
+    isDraggingPage.current = true
+  }
+
+  const handlePageTouchMove = (e: { nativeEvent?: { pageY?: number } }) => {
+    if (!isDraggingPage.current) return
+    const currentY = e.nativeEvent?.pageY ?? 0
+    const dy = currentY - touchStartY.current
+    // User scrolling down into content (finger moves up) -> collapse Tab Bar to compact button & lower Mini Player
+    if (dy < -20 && !isCollapsed) {
+      serviceOf<HapticsService>(ctx, 'haptics')?.selection?.()
+      Animated.spring(collapseAnim, {
+        toValue: 1,
+        useNativeDriver: false,
+        friction: 8,
+        tension: 60,
+      }).start()
+      touchStartY.current = currentY
+    }
+    // User scrolling up towards top (finger moves down) -> re-expand Tab Bar
+    else if (dy > 20 && isCollapsed) {
+      serviceOf<HapticsService>(ctx, 'haptics')?.selection?.()
+      Animated.spring(collapseAnim, {
+        toValue: 0,
+        useNativeDriver: false,
+        friction: 8,
+        tension: 60,
+      }).start()
+      touchStartY.current = currentY
+    }
+  }
+
+  const handlePageTouchEnd = () => {
+    isDraggingPage.current = false
+  }
+
+  const expandTabBar = useCallback(() => {
+    serviceOf<HapticsService>(ctx, 'haptics')?.selection?.()
+    Animated.spring(collapseAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 60,
+    }).start()
+  }, [collapseAnim, ctx])
+
   const [navState, setNavState] = useState<{ history: HistoryItem[]; index: number }>({
     history: [],
     index: 0,
@@ -466,10 +691,16 @@ function Shell({ ctx }: { ctx: Context }) {
   const navigateTo = useCallback(
     (id: string, params?: Record<string, unknown>) => {
       if (id === 'now-playing.view') {
-        setIsFullscreenNowPlaying(true)
+        openFullscreenNowPlaying()
         return
       }
-      setIsFullscreenNowPlaying(false)
+      closeFullscreenNowPlaying()
+      Animated.spring(collapseAnim, {
+        toValue: 0,
+        useNativeDriver: false,
+        friction: 8,
+        tension: 60,
+      }).start()
       setNavState((prev) => {
         const base =
           prev.history.length === 0 && defaultTab ? [{ id: defaultTab.id }] : prev.history
@@ -489,7 +720,7 @@ function Shell({ ctx }: { ctx: Context }) {
         }
       })
     },
-    [defaultTab],
+    [defaultTab, collapseAnim],
   )
 
   const [activeToast, setActiveToast] = useState<{
@@ -554,7 +785,7 @@ function Shell({ ctx }: { ctx: Context }) {
       return true
     }
     if (isFullscreenNowPlaying) {
-      setIsFullscreenNowPlaying(false)
+      closeFullscreenNowPlaying()
       return true
     }
     if (navState.index > 0) {
@@ -625,6 +856,7 @@ function Shell({ ctx }: { ctx: Context }) {
   const BottomBar = ctx.ui.viewFor('now-playing.bar') as
     | ComponentType<{
         ctx: Context
+        isCompact?: boolean
         onOpenNowPlaying?: () => void
         onOpenQueue?: () => void
         hideQueueButton?: boolean
@@ -889,9 +1121,74 @@ function Shell({ ctx }: { ctx: Context }) {
 
   /* ── phone chrome: page, bar, bottom tabs ──────────────────────────────── */
 
+  const isLight = getScheme() === 'light'
+  const marginH = 12
+  const gap = 8
+  const bottomOffset = insets.bottom > 0 ? insets.bottom : 12
+  const expandedBarHeight = 60
+  const collapsedBarHeight = 52
+  const expandedBarRadius = 30
+  const collapsedBarRadius = 26
+  const miniPlayerHeight = 52
+  const maxLeftWidth = width - 2 * marginH - expandedBarHeight - gap
+
+  const activeMainTab = MAIN_TABS.find((tab) => isTabSelected(tab))
+  const lastActiveMainTabRef = useRef(MAIN_TABS[0]!)
+  if (activeMainTab) {
+    lastActiveMainTabRef.current = activeMainTab
+  }
+  const displayedLeftTab = activeMainTab ?? lastActiveMainTabRef.current ?? MAIN_TABS[0]!
+  const isSearchSelected = isTabSelected(SEARCH_TAB)
+
+  const animTabBarRadius = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [expandedBarRadius, collapsedBarRadius],
+  })
+  const animTabBarHeight = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [expandedBarHeight, collapsedBarHeight],
+  })
+  const animLeftWidth = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [maxLeftWidth, collapsedBarHeight],
+  })
+  const animRightWidth = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [expandedBarHeight, collapsedBarHeight],
+  })
+  const animExpandedOpacity = collapseAnim.interpolate({
+    inputRange: [0, 0.35, 1],
+    outputRange: [1, 0, 0],
+  })
+  const animCollapsedOpacity = collapseAnim.interpolate({
+    inputRange: [0, 0.65, 1],
+    outputRange: [0, 0, 1],
+  })
+
+  // Mini player positions:
+  // Expanded (0): above the bottom dock (bottom: bottomOffset + expandedBarHeight + gap), full width (marginH to width - marginH)
+  // Collapsed (1): docked between left and right buttons (bottom: bottomOffset), left: marginH + collapsedBarHeight + gap, right: marginH + collapsedBarHeight + gap
+  const animMiniPlayerLeft = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [marginH, marginH + collapsedBarHeight + gap],
+  })
+  const animMiniPlayerRight = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [marginH, marginH + collapsedBarHeight + gap],
+  })
+  const animMiniPlayerBottom = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [bottomOffset + expandedBarHeight + gap, bottomOffset],
+  })
+
   const phoneChrome = h(
     View,
-    { style: { flex: 1, position: 'relative' } },
+    {
+      style: { flex: 1, position: 'relative' },
+      onTouchStart: handlePageTouchStart,
+      onTouchMove: handlePageTouchMove,
+      onTouchEnd: handlePageTouchEnd,
+    },
     // 1. The page surface, covering the whole screen
     h(
       View,
@@ -909,69 +1206,215 @@ function Shell({ ctx }: { ctx: Context }) {
           left: 0,
           right: 0,
           bottom: 0,
+          height: bottomOffset + expandedBarHeight + gap + miniPlayerHeight + 10,
           zIndex: 20,
         },
       },
+      // 2a. Mini Player: animates from top shelf to docked between left and right buttons
       BottomBar
         ? h(
-            View,
+            Animated.View,
             {
               pointerEvents: 'box-none',
               style: {
-                // The iOS 26 floating pill's breathing room: inset from the
-                // screen edges, and a gap down to the tab bar.
-                paddingHorizontal: 10,
-                paddingBottom: 8,
+                position: 'absolute',
+                left: animMiniPlayerLeft,
+                right: animMiniPlayerRight,
+                bottom: animMiniPlayerBottom,
+                height: 52,
+                zIndex: 25,
               },
             },
             h(BottomBar, {
               ctx,
-              onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
+              isCompact: isCollapsed,
+              onOpenNowPlaying: openFullscreenNowPlaying,
               onOpenQueue: () => setIsQueueOpen(true),
             }),
           )
         : null,
-      /*
-       * The tab bar as Apple Music draws its chrome: a full-width glass
-       * surface (not a pill — the pill above is the player), each tab a
-       * 24pt glyph over a 10pt label, the selection spoken in the accent
-       * colour plus a semibold label. The tab set itself stays the settled
-       * four tabs in their settled order. No top hairline: on iOS 26 glass
-       * the material edge is the separator, and on the blur/translucent
-       * tiers the glass fill still reads against the page. (A filled
-       * selected glyph, Apple's other selected treatment, is not available:
-       * the kit's Tabler defs carry only the outline forms of these four.)
-       */
+      // 2b. Left Group: 3-tab capsule in expanded mode -> compact active-tab circle in collapsed mode
       h(
-        GlassSurface,
+        Animated.View,
         {
-          intensity: 85,
-          tint: getScheme() === 'light' ? 'light' : 'dark',
-          liquid: liquidGlass,
           style: {
-            flexDirection: 'row',
-            paddingBottom: insets.bottom,
+            position: 'absolute',
+            left: marginH,
+            bottom: bottomOffset,
+            width: animLeftWidth,
+            height: animTabBarHeight,
+            borderRadius: animTabBarRadius,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isLight ? 0.1 : 0.3,
+            shadowRadius: 10,
+            elevation: 6,
+            zIndex: 20,
           },
         },
-        ...TABS.map((tab) => {
-          const isSelected = isTabSelected(tab)
-          const tabTitle = t(tab.titleKey)
-          const tint = isSelected ? palette.accent.base : palette.text.secondary
-          return h(
+        h(
+          GlassSurface,
+          {
+            intensity: 85,
+            tint: isLight ? 'light' : 'dark',
+            liquid: liquidGlass,
+            borderRadius: isCollapsed ? collapsedBarRadius : expandedBarRadius,
+            style: {
+              flex: 1,
+              width: '100%',
+              height: '100%',
+            },
+          },
+          // 1. Expanded contents (left 3 tabs: Home, Library, Settings)
+          h(
+            Animated.View,
+            {
+              pointerEvents: isCollapsed ? 'none' : 'auto',
+              style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-around',
+                opacity: animExpandedOpacity,
+              },
+            },
+            ...MAIN_TABS.map((tab) =>
+              h(AnimatedTabButton, {
+                key: tab.id,
+                tab,
+                isSelected: isTabSelected(tab),
+                palette,
+                isLight,
+                t,
+                ctx,
+                onPress: () => navigateTo(tab.id),
+              }),
+            ),
+          ),
+          // 2. Collapsed compact button content (current active tab icon)
+          h(
+            Animated.View,
+            {
+              pointerEvents: isCollapsed ? 'auto' : 'none',
+              style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: animCollapsedOpacity,
+              },
+            },
+            h(
+              Pressable,
+              {
+                accessibilityRole: 'button',
+                accessibilityLabel: t('app:common.app.expandNavigation') || 'Expand navigation',
+                testID: 'tab-bar-collapsed-button',
+                onPress: expandTabBar,
+                style: {
+                  width: '100%',
+                  height: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                },
+              },
+              tablerIcon(displayedLeftTab.tabler ?? 'home', {
+                size: 24,
+                color: activeMainTab ? palette.accent.base : palette.text.secondary,
+              }) ??
+                h(
+                  Text,
+                  {
+                    style: {
+                      color: activeMainTab ? palette.accent.base : palette.text.secondary,
+                      fontSize: 22,
+                    },
+                  },
+                  displayedLeftTab.icon ?? '⌂',
+                ),
+            ),
+          ),
+        ),
+      ),
+      // 2c. Right standalone Search button (circular button with search icon)
+      h(
+        Animated.View,
+        {
+          style: {
+            position: 'absolute',
+            right: marginH,
+            bottom: bottomOffset,
+            width: animRightWidth,
+            height: animTabBarHeight,
+            borderRadius: animTabBarRadius,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: isLight ? 0.1 : 0.3,
+            shadowRadius: 10,
+            elevation: 6,
+            zIndex: 20,
+          },
+        },
+        h(
+          GlassSurface,
+          {
+            intensity: 85,
+            tint: isLight ? 'light' : 'dark',
+            liquid: liquidGlass,
+            borderRadius: isCollapsed ? collapsedBarRadius : expandedBarRadius,
+            style: {
+              flex: 1,
+              width: '100%',
+              height: '100%',
+            },
+          },
+          h(
             Pressable,
             {
-              key: tab.id,
-              onPress: () => navigateTo(tab.id),
               accessibilityRole: 'tab',
-              accessibilityLabel: tabTitle,
-              accessibilityState: { selected: isSelected },
-              style: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8, gap: 1 },
+              accessibilityLabel: t(SEARCH_TAB.titleKey),
+              accessibilityState: { selected: isSearchSelected },
+              testID: 'tab-sources.search',
+              onPress: () => {
+                serviceOf<HapticsService>(ctx, 'haptics')?.selection?.()
+                navigateTo(SEARCH_TAB.id)
+              },
+              style: {
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
             },
-            tablerIcon(tab.tabler, { size: 24, color: tint }) ??
-              h(Text, { style: { color: tint, fontSize: 22, lineHeight: 26 } }, tab.icon),
-            h(Text, { numberOfLines: 1, style: { color: tint, fontSize: 10, fontWeight: isSelected ? '600' : '400' } }, tabTitle),
-          )
-        }),
+            tablerIcon(SEARCH_TAB.tabler, {
+              size: 22,
+              color: isSearchSelected ? palette.accent.base : palette.text.secondary,
+            }) ??
+              h(
+                Text,
+                {
+                  style: {
+                    color: isSearchSelected ? palette.accent.base : palette.text.secondary,
+                    fontSize: 20,
+                  },
+                },
+                SEARCH_TAB.icon,
+              ),
+          ),
+        ),
       ),
     ),
   )
@@ -1046,7 +1489,7 @@ function Shell({ ctx }: { ctx: Context }) {
       BottomBar
         ? h(BottomBar, {
             ctx,
-            onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
+            onOpenNowPlaying: openFullscreenNowPlaying,
             onOpenQueue: () => setIsQueueOpen(true),
             // The rail is 240dp wide: the bar's own queue button would
             // squeeze its title to nothing, so the button is hidden here
@@ -1182,9 +1625,9 @@ function Shell({ ctx }: { ctx: Context }) {
    * so returning finds each page exactly as it was left, and on the tablet
    * the overlay covers the whole window, rail included.
    */
-  const fullscreenOverlay = isFullscreenNowPlaying
+  const fullscreenOverlay = isSheetMounted
     ? h(
-        View,
+        Animated.View,
         {
           style: {
             position: 'absolute',
@@ -1197,12 +1640,33 @@ function Shell({ ctx }: { ctx: Context }) {
             // status-bar inset carried here.
             paddingTop: insets.top,
             backgroundColor: palette.bg.base,
+            transform: [{ translateY: sheetAnim }],
             zIndex: 100,
           },
           testID: 'now-playing-overlay',
         },
+        // Apple Music top drag handle indicator with PanResponder for pull-down dismiss
+        h(
+          View,
+          {
+            ...sheetPanResponder.panHandlers,
+            style: {
+              alignItems: 'center',
+              paddingVertical: 10,
+              width: '100%',
+            },
+          },
+          h(View, {
+            style: {
+              width: 36,
+              height: 5,
+              borderRadius: 2.5,
+              backgroundColor: isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.35)',
+            },
+          }),
+        ),
         NowPlayingView
-          ? h(NowPlayingView, { ctx, onClose: () => setIsFullscreenNowPlaying(false) })
+          ? h(NowPlayingView, { ctx, onClose: closeFullscreenNowPlaying })
           : h(
               Text,
               { style: { padding: 24, color: palette.text.secondary } },

@@ -7,7 +7,7 @@
  * `react-native`.
  */
 
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createElement as h, type ReactElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
@@ -59,7 +59,7 @@ afterEach(cleanup)
 
 function hostComponent(name: string) {
   return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
-    const { children, accessibilityLabel, accessibilityRole, onPress, testID } = props
+    const { children, accessibilityLabel, accessibilityRole, onPress, testID, onTouchStart, onTouchEnd } = props
     return h(
       'div',
       {
@@ -67,6 +67,8 @@ function hostComponent(name: string) {
         'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
+        onTouchStart: typeof onTouchStart === 'function' ? (onTouchStart as never) : undefined,
+        onTouchEnd: typeof onTouchEnd === 'function' ? (onTouchEnd as never) : undefined,
         onClick: typeof onPress === 'function' ? (e: { stopPropagation: () => void }) => {
           e.stopPropagation()
           ;(onPress as () => void)()
@@ -298,7 +300,7 @@ describe('NowPlayingBar on mobile', () => {
       { id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' },
       { id: 'q-2', trackUrn: 'BBeBee:local:track:2', addedBy: 'user' },
     ]
-    const { ctx, calls } = await harness(
+    const { ctx } = await harness(
       {
         trackUrn: 'BBeBee:local:track:1',
         currentItemId: 'q-1',
@@ -308,33 +310,10 @@ describe('NowPlayingBar on mobile', () => {
       queue,
     )
     const { container } = render(h(NowPlayingBar, { ctx }))
-    const nextBtn = container.querySelector('[data-label="Next track"]') as HTMLElement
-    expect(nextBtn).toBeTruthy()
-    await act(async () => {
-      nextBtn.click()
-    })
-    expect(calls).toContain('next')
-
-    // At the last queue item there is nothing to skip to: pressing the
-    // stood-down button must not skip.
-    const end = await harness(
-      {
-        trackUrn: 'BBeBee:local:track:2',
-        currentItemId: 'q-2',
-        nowPlaying: { title: 'Walkin', artist: 'Miles Davis' },
-        status: 'playing',
-      },
-      queue,
-    )
-    const endContainer = render(h(NowPlayingBar, { ctx: end.ctx })).container
-    const endNextBtn = endContainer.querySelector('[data-label="Next track"]') as HTMLElement
-    await act(async () => {
-      endNextBtn.click()
-    })
-    expect(end.calls).not.toContain('next')
+    expect(container.querySelector('[data-label="Next track"]')).toBeNull()
   })
 
-  it('hides the queue button when the shell asks, keeping play and favorite', async () => {
+  it('hides the queue button when the shell asks, keeping play', async () => {
     // The tablet rail's variant: the queue lives in the rail's own row
     // underneath the bar, not in the bar.
     const { ctx } = await harness(
@@ -348,7 +327,32 @@ describe('NowPlayingBar on mobile', () => {
     const { container } = render(h(NowPlayingBar, { ctx, hideQueueButton: true }))
     expect(container.querySelector('[data-label="Play queue"]')).toBeNull()
     expect(container.querySelector('[data-label="Pause"]')).toBeTruthy()
-    expect(container.querySelector('[data-label="Add Solar to favorites"]')).toBeTruthy()
+  })
+
+  it('supports horizontal swipe gestures for next and previous track', async () => {
+    const queue: QueueItem[] = [
+      { id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' },
+      { id: 'q-2', trackUrn: 'BBeBee:local:track:2', addedBy: 'user' },
+    ]
+    const { ctx, calls } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        currentItemId: 'q-1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'playing',
+      },
+      queue,
+    )
+    const { container } = render(h(NowPlayingBar, { ctx }))
+    const bar = container.querySelector('[data-label="Open now playing"]') as HTMLElement
+    expect(bar).toBeTruthy()
+
+    // Swipe left (next track)
+    await act(async () => {
+      fireEvent.touchStart(bar, { touches: [{ pageX: 200, pageY: 100 }] })
+      fireEvent.touchEnd(bar, { changedTouches: [{ pageX: 140, pageY: 100 }] })
+    })
+    expect(calls).toContain('next')
   })
 
   it('stays mounted while idle as a placeholder: nothing to play, queue still reachable', async () => {
@@ -384,8 +388,8 @@ describe('NowPlayingBar on mobile', () => {
     expect(queueOpened).toBe(true)
   })
 
-  it('favorites the current track through both stores and re-reads on library change', async () => {
-    const { ctx, calls } = await harness(
+  it('does not render favorite button on the bar', async () => {
+    const { ctx } = await harness(
       {
         trackUrn: 'BBeBee:local:track:1',
         nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
@@ -395,85 +399,31 @@ describe('NowPlayingBar on mobile', () => {
       { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
     )
     const { container } = render(h(NowPlayingBar, { ctx }))
-
-    // Unsaved: the label offers adding, and the press writes catalogue first,
-    // library second (the dual-write invariant).
-    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
-    expect(heart).toBeTruthy()
-    await act(async () => {
-      heart.click()
-    })
-    expect(calls.indexOf('setLoved:BBeBee:local:track:1:true')).toBeLessThan(
-      calls.indexOf('setSaved:BBeBee:local:track:1:true'),
-    )
-
-    // The library write fired `library/changed`; the bar re-read and flipped
-    // its label to the remove form.
-    await act(async () => {
-      await Promise.resolve()
-    })
-    const removeHeart = container.querySelector(
-      '[data-label="Remove Solar from favorites"]',
-    ) as HTMLElement
-    expect(removeHeart).toBeTruthy()
+    expect(container.querySelector('[data-label="Add Solar to favorites"]')).toBeNull()
+    expect(container.querySelector('[data-label="Remove Solar from favorites"]')).toBeNull()
   })
 
-  it('fires the haptics tap cue exactly once per heart press', async () => {
-    const { ctx, calls } = await harness(
+  it('hides secondary controls and artist in compact mode to free layout space', async () => {
+    const { ctx } = await harness(
       {
         trackUrn: 'BBeBee:local:track:1',
         nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
-        status: 'paused',
+        status: 'playing',
       },
-      [],
-      { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
-      { haptics: true },
     )
-    const { container } = render(h(NowPlayingBar, { ctx }))
+    // 1. Expanded mode: Queue and Artist are rendered, Next and Favorite are not on the bar
+    const { container, rerender } = render(h(NowPlayingBar, { ctx, isCompact: false }))
+    expect(container.textContent).toContain('Miles Davis')
+    expect(container.querySelector('[data-label="Play queue"]')).toBeTruthy()
+    expect(container.querySelector('[data-label="Next track"]')).toBeNull()
+    expect(container.querySelector('[data-label="Add Solar to favorites"]')).toBeNull()
 
-    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
-    await act(async () => {
-      heart.click()
-    })
-    // The press itself ticked once, and the toggle still ran behind it.
-    expect(calls.filter((call) => call === 'haptics:tap')).toHaveLength(1)
-    expect(calls).toContain('setSaved:BBeBee:local:track:1:true')
-
-    // The `library/changed` the write fired re-reads the saved state; that
-    // re-render must not tick again — the press is the cue's only trigger
-    // (the haptics service's no-favorite-event rule).
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(calls.filter((call) => call === 'haptics:tap')).toHaveLength(1)
-  })
-
-  it('toggles the favorite with no haptics service registered, without throwing', async () => {
-    const { ctx, calls } = await harness(
-      {
-        trackUrn: 'BBeBee:local:track:1',
-        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
-        status: 'paused',
-      },
-      [],
-      { 'BBeBee:local:track:1': { urn: 'BBeBee:local:track:1', title: 'Solar', artists: [] } },
-    )
-    const { container } = render(h(NowPlayingBar, { ctx }))
-
-    const heart = container.querySelector('[data-label="Add Solar to favorites"]') as HTMLElement
-    await act(async () => {
-      heart.click()
-    })
-    expect(calls).toContain('setSaved:BBeBee:local:track:1:true')
-
-    // Desktop shape: nothing answered 'haptics', and the press still toggled
-    // the favorite — the optional read is a no-op, never a crash.
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(
-      container.querySelector('[data-label="Remove Solar from favorites"]'),
-    ).toBeTruthy()
+    // 2. Compact mode: Artist subtitle is hidden, title and play button stay visible
+    rerender(h(NowPlayingBar, { ctx, isCompact: true }))
+    expect(container.textContent).not.toContain('Miles Davis')
+    expect(container.textContent).toContain('Solar')
+    // Play/Pause button remains visible
+    expect(container.querySelector('[data-label="Pause"]')).toBeTruthy()
   })
 })
 

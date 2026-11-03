@@ -21,10 +21,10 @@
  * as it did before any panel plugin loaded.
  */
 
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { HapticsService, I18nService, LibraryService, NowPlayingStyleId, SettingsService, SourcesService, UiService } from '@BBeBee/protocol'
+import type { HapticsService, I18nService, NowPlayingStyleId, SettingsService, UiService } from '@BBeBee/protocol'
 import { NOW_PLAYING_STYLES, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import { NOW_PLAYING_VIEWS } from '@bbebee/plugin-now-playing/views'
@@ -616,6 +616,12 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
 
 export interface NowPlayingBarProps {
   ctx: Context
+  /**
+   * Whether the bar renders in compact mode (e.g., when the TabBar collapses).
+   * In compact mode, secondary media buttons (next, favorite, queue) are collapsed
+   * out of layout to maximize horizontal room for the title and play button.
+   */
+  isCompact?: boolean
   onOpenNowPlaying?: () => void
   /**
    * Opens the shell's queue drawer. Deliberately a callback rather than the
@@ -636,54 +642,13 @@ export interface NowPlayingBarProps {
 }
 
 /**
- * Whether the current track is in the library, kept current across writers
- * besides this bar (row hearts, track menus).
- *
- * `isSaved` is a one-shot read, so currency comes from re-reading on the one
- * event every `library.setSaved` writer fires (`library/changed`) and on
- * track changes (the effect re-runs when `urn` moves).
- */
-function useTrackSaved(ctx: Context, urn: string | undefined): boolean {
-  const [saved, setSaved] = useState(false)
-  const [tick, setTick] = useState(0)
-
-  useEffect(() => {
-    if (!urn) {
-      setSaved(false)
-      return
-    }
-    const library = serviceOf<LibraryService>(ctx, 'library')
-    if (!library) {
-      setSaved(false)
-      return
-    }
-    let cancelled = false
-    void library
-      .isSaved(urn)
-      .then((value) => {
-        if (!cancelled) setSaved(value)
-      })
-      .catch(() => {})
-    const off = ctx.on('library/changed', (kind: string) => {
-      if (!kind || kind === 'track') setTick((n) => n + 1)
-    })
-    return () => {
-      cancelled = true
-      off()
-    }
-  }, [ctx, urn, tick])
-
-  return saved
-}
-
-/**
  * The persistent transport bar on mobile — the Apple-Music-style mini player:
  * a floating rounded card above the tab bar (artwork, two-line text, the
  * controls on the right) with the hairline playback progress along its
  * bottom edge (docs/ui/design-system.md §6.8). Idle is the same card reading
  * "暂无播放" at reduced opacity, every control stood down except the queue.
  */
-export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueButton }: NowPlayingBarProps): ReactElement {
+export function NowPlayingBar({ ctx, isCompact, onOpenNowPlaying, onOpenQueue, hideQueueButton }: NowPlayingBarProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
   const palette = usePalette()
@@ -691,7 +656,7 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
   const position = usePosition(ctx)
   const duration = useDuration(ctx)
   const can = useTransportAvailability(ctx)
-  const saved = useTrackSaved(ctx, state.trackUrn)
+
   // Same Liquid Glass settings as the tab bar: the bar hands the resolved
   // value to `GlassSurface`, which picks the rendering tier.
   const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
@@ -709,12 +674,6 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
     { isEqual: (a, b) => a.length === b.length && a.every((item, i) => item.id === b[i]?.id) },
   )
 
-  /*
-   * Idle is a placeholder, not a hidden bar: a transport surface that appears
-   * only after the first play teaches the user nothing about where playback
-   * will live. Everything stateful stands down (play, favorite, the body's
-   * open action) except the queue button — the queue outlives any one track.
-   */
   const idle = !state.trackUrn && state.status === 'idle'
 
   const handleOpen = () => {
@@ -723,64 +682,65 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
     ctx.ui?.navigate?.(NOW_PLAYING_VIEWS.nowPlaying)
   }
 
-  const toggleSaved = () => {
-    const urn = state.trackUrn
-    if (!urn) return
-    // The one-tap confirmation fires here, on the press itself — never off
-    // `library/changed`, which cannot tell a favorite tap from a scanner's
-    // bulk batch (the haptics service's no-favorite-trigger rule). Read the
-    // same optional way as the stores below: desktop registers no haptics
-    // service, and the absent case is a silent no-op.
-    serviceOf<HapticsService>(ctx, 'haptics')?.tap()
-    const sources = serviceOf<SourcesService>(ctx, 'sources')
-    const library = serviceOf<LibraryService>(ctx, 'library')
-    // Dual-write invariant (rules/ui.md §7): the catalogue's loved flag
-    // first, then the library row — the order every other favorite writer
-    // uses, so both stores see the same state when `library/changed` fires.
-    // Rollback on failure is the service's job (rules/ui.md §3), not this
-    // button's; the hook re-reads on the next `library/changed` either way.
-    void (async () => {
-      try {
-        await sources?.setLoved(urn, !saved)
-      } catch {
-        // The library write below is the one the shelf reads; a catalogue
-        // failure must not cancel it.
-      }
-      try {
-        await library?.setSaved(urn, !saved)
-      } catch {
-        // Re-synced by the next `library/changed`; nothing to correct here.
-      }
-    })()
-  }
-
-  const favoriteLabel = saved
-    ? t('nowPlaying:nowPlaying.removeFromFavorites', { title: state.nowPlaying?.title ?? '' })
-    : t('nowPlaying:nowPlaying.addToFavorites', { title: state.nowPlaying?.title ?? '' })
-
   // The card's bottom-edge scrubber: hairline track, accent fill. Hidden
   // until a duration exists — an indeterminate hairline reads as a glitch.
   const progress = duration && duration > 0 ? Math.min(position / duration, 1) : 0
 
   const isLight = getScheme() === 'light'
 
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+  const [cardScale, setCardScale] = useState(1)
+
+  const handleTouchStart = (e: { nativeEvent?: { pageX?: number; pageY?: number }; touches?: Array<{ pageX?: number; pageY?: number }> }) => {
+    touchStartX.current = e.nativeEvent?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    touchStartY.current = e.nativeEvent?.pageY ?? e.touches?.[0]?.pageY ?? 0
+    setCardScale(0.98)
+  }
+
+  const handleTouchEnd = (e: { nativeEvent?: { pageX?: number; pageY?: number }; changedTouches?: Array<{ pageX?: number; pageY?: number }>; touches?: Array<{ pageX?: number; pageY?: number }> }) => {
+    setCardScale(1)
+    const endX = e.nativeEvent?.pageX ?? e.changedTouches?.[0]?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    const endY = e.nativeEvent?.pageY ?? e.changedTouches?.[0]?.pageY ?? e.touches?.[0]?.pageY ?? 0
+    const dx = endX - touchStartX.current
+    const dy = endY - touchStartY.current
+
+    // Horizontal swipe left: next track
+    if (dx < -35 && Math.abs(dx) > Math.abs(dy)) {
+      if (can.canNext) {
+        serviceOf<HapticsService>(ctx, 'haptics')?.tap()
+        void ctx.player.next()
+      }
+    }
+    // Horizontal swipe right: prev track
+    else if (dx > 35 && Math.abs(dx) > Math.abs(dy)) {
+      if (can.canPrevious) {
+        serviceOf<HapticsService>(ctx, 'haptics')?.tap()
+        void ctx.player.previous()
+      }
+    }
+    // Vertical swipe up: open now playing
+    else if (dy < -35 && Math.abs(dy) > Math.abs(dx)) {
+      handleOpen()
+    }
+  }
+
+  const isPlaying = state.status === 'playing'
+
   /*
    * The bar as Apple Music draws its mini-player: a floating pill above
-   * the tab bar — 64pt tall, 44pt artwork with an 8pt radius, 12pt insets,
-   * title 15pt/500 over artist 13pt/secondary, and 22pt trailing controls
-   * led by play/pause then forward. BBeBee keeps its own two trailing
-   * controls (favorite, queue) after that pair rather than dropping them:
-   * the bar is the only in-player favorite button on mobile, and the
-   * queue button is the idle placeholder's one live control.
+   * the tab bar — 64pt tall, 44pt artwork with living scale (1.0 playing, 0.86 paused),
+   * 12pt insets, title 15pt/500 over artist 13pt/secondary, and trailing controls.
    */
   return h(
     native.View as never,
     {
       style: {
+        transform: [{ scale: cardScale }],
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: isLight ? 0.12 : 0.35,
-        shadowRadius: 12,
+        shadowRadius: 14,
         elevation: 6,
       },
     },
@@ -790,11 +750,13 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
         intensity: 85,
         tint: isLight ? 'light' : 'dark',
         liquid: liquidGlass,
-        borderRadius: 20,
+        borderRadius: 26,
         style: {
-          borderRadius: 20,
+          borderRadius: 26,
           borderWidth: 1,
-          borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)',
+          borderColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
+          height: 52,
+          justifyContent: 'center',
         },
       },
       h(
@@ -803,34 +765,57 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
           accessibilityRole: 'button',
           accessibilityLabel: t('nowPlaying:nowPlaying.openNowPlaying'),
           onPress: handleOpen,
+          onTouchStart: handleTouchStart,
+          onTouchEnd: handleTouchEnd,
           style: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: tokens.space[3],
-            paddingHorizontal: tokens.space[3],
-            // 64pt tall with 44pt artwork: 44 + 2×10.
-            paddingVertical: 10,
+            gap: isCompact ? tokens.space[2] : tokens.space[3],
+            paddingHorizontal: isCompact ? 8 : 12,
+            paddingVertical: 4,
+            height: 52,
           },
         },
-        h(CachedArtwork, {
-          ctx,
-          artwork: state.nowPlaying?.artwork,
-          seed: state.trackUrn,
-          size: 44,
-          radius: tokens.radius.md,
-        }),
         h(
           native.View as never,
-          { style: { flex: 1, minWidth: 0, gap: 1, opacity: idle ? 0.6 : 1 } },
+          {
+            style: {
+              transform: [{ scale: isPlaying ? 1.0 : 0.86 }],
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: isPlaying ? 3 : 1 },
+              shadowOpacity: isPlaying ? 0.35 : 0.15,
+              shadowRadius: isPlaying ? 5 : 2,
+              elevation: isPlaying ? 4 : 1,
+            },
+          },
+          h(CachedArtwork, {
+            ctx,
+            artwork: state.nowPlaying?.artwork,
+            seed: state.trackUrn,
+            size: 40,
+            radius: 8,
+          }),
+        ),
+        h(
+          native.View as never,
+          {
+            style: {
+              flex: 1,
+              minWidth: 0,
+              justifyContent: 'center',
+              gap: 1,
+              opacity: idle ? 0.6 : 1,
+            },
+          },
           h(native.Text as never, {
             numberOfLines: 1,
-            style: { color: palette.text.primary, fontSize: 15, fontWeight: '500' },
+            style: { color: palette.text.primary, fontSize: isCompact ? 13 : 14, fontWeight: '500' },
             children: state.nowPlaying?.title ?? (state.trackUrn ? t('nowPlaying:nowPlaying.loading') : t('nowPlaying:nowPlaying.nothingPlaying')),
           }),
-          state.nowPlaying?.artist
+          state.nowPlaying?.artist && !isCompact
             ? h(native.Text as never, {
                 numberOfLines: 1,
-                style: { color: palette.text.secondary, fontSize: 13 },
+                style: { color: palette.text.secondary, fontSize: 12 },
                 children: state.nowPlaying.artist,
               })
             : null,
@@ -846,48 +831,41 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
             disabled: !can.canPlay && !can.canPause,
             onPress: () => ctx.player.togglePlay(),
           }),
-          h(IconButton, {
-            icon: '⏭',
-            accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
-            variant: 'ghost',
-            size: 22,
-            // Stood down while idle like play/favorite: the queue button
-            // below is the idle placeholder's one live control.
-            disabled: idle || !can.canNext,
-            onPress: () => void ctx.player.next(),
-          }),
-          h(IconButton, {
-            icon: saved ? '♥' : '♡',
-            accessibilityLabel: favoriteLabel,
-            variant: 'ghost',
-            size: 22,
-            disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
-            onPress: toggleSaved,
-          }),
-          hideQueueButton
-            ? null
-            : h(IconButton, {
-                icon: '☰',
-                accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
-                variant: 'ghost',
-                size: 22,
-                // Usable while idle on purpose: the queue is reachable before the
-                // first track ever plays.
-                disabled: false,
-                onPress: () => onOpenQueue?.(),
-              }),
-          ...(() => {
-            const ui = serviceOf<UiService>(ctx, 'ui')
-            return actionSlots
-              .filter((slot) => !slot.when || slot.when({ ctx }))
-              .map((slot) => {
-                const Component = ui?.viewFor?.(slot.id) as
-                  | React.ComponentType<{ ctx: Context }>
-                  | undefined
-                return Component ? h(Component, { key: slot.id, ctx }) : null
-              })
-              .filter(Boolean)
-          })(),
+          h(
+            native.View as never,
+            {
+              style: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                overflow: 'hidden',
+                ...(isCompact ? { width: 0, opacity: 0 } : {}),
+              },
+            },
+            hideQueueButton
+              ? null
+              : h(IconButton, {
+                  icon: '☰',
+                  accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
+                  variant: 'ghost',
+                  size: 22,
+                  // Usable while idle on purpose: the queue is reachable before the
+                  // first track ever plays.
+                  disabled: false,
+                  onPress: () => onOpenQueue?.(),
+                }),
+            ...(() => {
+              const ui = serviceOf<UiService>(ctx, 'ui')
+              return actionSlots
+                .filter((slot) => !slot.when || slot.when({ ctx }))
+                .map((slot) => {
+                  const Component = ui?.viewFor?.(slot.id) as
+                    | React.ComponentType<{ ctx: Context }>
+                    | undefined
+                  return Component ? h(Component, { key: slot.id, ctx }) : null
+                })
+                .filter(Boolean)
+            })(),
+          ),
         ),
         duration && duration > 0
           ? h(
@@ -899,8 +877,8 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueBut
                   right: 0,
                   bottom: 0,
                   height: 1.5,
-                  borderBottomLeftRadius: 20,
-                  borderBottomRightRadius: 20,
+                  borderBottomLeftRadius: 26,
+                  borderBottomRightRadius: 26,
                   overflow: 'hidden',
                 },
                 testID: 'now-playing-bar-progress',
