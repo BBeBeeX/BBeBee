@@ -173,7 +173,7 @@ export function AlbumScreen({
           onMore: (anchor) => menu.open({ track }, anchor),
         }),
     }),
-    h(ContextMenu, menu.menuProps),
+    h(ContextMenu, { ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

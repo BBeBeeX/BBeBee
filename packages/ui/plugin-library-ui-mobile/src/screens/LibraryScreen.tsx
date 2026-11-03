@@ -822,6 +822,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           onChange: setSearchQuery,
           placeholder: t('library:libraryToolbar.searchTheLibrary'),
           testID: 'library-search-input',
+          liquid: liquidGlass,
         })
       : null,
     error ? h(Text, { variant: 'sm', tone: 'error', testID: 'playlists-error' }, error) : null,
@@ -996,9 +997,9 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       },
     }),
     // Every open menu, mounted in one place.
-    h(ContextMenu, { ctx, ...playlistMenu.menuProps }),
-    h(ContextMenu, { ctx, ...collectionMenu.menuProps }),
-    h(ContextMenu, { ctx, ...albumMenu.menuProps }),
+    h(ContextMenu, { ctx, ...playlistMenu.menuProps, liquid: liquidGlass }),
+    h(ContextMenu, { ctx, ...collectionMenu.menuProps, liquid: liquidGlass }),
+    h(ContextMenu, { ctx, ...albumMenu.menuProps, liquid: liquidGlass }),
     h(ContextMenu, {
       ctx,
       open: simpleMenu !== undefined,
@@ -1007,6 +1008,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       y: simpleMenu?.anchor?.y ?? 0,
       items: simpleMenu?.items ?? [],
       ...(simpleMenu ? { title: simpleMenu.title } : {}),
+      liquid: liquidGlass,
     }),
   )
 }

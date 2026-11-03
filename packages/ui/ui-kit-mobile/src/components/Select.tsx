@@ -4,6 +4,7 @@ import { tokens } from '@BBeBee/ui-tokens'
 import { c, common, nativePrimitives } from '../primitives.js'
 import { Text } from './Text.js'
 import { Sheet } from './Sheet.js'
+import type { LiquidGlassOptions } from './GlassSurface.js'
 
 export interface SelectOption<T extends string = string> {
   value: T
@@ -16,6 +17,12 @@ export interface SelectProps<T extends string = string> {
   onChange: (value: T) => void
   accessibilityLabel?: string
   testID?: string
+  /**
+   * Opt-in glass for the dropdown list surface only, threaded straight
+   * into the internal Sheet. The closed field keeps its bordered fill —
+   * a glass closed field would read as a button, not a field.
+   */
+  liquid?: LiquidGlassOptions
 }
 
 /**
@@ -68,6 +75,7 @@ export function Select<T extends string = string>(props: SelectProps<T>): ReactE
         open,
         onClose: () => setOpen(false),
         title: props.accessibilityLabel,
+        liquid: props.liquid,
       },
       h(
         native.View as never,

@@ -36,6 +36,7 @@ import {
   useTransportAvailability,
 } from '@bbebee/plugin-player/hooks'
 import { c, Artwork, GlassSurface, IconButton, Slider, Text, getScheme, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
+import type { LiquidGlassOptions } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { serviceOf, useServiceState, type ArtworkProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -56,15 +57,42 @@ function CachedArtwork({ ctx, ...props }: ArtworkProps & { ctx: Context }): Reac
 function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTransportAvailability> }): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  // Same subscribed glass as the close pill. Only the ghost prev/next
+  // buttons go glass: the play button keeps its accent fill — it is the
+  // row's one prominence cue, and a white-on-accent glyph on glass would
+  // lose contrast on light artwork.
+  const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
+    resolveMobileLiquidGlassSettings(
+      serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+    ),
+  )
+  const glassButton = (button: ReactElement): ReactElement =>
+    h(
+      GlassSurface,
+      {
+        liquid: liquidGlass,
+        borderRadius: 22,
+        style: {
+          width: tokens.size.touchTarget,
+          height: tokens.size.touchTarget,
+          borderRadius: 22,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+      },
+      button,
+    )
   return h(
     native.View as never,
     { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[4] } },
-    h(IconButton, {
-      icon: '⏮',
-      accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
-      disabled: !can.canPrevious,
-      onPress: () => void ctx.player.previous(),
-    }),
+    glassButton(
+      h(IconButton, {
+        icon: '⏮',
+        accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
+        disabled: !can.canPrevious,
+        onPress: () => void ctx.player.previous(),
+      }),
+    ),
     h(IconButton, {
       icon: can.canPause ? '⏸' : '▶',
       accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
@@ -73,12 +101,14 @@ function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTr
       disabled: !can.canPlay && !can.canPause,
       onPress: () => ctx.player.togglePlay(),
     }),
-    h(IconButton, {
-      icon: '⏭',
-      accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
-      disabled: !can.canNext,
-      onPress: () => void ctx.player.next(),
-    }),
+    glassButton(
+      h(IconButton, {
+        icon: '⏭',
+        accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
+        disabled: !can.canNext,
+        onPress: () => void ctx.player.next(),
+      }),
+    ),
   )
 }
 
@@ -444,8 +474,9 @@ function CloseButton({ ctx, onClose, t }: { ctx: Context; onClose: () => void; t
 
 /* ── Style switcher button ─────────────────────────────────────────────── */
 
-function StyleSwitcherButton({ styleId, setStyle, t }: {
+function StyleSwitcherButton({ styleId, setStyle, t, liquid }: {
   styleId: NowPlayingStyleId; setStyle: (id: NowPlayingStyleId) => void; t: I18nService['t']
+  liquid?: LiquidGlassOptions
 }): ReactElement {
   const native = nativePrimitives()
   const styles = NOW_PLAYING_STYLES
@@ -453,21 +484,34 @@ function StyleSwitcherButton({ styleId, setStyle, t }: {
   const nextIdx = (currentIdx + 1) % styles.length
   const next = styles[nextIdx]!
 
+  // Same glass as the close pill: the translucent fill gives way to the
+  // liquid/blur/translucent tier, and the label stays on the inner
+  // Pressable so accessibility still meets one button.
   return h(
-    native.Pressable as never,
+    GlassSurface,
     {
-      accessibilityRole: 'button',
-      accessibilityLabel: t('nowPlaying:index.switchNowPlayingStyle', { name: next.name }),
-      onPress: () => setStyle(next.id),
+      liquid,
+      borderRadius: tokens.radius.pill,
       style: {
         alignSelf: 'flex-end',
-        paddingVertical: tokens.space[1],
-        paddingHorizontal: tokens.space[3],
         borderRadius: tokens.radius.pill,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
       },
     },
-    h(Text, { variant: 'sm', children: `🎨 ${styles[currentIdx]?.name ?? 'Classic'}` }),
+    h(
+      native.Pressable as never,
+      {
+        accessibilityRole: 'button',
+        accessibilityLabel: t('nowPlaying:index.switchNowPlayingStyle', { name: next.name }),
+        onPress: () => setStyle(next.id),
+        style: {
+          paddingVertical: tokens.space[1],
+          paddingHorizontal: tokens.space[3],
+          borderRadius: tokens.radius.pill,
+          backgroundColor: 'transparent',
+        },
+      },
+      h(Text, { variant: 'sm', children: `🎨 ${styles[currentIdx]?.name ?? 'Classic'}` }),
+    ),
   )
 }
 
@@ -530,6 +574,11 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
   const can = useTransportAvailability(ctx)
   const { styleId, setStyle } = useNowPlayingStyle(ctx)
   const PanelView = usePanelView(ctx)
+  const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
+    resolveMobileLiquidGlassSettings(
+      serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+    ),
+  )
 
   const Layout = MOBILE_LAYOUT_MAP[styleId] ?? MOBILE_LAYOUT_MAP.classic
 
@@ -544,7 +593,7 @@ export function NowPlayingScreen({ ctx, onClose }: NowPlayingScreenProps): React
       accessibilityLabel: t('nowPlaying:nowPlaying.nowPlaying'),
       style: { flex: 1, backgroundColor: p().bg.base },
     },
-    h(StyleSwitcherButton, { styleId, setStyle, t }),
+    h(StyleSwitcherButton, { styleId, setStyle, t, liquid: liquidGlass }),
     showPanel && PanelView
       ? h(
           native.View as never,

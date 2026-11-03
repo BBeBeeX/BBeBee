@@ -28,6 +28,7 @@ import {
   Toast,
   TrackRow,
   ContextMenu,
+  GlassSurface,
   configureNative,
   nativePrimitives,
 } from './index.js'
@@ -280,6 +281,22 @@ describe('Toast', () => {
       'polite',
     )
   })
+
+  it('goes glass for info but keeps status colours for error', () => {
+    const liquid = {
+      general: { enabled: true, variant: 'regular' as const, interactive: false, intensity: 60 },
+      advanced: { thickness: 1, refraction: true, tilt: false, edgeReflectionStrength: 1, legibilityFloor: 0 },
+    }
+    const infoNodes = tree(h(Toast, { message: 'Saved', liquid }))
+    expect(infoNodes.some((n) => n.type === GlassSurface)).toBe(true)
+    // The announcement survives the glass: the live region stays on the
+    // transparent outer view, not on the glass surface.
+    expect(
+      (infoNodes[0]!.props as { accessibilityLiveRegion: string }).accessibilityLiveRegion,
+    ).toBe('polite')
+    const errorNodes = tree(h(Toast, { message: 'Failed', tone: 'error', liquid }))
+    expect(errorNodes.some((n) => n.type === GlassSurface)).toBe(false)
+  })
 })
 
 describe('Artwork and EmptyState', () => {
@@ -403,6 +420,38 @@ describe('TextField', () => {
     )
     expect(JSON.stringify(nodes.map((n) => n.props))).toContain('sourceUrl: must be a string')
   })
+
+  it('goes glass when liquid is passed, with a transparent input', () => {
+    const liquid = {
+      general: { enabled: true, variant: 'regular' as const, interactive: false, intensity: 60 },
+      advanced: { thickness: 1, refraction: true, tilt: false, edgeReflectionStrength: 1, legibilityFloor: 0 },
+    }
+    const nodes = tree(
+      h(TextField, { value: '', onChange: () => {}, accessibilityLabel: 'Search', liquid }),
+    )
+    expect(nodes.some((n) => n.type === GlassSurface)).toBe(true)
+    const input = nodes.find((n) => n.type === 'RNTextInput')
+    expect((input?.props as { style?: { backgroundColor?: string } }).style?.backgroundColor).toBe(
+      'transparent',
+    )
+  })
+
+  it('keeps the error line outside the glass', () => {
+    const liquid = {
+      general: { enabled: true, variant: 'regular' as const, interactive: false, intensity: 60 },
+      advanced: { thickness: 1, refraction: true, tilt: false, edgeReflectionStrength: 1, legibilityFloor: 0 },
+    }
+    const nodes = tree(
+      h(TextField, {
+        value: '{',
+        onChange: () => {},
+        error: 'sourceUrl: must be a string',
+        accessibilityLabel: 'Doc',
+        liquid,
+      }),
+    )
+    expect(JSON.stringify(nodes.map((n) => n.props))).toContain('sourceUrl: must be a string')
+  })
 })
 
 
@@ -458,5 +507,31 @@ describe('ContextMenu on mobile', () => {
     expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
     expect(container.textContent).toContain('New playlist')
     expect(container.textContent).toContain('Road trip')
+  })
+
+  it('renders rows and reports a press with liquid passed', () => {
+    // The DOM host strips styles, so this guards the prop path — the
+    // glass surface itself is covered by the Sheet glass test — not the
+    // pixels: rows must still render and press through the glass wrapper.
+    configureNative({ ...NATIVE_DOM })
+    const liquid = {
+      general: { enabled: true, variant: 'regular' as const, interactive: false, intensity: 60 },
+      advanced: { thickness: 1, refraction: true, tilt: false, edgeReflectionStrength: 1, legibilityFloor: 0 },
+    }
+    const onSelect = vi.fn()
+    const { container } = render(
+      h(ContextMenu, {
+        open: true,
+        onClose: vi.fn(),
+        x: 0,
+        y: 0,
+        items: [{ id: 'queue', label: 'Add to play queue', onSelect }],
+        liquid,
+      }),
+    )
+    const row = container.querySelector('[data-label="Add to play queue"]') as HTMLElement | null
+    expect(row, 'the row is rendered').toBeTruthy()
+    row!.click()
+    expect(onSelect).toHaveBeenCalledOnce()
   })
 })

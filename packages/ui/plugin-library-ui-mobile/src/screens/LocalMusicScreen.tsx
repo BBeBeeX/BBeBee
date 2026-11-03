@@ -10,11 +10,13 @@
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { Track } from '@BBeBee/protocol'
+import type { SettingsService, Track } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { fetchAllLocalTracks } from '@bbebee/plugin-library/hooks'
 import { playFromList } from '@bbebee/plugin-sources/hooks'
 import { Button, ContextMenu, EmptyState, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
+import { serviceOf } from '@BBeBee/ui-core'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -25,6 +27,9 @@ export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
   const [tracks, setTracks] = useState<readonly Track[]>([])
   const [error, setError] = useState<string | undefined>(undefined)
   const menu = useTrackMenu(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -98,7 +103,7 @@ export function LocalMusicScreen({ ctx }: { ctx: Context }): ReactElement {
           }),
       }),
     ),
-    h(ContextMenu, { ctx, ...menu.menuProps }),
+    h(ContextMenu, { ctx, ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

@@ -1,7 +1,8 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { QueueSourceContext } from '@BBeBee/protocol'
+import type { QueueSourceContext, SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useCollectionDetail, type CollectionMember } from '@bbebee/plugin-library/hooks'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
@@ -28,6 +29,9 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
     .filter((member) => member.kind === 'track' && member.track)
     .map((member) => member.urn)
   const menu = useTrackMenu(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const player = serviceOf<{ playNow(urns: string[], opts?: { context?: QueueSourceContext }): Promise<void> }>(ctx, 'player')
 
   if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
@@ -106,7 +110,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         },
       }),
     ),
-    h(ContextMenu, { ctx, ...menu.menuProps }),
+    h(ContextMenu, { ctx, ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

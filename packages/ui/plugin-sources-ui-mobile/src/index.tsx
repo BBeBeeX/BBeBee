@@ -10,7 +10,8 @@ import { createElement as h, Fragment, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { DownloadsService, I18nService, ImportReport, TraceEvent, UiService } from '@BBeBee/protocol'
+import type { DownloadsService, I18nService, ImportReport, SettingsService, TraceEvent, UiService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import {
@@ -91,6 +92,9 @@ export function SearchScreen({
   const search = useSourceSearch(ctx)
   const [text, setText] = useState(query ?? '')
   const menu = useTrackMenu(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
 
   const submitted = search.status !== 'idle'
   const busy = search.status === 'loading'
@@ -144,6 +148,7 @@ export function SearchScreen({
         placeholder: t('sources:index.songsAlbumsArtists'),
         accessibilityLabel: t('sources:search.searchQuery'),
         testID: 'search-input',
+        liquid: liquidGlass,
       }),
       h(
         native.View as never,
@@ -294,7 +299,7 @@ export function SearchScreen({
               }),
             ),
     ),
-    h(ContextMenu, menu.menuProps),
+    h(ContextMenu, { ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

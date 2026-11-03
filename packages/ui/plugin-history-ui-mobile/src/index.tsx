@@ -7,8 +7,8 @@
 import { createElement as h, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
-import type { PlayRecord, Track } from '@BBeBee/protocol'
+import type { PlayRecord, SettingsService, Track } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { HISTORY_VIEWS } from '@bbebee/plugin-history/views'
 import {
   usePlayHistory,
@@ -20,6 +20,7 @@ import {
 import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
+import { serviceOf } from '@BBeBee/ui-core'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 import { PlayHeatmap, formatPlayDuration } from './PlayHeatmap.js'
@@ -101,6 +102,9 @@ function StatCard({
 
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const native = nativePrimitives()
@@ -425,7 +429,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
             },
           }),
         ),
-    h(ContextMenu, menu.menuProps),
+    h(ContextMenu, { ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

@@ -316,6 +316,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                 onChange: (language) => void update({ language }),
                 accessibilityLabel: t('settings:general.interfaceLanguage'),
                 testID: 'language-select',
+                liquid: liquidGlass,
               }),
             ),
           ]),
@@ -414,6 +415,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                           ],
                           accessibilityLabel: t('settings:network.proxyProtocol'),
                           onChange: (protocol) => void update({ proxy: { ...proxy, protocol } }),
+                          liquid: liquidGlass,
                         }),
                       ),
                       h(
@@ -536,6 +538,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                     ],
                     accessibilityLabel: t('settings:network.downloadRegion'),
                     onChange: (downloadRegion) => void update({ downloadRegion }),
+                    liquid: liquidGlass,
                   }),
                 ),
                 h(

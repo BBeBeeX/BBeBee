@@ -11,7 +11,8 @@ import { createElement as h, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { PlayRecord, QueueItem, QueueSourceContext, Track } from '@BBeBee/protocol'
+import type { PlayRecord, QueueItem, QueueSourceContext, SettingsService, Track } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { QUEUE_VIEWS } from '@bbebee/plugin-queue/views'
 import {
   queueTrackFallback,
@@ -24,6 +25,7 @@ import {
 import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
+import { serviceOf } from '@BBeBee/ui-core'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
 
@@ -75,6 +77,9 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   const upcoming = useUpcoming(ctx)
   const state = useTransport(ctx)
   const menu = useTrackMenu(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const native = nativePrimitives()
 
   // Track hydration for queue
@@ -403,7 +408,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
       },
       tab === 'queue' ? renderQueueContent() : renderHistoryContent(),
     ),
-    h(ContextMenu, menu.menuProps),
+    h(ContextMenu, { ...menu.menuProps, liquid: liquidGlass }),
   )
 }
 

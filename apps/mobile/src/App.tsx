@@ -1350,6 +1350,7 @@ function Shell({ ctx }: { ctx: Context }) {
             message: activeToast.message,
             tone: activeToast.tone,
             onDismiss: () => setActiveToast(null),
+            liquid: liquidGlass,
           }),
         )
       : null,

@@ -1,7 +1,8 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { QueueSourceContext } from '@BBeBee/protocol'
+import type { QueueSourceContext, SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useSaved } from '@bbebee/plugin-library/hooks'
 import { useTracksByUrn } from '@bbebee/plugin-player/hooks'
 import { Button, ContextMenu, EmptyState, IconButton, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
@@ -23,6 +24,9 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   }>(ctx, 'player')
   const [error, setError] = useState<string | undefined>(undefined)
   const menu = useTrackMenu(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
 
   return h(
     native.View as never,
@@ -100,6 +104,6 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         },
       }),
     ),
-    h(ContextMenu, { ctx, ...menu.menuProps }),
+    h(ContextMenu, { ctx, ...menu.menuProps, liquid: liquidGlass }),
   )
 }

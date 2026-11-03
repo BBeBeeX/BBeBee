@@ -3,7 +3,10 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { usePlaylist } from '@bbebee/plugin-library/hooks'
 import { useTracksByUrn } from '@bbebee/plugin-player/hooks'
+import type { SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { Button, ContextMenu, EmptyState, IconButton, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { serviceOf } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
 
@@ -18,6 +21,9 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   const tracks = useTracksByUrn(ctx, urns)
   const [error, setError] = useState<string | undefined>(undefined)
   const menu = useTrackMenu(ctx, { fromPlaylistUrn: urn })
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
 
   const play = (trackUrn: string) => {
     if (!detail) return
@@ -112,6 +118,6 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         },
       }),
     ),
-    h(ContextMenu, { ctx, ...menu.menuProps }),
+    h(ContextMenu, { ctx, ...menu.menuProps, liquid: liquidGlass }),
   )
 }

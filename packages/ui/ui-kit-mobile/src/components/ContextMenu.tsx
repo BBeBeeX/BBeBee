@@ -10,6 +10,7 @@ import { hasSvgIcons, tablerIcon } from '../icons/tabler.js'
 import { Text } from './Text.js'
 import { TextField } from './TextField.js'
 import { Button } from './Button.js'
+import { GlassSurface, type LiquidGlassOptions } from './GlassSurface.js'
 
 /**
  * Menu icons arrive as Tabler icon *names* from `@BBeBee/ui-menus` (the same
@@ -112,6 +113,13 @@ export function ContextMenu(
      * labels stay the caller's responsibility.
      */
     ctx?: Context
+    /**
+     * Opt-in glass surface, threaded by the caller like `Sheet`'s: the
+     * menu's sheet surface goes glass and the inner pressable goes
+     * transparent. The create-row TextField inside keeps its solid fill —
+     * fields inside a glass surface stay solid.
+     */
+    liquid?: LiquidGlassOptions
   },
 ): ReactElement | null {
   const native = nativePrimitives()
@@ -288,6 +296,34 @@ export function ContextMenu(
       ]
     : props.items.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate }))
 
+  // Opt-in glass surface, same shape as `Sheet`'s: the glass pipeline is
+  // the sheet's surface and the inner pressable goes transparent so it
+  // cannot paint over it. Without `liquid` the solid overlay stays.
+  const inner = h(
+    native.Pressable as never,
+    {
+      // A press inside must not close it; only the backdrop does.
+      onPress: () => {},
+      ...common(props),
+      style: {
+        paddingHorizontal: tokens.space[3],
+        paddingBottom: tokens.space[5],
+        paddingTop: tokens.space[2],
+        borderTopLeftRadius: tokens.radius.lg,
+        borderTopRightRadius: tokens.radius.lg,
+        backgroundColor: props.liquid ? 'transparent' : p.bg.overlay,
+      },
+    },
+    h(
+      native.View as never,
+      { style: { width: 36, height: 4, borderRadius: 2, backgroundColor: p.border.strong, alignSelf: 'center', marginBottom: tokens.space[2] } },
+    ),
+    props.title
+      ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: props.title })
+      : null,
+    ...rows.filter((row) => row !== null),
+  )
+
   return h(
     native.Modal as never,
     {
@@ -302,30 +338,21 @@ export function ContextMenu(
         onPress: close,
         style: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
       },
-      h(
-        native.Pressable as never,
-        {
-          // A press inside must not close it; only the backdrop does.
-          onPress: () => {},
-          ...common(props),
-          style: {
-            paddingHorizontal: tokens.space[3],
-            paddingBottom: tokens.space[5],
-            paddingTop: tokens.space[2],
-            borderTopLeftRadius: tokens.radius.lg,
-            borderTopRightRadius: tokens.radius.lg,
-            backgroundColor: p.bg.overlay,
-          },
-        },
-        h(
-          native.View as never,
-          { style: { width: 36, height: 4, borderRadius: 2, backgroundColor: p.border.strong, alignSelf: 'center', marginBottom: tokens.space[2] } },
-        ),
-        props.title
-          ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: props.title })
-          : null,
-        ...rows.filter((row) => row !== null),
-      ),
+      props.liquid
+        ? h(
+            GlassSurface,
+            {
+              liquid: props.liquid,
+              intensity: 85,
+              borderRadius: tokens.radius.lg,
+              style: {
+                borderTopLeftRadius: tokens.radius.lg,
+                borderTopRightRadius: tokens.radius.lg,
+              },
+            },
+            inner,
+          )
+        : inner,
     ),
   )
 }

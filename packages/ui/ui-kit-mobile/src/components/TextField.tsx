@@ -4,6 +4,7 @@ import { tokens } from '@BBeBee/ui-tokens'
 import type { TextFieldProps } from '@BBeBee/ui-core'
 import { c, common, nativePrimitives } from '../primitives.js'
 import { Text } from './Text.js'
+import { GlassSurface, type LiquidGlassOptions } from './GlassSurface.js'
 
 /**
  * A text input.
@@ -14,7 +15,7 @@ import { Text } from './Text.js'
  * shows up when something resets the field, which the import screen does on
  * every successful paste.
  */
-export function TextField(props: TextFieldProps): ReactElement {
+export function TextField(props: TextFieldProps & { liquid?: LiquidGlassOptions }): ReactElement {
   const native = nativePrimitives()
   const scheme = c()
   const invalid = props.error !== undefined
@@ -39,7 +40,9 @@ export function TextField(props: TextFieldProps): ReactElement {
       // a disabled field, and the fill is what says "type here".
       borderColor: invalid ? scheme.state.error : 'transparent',
       borderRadius: tokens.radius.sm,
-      backgroundColor: scheme.bg.overlay,
+      // With glass the input itself goes transparent so the glass behind
+      // it is the fill; without it the overlay fill stays.
+      backgroundColor: props.liquid ? 'transparent' : scheme.bg.overlay,
       color: scheme.text.primary,
       paddingHorizontal: tokens.space[3],
       paddingVertical: tokens.space[2],
@@ -55,11 +58,28 @@ export function TextField(props: TextFieldProps): ReactElement {
     },
   })
 
-  if (!invalid) return input
+  // Opt-in glass: only callers that pass `liquid` change — a standalone
+  // search box, not the form fields inside sheets and settings screens.
+  // The glass wraps just the input; the error line below it stays outside
+  // so it never sits on glass.
+  const field = props.liquid
+    ? h(
+        GlassSurface,
+        {
+          liquid: props.liquid,
+          intensity: 85,
+          borderRadius: tokens.radius.sm,
+          style: { borderRadius: tokens.radius.sm },
+        },
+        input,
+      )
+    : input
+
+  if (!invalid) return field
   return h(
     native.View as never,
     { style: { gap: tokens.space[1] } },
-    input,
+    field,
     h(Text, { variant: 'sm', tone: 'error' }, props.error),
   )
 }
