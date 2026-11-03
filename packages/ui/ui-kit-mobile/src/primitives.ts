@@ -86,6 +86,9 @@ export interface SvgPrimitives {
   Polyline: unknown
   Polygon: unknown
   G: unknown
+  Defs?: unknown
+  LinearGradient?: unknown
+  Stop?: unknown
 }
 
 /**

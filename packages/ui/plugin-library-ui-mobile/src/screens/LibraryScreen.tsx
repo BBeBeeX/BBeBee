@@ -26,7 +26,7 @@ import {
   usePlaylists,
   useSaved,
 } from '@bbebee/plugin-library/hooks'
-import type { MenuAnchor } from '@BBeBee/ui-core'
+import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import {
@@ -34,7 +34,6 @@ import {
   ContextMenu,
   EmptyState,
   List,
-  Sheet,
   Text,
   TextField,
   c,
@@ -716,69 +715,42 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     )
   }
 
-  const createOption = (glyph: string, title: string, description: string, onPress: () => void, testID: string) =>
-    h(
-      native.Pressable as never,
+  const libraryHeaderMenuItems = useMemo<MenuItemSpec[]>(() => {
+    return [
       {
-        key: testID,
-        accessibilityRole: 'button',
-        accessibilityLabel: title,
-        testID,
-        onPress,
-        style: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: tokens.space[3],
-          paddingVertical: tokens.space[2],
+        id: 'create-menu-playlist',
+        label: t('library:libraryCreateDropdown.playlist'),
+        icon: 'playlist-add',
+        onSelect: () => setPendingCreate('playlist'),
+      },
+      {
+        id: 'create-menu-folder',
+        label: t('library:libraryCreateDropdown.folder'),
+        icon: 'create-folder',
+        onSelect: () => setPendingCreate('folder'),
+      },
+      {
+        id: 'create-menu-import-share',
+        label: t('library:libraryCreateDropdown.importShare'),
+        icon: 'upload',
+        onSelect: () => handleImportShare(),
+      },
+      {
+        id: 'menu-sort',
+        label: t('library:favorites.sortBy'),
+        icon: 'shuffle',
+        submenu: {
+          title: t('library:favorites.sortBy'),
+          items: (['creator', 'recent-added', 'recent-played', 'alphabetical'] as const).map((mode) => ({
+            id: `sort-option-${mode}`,
+            label: t(SORT_LABEL_KEYS[mode]),
+            icon: sortMode === mode ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+            onSelect: () => setSortMode(mode),
+          })),
         },
       },
-      h(Text, { style: { fontSize: 20 } }, glyph),
-      h(
-        native.View as never,
-        { style: { flex: 1 } },
-        h(Text, { variant: 'md', children: title }),
-        h(Text, { variant: 'xs', tone: 'muted', children: description }),
-      ),
-    )
-
-  const sortOption = (mode: SortMode, label: string) => {
-    const active = sortMode === mode
-    return h(
-      native.Pressable as never,
-      {
-        key: mode,
-        accessibilityRole: 'button',
-        accessibilityLabel: label,
-        testID: `sort-option-${mode}`,
-        onPress: () => {
-          setSortMode(mode)
-          setHeaderMenuOpen(false)
-        },
-        style: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: tokens.space[2] + 2,
-          paddingHorizontal: tokens.space[1],
-        },
-      },
-      h(
-        Text,
-        {
-          variant: 'md',
-          style: {
-            color: active ? c().accent.base : c().text.primary,
-            fontWeight: active ? '600' : 'normal',
-          },
-        },
-        label,
-      ),
-      active
-        ? tablerIcon('check', { size: 18, color: c().accent.base }) ??
-            h(Text, { style: { color: c().accent.base, fontWeight: 'bold' } }, '✓')
-        : null,
-    )
-  }
+    ]
+  }, [handleImportShare, sortMode, t])
 
   const hasArtists = artistItems.length > 0
   const visibleChips = FILTER_CHIPS.filter(({ key }) => key !== 'artist' || hasArtists)
@@ -835,7 +807,7 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
       h(List<UnifiedItem & { isFolder?: boolean; isExpanded?: boolean; onToggleExpand?: () => void; isChild?: boolean }>, {
         testID: 'playlists-list',
         items: displayItems,
-        estimatedItemSize: 64,
+        estimatedItemSize: 76,
         keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
         empty: h(EmptyState, {
           icon: '♪',
@@ -847,83 +819,22 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
             key: item.isChild ? `${item.id}:child` : item.id,
             ctx,
             item,
-            isFolder: item.isFolder ?? item.kind === 'collection',
-            isExpanded: item.isExpanded ?? false,
-            onToggleExpand: item.onToggleExpand,
             isChild: item.isChild,
           }),
       }),
     ),
-    // Combined Header Menu — Create options + Sort options. The only
-    // Sheet in this screen with a glass surface: the three-dot button's
-    // menu. The queue sheet, item menus and dialogs keep their surfaces.
-    h(
-      Sheet,
-      {
-        open: headerMenuOpen,
-        onClose: () => setHeaderMenuOpen(false),
-        title: t('library:library.library'),
-        liquid: liquidGlass,
-      },
-      h(
-        native.View as never,
-        { style: { gap: tokens.space[1], paddingBottom: tokens.space[2] } },
-        h(
-          Text,
-          {
-            variant: 'xs',
-            tone: 'muted',
-            style: { fontWeight: '600', textTransform: 'uppercase', marginBottom: tokens.space[1] },
-          },
-          t('library:libraryCreateDropdown.create'),
-        ),
-        createOption(
-          '♫＋',
-          t('library:libraryCreateDropdown.playlist'),
-          t('library:libraryCreateDropdown.createAPlaylistWithSongs'),
-          () => {
-            setHeaderMenuOpen(false)
-            setPendingCreate('playlist')
-          },
-          'create-menu-playlist',
-        ),
-        createOption(
-          '📁＋',
-          t('library:libraryCreateDropdown.folder'),
-          t('library:libraryCreateDropdown.managePlaylists'),
-          () => {
-            setHeaderMenuOpen(false)
-            setPendingCreate('folder')
-          },
-          'create-menu-folder',
-        ),
-        createOption(
-          '⇪',
-          t('library:libraryCreateDropdown.importShare'),
-          t('library:libraryCreateDropdown.readAShareCardOr'),
-          () => {
-            setHeaderMenuOpen(false)
-            handleImportShare()
-          },
-          'create-menu-import-share',
-        ),
-        h(native.View as never, {
-          style: { height: 1, backgroundColor: c().border.subtle, marginVertical: tokens.space[2] },
-        }),
-        h(
-          Text,
-          {
-            variant: 'xs',
-            tone: 'muted',
-            style: { fontWeight: '600', textTransform: 'uppercase', marginBottom: tokens.space[1] },
-          },
-          t('library:favorites.sortBy'),
-        ),
-        (['creator', 'recent-added', 'recent-played', 'alphabetical'] as const).map((mode) =>
-          sortOption(mode, t(SORT_LABEL_KEYS[mode])),
-        ),
-      ),
-    ),
+    // Header Menu — Right-click style dropdown anchored at top-right
+    h(ContextMenu, {
+      ctx,
+      open: headerMenuOpen,
+      onClose: () => setHeaderMenuOpen(false),
+      placement: 'top-right',
+      liquid: liquidGlass,
+      items: libraryHeaderMenuItems,
+      x: 0,
+      y: 0,
+      title: t('library:library.library'),
+    }),
     h(LibraryModals, {
       ctx,
       showCreatePlaylistModal: pendingCreate === 'playlist',

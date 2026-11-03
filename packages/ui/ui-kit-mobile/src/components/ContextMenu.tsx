@@ -39,6 +39,9 @@ const MENU_ICON_GLYPHS: Record<string, string> = {
   x: '✕',
   music: '♪',
   search: '🔍',
+  shuffle: '🔀',
+  'list-check': '☑',
+  list: '☰',
 }
 
 function menuIconGlyph(icon: ReactNode): ReactNode {
@@ -60,15 +63,18 @@ function menuIconGlyph(icon: ReactNode): ReactNode {
 function MenuRow({
   item,
   onActivate,
+  isDropdown,
 }: {
   item: MenuItemSpec
   onActivate: (item: MenuItemSpec) => void
+  isDropdown?: boolean
 }): ReactElement {
   const native = nativePrimitives()
   const iconGlyph = item.icon ? menuIconGlyph(item.icon) : null
   return h(
     native.Pressable as never,
     {
+      testID: item.id,
       accessibilityRole: 'menuitem',
       accessibilityLabel: item.label,
       accessibilityState: { disabled: item.disabled === true },
@@ -77,20 +83,36 @@ function MenuRow({
       style: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: tokens.space[3],
-        minHeight: tokens.size.touchTarget,
-        paddingHorizontal: tokens.space[2],
+        gap: isDropdown ? tokens.space[2] + 2 : tokens.space[3],
+        minHeight: isDropdown ? 38 : tokens.size.touchTarget,
+        paddingHorizontal: isDropdown ? tokens.space[3] : tokens.space[2],
+        paddingVertical: isDropdown ? 6 : 0,
+        borderRadius: isDropdown ? 8 : 0,
         opacity: item.disabled ? 0.45 : 1,
       },
     },
-    iconGlyph ? h(Text, { variant: 'md' }, iconGlyph) : null,
-    h(Text, {
-      variant: 'md',
-      tone: item.tone === 'danger' ? 'error' : 'default',
-      numberOfLines: 1,
-      children: item.label,
-    }),
-    item.submenu ? h(Text, { tone: 'muted', children: '\u203a' }) : null,
+    iconGlyph
+      ? h(
+          native.View as never,
+          { style: { width: isDropdown ? 20 : 24, alignItems: 'center', justifyContent: 'center' } },
+          typeof iconGlyph === 'string'
+            ? h(Text, { variant: isDropdown ? 'sm' : 'md' }, iconGlyph)
+            : iconGlyph,
+        )
+      : isDropdown
+        ? h(native.View as never, { style: { width: 4 } })
+        : null,
+    h(
+      native.View as never,
+      { style: { flex: 1 } },
+      h(Text, {
+        variant: isDropdown ? 'sm' : 'md',
+        tone: item.tone === 'danger' ? 'error' : 'default',
+        numberOfLines: 1,
+        children: item.label,
+      }),
+    ),
+    item.submenu ? h(Text, { tone: 'muted', style: { marginLeft: 'auto' }, children: '\u203a' }) : null,
   )
 }
 
@@ -165,11 +187,14 @@ export function ContextMenu(
     close()
   }
 
+  const isDropdown = props.placement === 'top-right' || props.placement === 'dropdown'
+
   const rows = submenu
     ? [
         h(MenuRow, {
           key: '__back',
           item: { id: '__back', label: `\u2039 ${submenu.title ?? t('app:common.back', 'Back')}` },
+          isDropdown,
           onActivate: () => {
             setSubmenuId(undefined)
             setFilter('')
@@ -177,6 +202,12 @@ export function ContextMenu(
             setDraft('')
           },
         }),
+        isDropdown
+          ? h(native.View as never, {
+              key: '__back_div',
+              style: { height: 1, backgroundColor: p.border.subtle, marginVertical: tokens.space[1] },
+            })
+          : null,
         submenu.searchPlaceholder && creating && submenu.create
           ? h(
               native.View as never,
@@ -229,6 +260,7 @@ export function ContextMenu(
                 ? h(MenuRow, {
                     key: '__create',
                     item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    isDropdown,
                     onActivate: () => {
                       setCreating(true)
                       setDraft(filter.trim())
@@ -275,6 +307,7 @@ export function ContextMenu(
                 : h(MenuRow, {
                     key: '__create',
                     item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    isDropdown,
                     onActivate: () => setCreating(true),
                   })
             : null
@@ -287,14 +320,125 @@ export function ContextMenu(
                   h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? t('app:common.contextMenu.noMatches', 'No matches') }),
                 ),
               ]
-            : visible.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate }))
+            : visible.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }))
 
           return isCreateBottom
             ? [...itemRows, ...(createRow ? [createRow] : [])]
             : [...(createRow ? [createRow] : []), ...itemRows]
         })(),
       ]
-    : props.items.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate }))
+    : props.items.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }))
+
+  if (isDropdown) {
+    const dropdownInner = h(
+      native.Pressable as never,
+      {
+        onPress: () => {},
+        ...common(props),
+        style: {
+          paddingHorizontal: tokens.space[2],
+          paddingVertical: tokens.space[2],
+          backgroundColor: props.liquid ? 'transparent' : p.bg.overlay,
+        },
+      },
+      props.title && !submenu
+        ? h(
+            Text,
+            {
+              variant: 'xs',
+              tone: 'muted',
+              numberOfLines: 1,
+              style: {
+                fontWeight: '600',
+                paddingHorizontal: tokens.space[3],
+                paddingVertical: tokens.space[1],
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                opacity: 0.8,
+              },
+              children: props.title,
+            },
+          )
+        : null,
+      ...rows.filter((row) => row !== null),
+    )
+
+    const cardContent = props.liquid
+      ? h(
+          GlassSurface,
+          {
+            liquid: props.liquid,
+            intensity: 90,
+            borderRadius: 14,
+            style: {
+              borderRadius: 14,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              minWidth: 200,
+              maxWidth: 260,
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.4,
+              shadowRadius: 16,
+              elevation: 12,
+            },
+          },
+          dropdownInner,
+        )
+      : h(
+          native.View as never,
+          {
+            style: {
+              backgroundColor: p.bg.overlay,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: p.border.subtle,
+              overflow: 'hidden',
+              minWidth: 200,
+              maxWidth: 260,
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.4,
+              shadowRadius: 16,
+              elevation: 12,
+            },
+          },
+          dropdownInner,
+        )
+
+    return h(
+      native.Modal as never,
+      {
+        visible: true,
+        transparent: true,
+        animationType: 'fade',
+        onRequestClose: close,
+      },
+      h(
+        native.Pressable as never,
+        {
+          onPress: close,
+          style: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.25)',
+          },
+        },
+        h(
+          native.Pressable as never,
+          {
+            onPress: (e: { stopPropagation?: () => void }) => e?.stopPropagation?.(),
+            style: {
+              position: 'absolute',
+              top: 76,
+              right: 16,
+            },
+          },
+          cardContent,
+        ),
+      ),
+    )
+  }
 
   // Opt-in glass surface, same shape as `Sheet`'s: the glass pipeline is
   // the sheet's surface and the inner pressable goes transparent so it

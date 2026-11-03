@@ -19,13 +19,14 @@ import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import albumCatalogue from '../../../feature/plugin-i18n/src/locales/album.json'
+import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 import { AlbumScreen } from './index.js'
 
 afterEach(cleanup)
 
 /**
  * English-only i18n stub: components under test render the same copy the
- * app shows. Only the `album` namespace is needed here.
+ * app shows. Both `album` and `app` namespaces are supported.
  */
 class I18nStub extends Service {
   static override readonly name = 'i18n'
@@ -35,9 +36,17 @@ class I18nStub extends Service {
   }
   t = (key: string, params?: Record<string, string | number>): string => {
     const sep = key.indexOf(':')
-    if (sep < 0 || key.slice(0, sep) !== 'album') return key
-    let cur: unknown = (albumCatalogue as { en: unknown }).en
-    for (const part of key.slice(sep + 1).split('.')) {
+    const ns = sep < 0 ? '' : key.slice(0, sep)
+    const rest = sep < 0 ? key : key.slice(sep + 1)
+    let cur: unknown
+    if (ns === 'album') {
+      cur = (albumCatalogue as { en: unknown }).en
+    } else if (ns === 'app') {
+      cur = appCatalogue
+    } else {
+      return key
+    }
+    for (const part of rest.split('.')) {
       cur = (cur as Record<string, unknown> | undefined)?.[part]
     }
     if (typeof cur !== 'string') return key
@@ -71,7 +80,13 @@ function hostComponent(name: string) {
         'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
-        onClick: typeof onPress === 'function' ? (onPress as () => void) : undefined,
+        onClick:
+          typeof onPress === 'function'
+            ? (e: React.MouseEvent) => {
+                e.stopPropagation()
+                ;(onPress as () => void)()
+              }
+            : undefined,
       },
       children,
     )
@@ -174,14 +189,14 @@ async function harness() {
 describe('AlbumScreen on mobile', () => {
   it('draws the album and plays it from the top', async () => {
     const { ctx, player } = await harness()
-    const { container, getByText } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
+    const { container } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
     await act(async () => {
       await tick()
     })
 
     expect(container.textContent).toContain('Homogenic')
     await act(async () => {
-      getByText('Play album').click()
+      ;(container.querySelector('[data-testid="album-play-all"]') as HTMLElement).click()
       await tick()
     })
 
@@ -209,22 +224,18 @@ describe('AlbumScreen on mobile', () => {
     ])
   })
 
-  it('queues a download from a row', async () => {
+  it('queues download all from the action bar', async () => {
     const { ctx, downloads } = await harness()
     const { container } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
     await act(async () => {
       await tick()
     })
     await act(async () => {
-      ;(container.querySelector('[data-label="Download"]') as HTMLElement).click()
+      ;(container.querySelector('[data-testid="album-download-all"]') as HTMLElement).click()
       await tick()
     })
 
-    // `downloads` is the assertion that matters. The DOM host bubbles the tap
-    // into the row's `Pressable`, which React Native's responder system does
-    // not — so the empty `player.calls` is pinned on the desktop twin, where
-    // the kit stops the propagation explicitly.
-    expect(downloads.queued).toEqual([[detail.tracks[0]]])
+    expect(downloads.queued).toEqual([[detail.tracks[0], detail.tracks[1]]])
   })
 
   it('offers a way back when the album cannot be shown', async () => {
@@ -242,5 +253,66 @@ describe('AlbumScreen on mobile', () => {
     // No `onBack` from this harness, so the screen falls back to the library
     // by its own route id rather than rendering a dead end.
     expect(ui.navigated).toEqual([LIBRARY_VIEWS.home])
+  })
+
+  it('opens header menu on library/open-header-menu event', async () => {
+    const { ctx } = await harness()
+    const { container, getByText } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
+    await act(async () => {
+      await tick()
+    })
+
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    // ContextMenu should now display header menu options
+    expect(container.textContent).toContain('Batch operations')
+    expect(container.textContent).toContain('View mode')
+    expect(container.textContent).toContain('Sort by')
+
+    // Click into View mode submenu
+    await act(async () => {
+      getByText('View mode').click()
+      await tick()
+    })
+    expect(container.textContent).toContain('List')
+    expect(container.textContent).toContain('Compact')
+  })
+
+  it('supports batch mode selection and batch play', async () => {
+    const { ctx, player } = await harness()
+    const { container, getByText } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Open header menu and enter batch mode
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+    await act(async () => {
+      getByText('Batch operations').click()
+      await tick()
+    })
+
+    // Select all button should be in the batch bar
+    expect(container.textContent).toContain('Select all')
+    await act(async () => {
+      getByText('Select all').click()
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Selected 2 / 2 songs')
+
+    // Batch play button
+    await act(async () => {
+      getByText('Play').click()
+      await tick()
+    })
+
+    expect(player.calls).toEqual([{ method: 'playNow', urns: [TRACK_A, TRACK_B] }])
   })
 })

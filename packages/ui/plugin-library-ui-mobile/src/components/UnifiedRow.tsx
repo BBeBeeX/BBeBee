@@ -12,7 +12,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { ArtworkRef } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
-import { c, IconButton, Text, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Text, nativePrimitives, tablerIcon } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { CachedArtwork } from './CachedArtwork.js'
 
@@ -39,9 +39,6 @@ export interface UnifiedItem {
 export function UnifiedRow({
   ctx,
   item,
-  isFolder,
-  isExpanded,
-  onToggleExpand,
   isChild,
 }: {
   ctx: Context
@@ -51,7 +48,6 @@ export function UnifiedRow({
   onToggleExpand?: () => void
   isChild?: boolean
 }): ReactElement {
-  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const isFav = item.kind === 'favorite'
   const isArt = item.kind === 'artist'
@@ -61,14 +57,19 @@ export function UnifiedRow({
     {
       accessibilityRole: 'button',
       accessibilityLabel: item.title,
+      testID: `unified-row-${item.id}`,
       onPress: () => item.onOpen(),
       onLongPress: () => item.onMore(),
       style: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: tokens.space[3],
-        minHeight: tokens.size.touchTarget,
-        paddingLeft: isChild ? tokens.space[6] : 0,
+        minHeight: 68,
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        marginVertical: 4,
+        borderRadius: 12,
+        paddingLeft: isChild ? tokens.space[6] : 8,
       },
     },
     // The artwork slot: the favourite gradient, the folder square, or the
@@ -78,9 +79,9 @@ export function UnifiedRow({
       native.View as never,
       {
         style: {
-          width: 48,
-          height: 48,
-          borderRadius: isArt ? 24 : 4,
+          width: 58,
+          height: 58,
+          borderRadius: isArt ? 29 : 8,
           overflow: 'hidden',
           flexShrink: 0,
         },
@@ -90,86 +91,52 @@ export function UnifiedRow({
             native.View as never,
             {
               style: {
-                width: 48,
-                height: 48,
+                width: 58,
+                height: 58,
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#8e8ee5',
               },
             },
-            tablerIcon('heart-filled', { size: 26, color: '#FFFFFF' }) ??
-              h(Text, { style: { color: '#FFFFFF', fontSize: 22 } }, '♥'),
+            tablerIcon('heart-filled', { size: 30, color: '#FFFFFF' }) ??
+              h(Text, { style: { color: '#FFFFFF', fontSize: 26 } }, '♥'),
           )
-        : isFolder || item.kind === 'collection'
+        : item.kind === 'collection'
           ? h(
               native.View as never,
               {
                 style: {
-                  width: 48,
-                  height: 48,
+                  width: 58,
+                  height: 58,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: c().bg.overlay,
                 },
               },
-              tablerIcon('folder', { size: 26, color: c().text.secondary }) ??
-                h(Text, { style: { fontSize: 22 } }, '📁'),
+              tablerIcon('folder', { size: 30, color: c().text.secondary }) ??
+                h(Text, { style: { fontSize: 26 } }, '📁'),
             )
           : h(CachedArtwork, {
               ctx,
               artwork: item.artwork,
               seed: item.artworkSeed,
-              size: 48,
-              radius: isArt ? 24 : 4,
+              size: 58,
+              radius: isArt ? 29 : 8,
             }),
     ),
     h(
       native.View as never,
-      { style: { flex: 1, minWidth: 0 } },
-      h(Text, { numberOfLines: 1, children: item.title }),
+      { style: { flex: 1, minWidth: 0, gap: 4 } },
+      h(Text, { numberOfLines: 1, style: { fontSize: 16, fontWeight: '600' }, children: item.title }),
       h(
         native.View as never,
-        { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[1], marginTop: 2 } },
+        { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[1] } },
         item.pinned
           ? tablerIcon('pin', { size: 14, color: c().accent.base }) ??
             h(Text, { style: { fontSize: 12 } }, '📌')
           : null,
-        h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, children: item.subtitle }),
+        h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, style: { fontSize: 13 }, children: item.subtitle }),
       ),
     ),
-    // The overflow affordance: the desktop row's right-click / hover menu, as
-    // the platform's explicit ⋯ button (a long-press also opens the menu).
-    h(IconButton, {
-      icon: '⋯',
-      accessibilityLabel: t('library:index.moreActionsFor', { name: item.title }),
-      variant: 'ghost',
-      onPress: () => item.onMore(),
-    }),
-    // Folder rows expand inline: the children render below, indented.
-    isFolder
-      ? h(
-          native.Pressable as never,
-          {
-            accessibilityRole: 'button',
-            accessibilityLabel: isExpanded
-              ? t('library:unifiedLibrary.collapseFolder')
-              : t('library:unifiedLibrary.expandFolder'),
-            onPress: () => {
-              onToggleExpand?.()
-            },
-            style: {
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
-          },
-          tablerIcon('chevron-down', {
-            size: 18,
-            color: c().text.secondary,
-          }) ?? h(Text, { style: { fontSize: 16, color: c().text.secondary } }, isExpanded ? '▴' : '▾'),
-        )
-      : null,
   )
 }

@@ -26,7 +26,8 @@
       "itemsOther": "{count} items",
       "loading": "Loading…",
       "noCollectionChosen": "No collection chosen",
-      "nothingInThisCollectionYet": "Nothing in this collection yet"
+      "nothingInThisCollectionYet": "Nothing in this collection yet",
+      "type": "Type"
     },
     "confirmDelete": {
       "deleteAlbum": "Delete album",
@@ -275,7 +276,8 @@
       "itemsOther": "{count} 个项目",
       "loading": "加载中…",
       "noCollectionChosen": "未选择合集",
-      "nothingInThisCollectionYet": "该合集暂无内容"
+      "nothingInThisCollectionYet": "该合集暂无内容",
+      "type": "类型"
     },
     "confirmDelete": {
       "deleteAlbum": "删除专辑",

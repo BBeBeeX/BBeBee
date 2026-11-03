@@ -1,55 +1,247 @@
-import { createElement as h } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { QueueSourceContext, SettingsService } from '@BBeBee/protocol'
+import type { LibraryService, PlayNowOptions, SettingsService } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useCollectionDetail, type CollectionMember } from '@bbebee/plugin-library/hooks'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import { Button, ContextMenu, EmptyState, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
-import { serviceOf } from '@BBeBee/ui-core'
+import { useTransport } from '@BBeBee/toolkit/hooks'
+import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
+import {
+  Button,
+  ContextMenu,
+  EmptyState,
+  List,
+  Sheet,
+  Text,
+  TextField,
+  c,
+  nativePrimitives,
+  tablerIcon,
+  useI18n,
+} from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
+import { MobileLibraryTrackRow } from '../components/MobileLibraryTrackRow.js'
+import { SaveToPlaylistSheet } from '../components/SaveToPlaylistSheet.js'
+import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-/* ── one collection ────────────────────────────────────────────────────── */
+type CollectionSortKey = 'default' | 'title' | 'kind'
 
-/**
- * A collection is a folder: tracks play, albums open the album page,
- * playlists open the playlist page. A member no service can answer for still
- * shows, titled by its URN — hiding it would lose something the user put
- * there.
- */
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
-  const state = useCollectionDetail(ctx, id)
-  const detail = state.data
-  const members = detail?.members ?? []
-  const trackUrns = members
-    .filter((member) => member.kind === 'track' && member.track)
-    .map((member) => member.urn)
-  const menu = useTrackMenu(ctx)
+  const transport = useTransport(ctx)
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
-  const player = serviceOf<{ playNow(urns: string[], opts?: { context?: QueueSourceContext }): Promise<void> }>(ctx, 'player')
+  const state = useCollectionDetail(ctx, id)
+  const detail = state.data
+  const members = detail?.members ?? []
+
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<'compact' | 'list'>('list')
+  const [sortKey, setSortKey] = useState<CollectionSortKey>('default')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [renamingOpen, setRenamingOpen] = useState(false)
+  const [renameDraft, setRenameDraft] = useState('')
+
+  useEffect(() => {
+    const off = ctx.on('library/open-header-menu', () => {
+      setHeaderMenuOpen(true)
+    })
+    return () => void off()
+  }, [ctx])
+
+  const menu = useTrackMenu(ctx)
+  const {
+    isTrackInLibrary,
+    handleToggleFavorite,
+    saveToPlaylistMenuProps,
+  } = useTrackLibraryInfo(ctx)
+
+  const player = serviceOf<{ playNow(urns: string[], opts?: PlayNowOptions): Promise<void> }>(
+    ctx,
+    'player',
+  )
+  const library = serviceOf<LibraryService>(ctx, 'library') ?? ctx.library
+
+  const collectionName = detail?.collection?.name ?? t('library:collection.collectionFallback')
+
+  const handleStartRename = useCallback(() => {
+    setRenameDraft(collectionName)
+    setRenamingOpen(true)
+  }, [collectionName])
+
+  const handleConfirmRename = useCallback(async () => {
+    if (!id || !renameDraft.trim()) return
+    try {
+      await library?.renameCollection?.(id, renameDraft.trim())
+      setRenamingOpen(false)
+    } catch {
+      // ignore
+    }
+  }, [id, renameDraft, library])
+
+  const handleDeleteCollection = useCallback(async () => {
+    if (!id) return
+    try {
+      await library?.deleteCollection?.(id)
+      ctx.ui.navigate(LIBRARY_VIEWS.home)
+    } catch {
+      // ignore
+    }
+  }, [id, library, ctx.ui])
+
+  // Sorted members
+  const sortedMembers = useMemo(() => {
+    const list = [...members]
+    if (sortKey === 'default') {
+      return sortOrder === 'desc' ? list.reverse() : list
+    }
+    return list.sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'title') {
+        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
+      } else if (sortKey === 'kind') {
+        cmp = a.kind.localeCompare(b.kind)
+      }
+      return sortOrder === 'desc' ? -cmp : cmp
+    })
+  }, [members, sortKey, sortOrder])
+
+  const trackUrns = useMemo(
+    () =>
+      sortedMembers
+        .filter((member) => member.kind === 'track' && member.track)
+        .map((member) => member.urn),
+    [sortedMembers],
+  )
+
+  const unifiedMenuItems: MenuItemSpec[] = useMemo(() => {
+    return [
+      {
+        id: 'collection-rename',
+        label: t('app:common.menu.rename') || 'Rename',
+        icon: 'pencil',
+        onSelect: handleStartRename,
+      },
+      {
+        id: 'collection-delete',
+        label: t('app:common.menu.deleteFolder') || 'Delete folder',
+        icon: 'trash',
+        tone: 'danger' as const,
+        divider: true,
+        onSelect: () => void handleDeleteCollection(),
+      },
+      {
+        id: 'menu-view-mode',
+        label: t('app:common.viewMode.viewMode') || 'Display',
+        icon: 'list',
+        submenu: {
+          title: t('app:common.viewMode.viewMode') || 'Display',
+          items: [
+            {
+              id: 'view-compact',
+              label: t('app:common.viewMode.compact') || 'Compact',
+              icon: viewMode === 'compact' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setViewMode('compact'),
+            },
+            {
+              id: 'view-list',
+              label: t('app:common.viewMode.list') || 'List',
+              icon: viewMode === 'list' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setViewMode('list'),
+            },
+          ],
+        },
+      },
+      {
+        id: 'menu-sort',
+        label: t('library:favorites.sortBy') || 'Sort',
+        icon: 'shuffle',
+        submenu: {
+          title: t('library:favorites.sortBy') || 'Sort',
+          items: [
+            {
+              id: 'sort-default',
+              label: t('library:favorites.defaultOrder') || 'Default',
+              icon: sortKey === 'default' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortKey('default'),
+            },
+            {
+              id: 'sort-title',
+              label: t('library:favorites.title') || 'Title',
+              icon: sortKey === 'title' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortKey('title'),
+            },
+            {
+              id: 'sort-kind',
+              label: t('library:collection.type') || 'Type',
+              divider: true,
+              icon: sortKey === 'kind' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortKey('kind'),
+            },
+            {
+              id: 'sort-asc',
+              label: t('app:common.menu.ascending') || 'Ascending',
+              icon: sortOrder === 'asc' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortOrder('asc'),
+            },
+            {
+              id: 'sort-desc',
+              label: t('app:common.menu.descending') || 'Descending',
+              icon: sortOrder === 'desc' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortOrder('desc'),
+            },
+          ],
+        },
+      },
+    ]
+  }, [t, handleStartRename, handleDeleteCollection, viewMode, sortKey, sortOrder])
 
   if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
   if (state.status === 'error') {
-    return h(EmptyState, { title: t('library:collection.couldNotOpenTheCollection'), description: state.error?.message })
+    return h(EmptyState, {
+      title: t('library:collection.couldNotOpenTheCollection'),
+      description: state.error?.message,
+    })
   }
   if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
 
   return h(
     native.View as never,
-    { style: { flex: 1, backgroundColor: c().bg.base, padding: tokens.space[4], gap: tokens.space[3] } },
+    {
+      style: {
+        flex: 1,
+        backgroundColor: c().bg.base,
+        paddingHorizontal: tokens.space[4],
+        paddingTop: tokens.space[4],
+        gap: tokens.space[3],
+      },
+      accessibilityLabel: collectionName,
+    },
+    // Header Hero: Eyebrow + 3-dots liquid glass, Title + Subtitle, Play Button
     h(
       native.View as never,
-      { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+      {
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: tokens.space[2],
+        },
+      },
       h(
         native.View as never,
-        { style: { flex: 1, minWidth: 0 } },
-        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? t('library:collection.collectionFallback')),
+        { style: { flex: 1, minWidth: 0, gap: tokens.space[1] } },
+        h(
+          Text,
+          { variant: 'xs', style: { letterSpacing: 1, opacity: 0.85, fontWeight: tokens.font.weight.bold } },
+          t('library:collection.collectionFallback').toUpperCase(),
+        ),
+        h(Text, { variant: 'xl', numberOfLines: 1, style: { fontSize: 28, fontWeight: tokens.font.weight.heavy } }, collectionName),
         h(
           Text,
           { variant: 'sm', tone: 'muted' },
@@ -58,64 +250,118 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
             : t('library:collection.itemsOther', { count: members.length }),
         ),
       ),
-      h(Button, {
-        onPress: () =>
-          trackUrns[0] &&
-          void player?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
-          }),
-        disabled: trackUrns.length === 0,
-        testID: 'collection-play',
-        children: t('library:playlistDetail.play'),
-      }),
+      h(
+        native.View as never,
+        { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
+        h(Button, {
+          onPress: () =>
+            trackUrns[0] &&
+            void player?.playNow(trackUrns, {
+              context: { kind: 'playlist', label: collectionName },
+            }),
+          disabled: trackUrns.length === 0,
+          testID: 'collection-play',
+          children: t('library:playlistDetail.play'),
+        }),
+      ),
     ),
+    // Members List
     h(
       native.View as never,
       { style: { flex: 1, minHeight: 0 } },
       h(List<CollectionMember>, {
         testID: 'collection-members',
-        items: [...members],
+        items: sortedMembers,
         keyExtractor: (member) => member.urn,
         empty: h(EmptyState, {
-          icon: '🗂',
+          icon: 'folder',
           title: t('library:collection.nothingInThisCollectionYet'),
           description: t('library:collection.addAlbumsOrPlaylistsFrom'),
         }),
-        renderItem: (member) => {
+        renderItem: (member, index) => {
           if (member.kind === 'track' && member.track) {
-            return h(
-              native.View as never,
-              { style: { flexDirection: 'row', alignItems: 'center' } },
-              h(
-                native.View as never,
-                { style: { flex: 1, minWidth: 0 } },
-                h(TrackRow, {
-                  track: member.track,
-                  onPress: () =>
-                    void player?.playNow(trackUrns, {
-                      context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
-                    }),
-                  onMore: (anchor) => menu.open({ track: member.track! }, anchor),
+            return h(MobileLibraryTrackRow, {
+              ctx,
+              track: member.track,
+              index,
+              active: transport?.trackUrn === member.track.urn,
+              isPlaying: transport?.trackUrn === member.track.urn && transport?.status === 'playing',
+              compact: viewMode === 'compact',
+              inLibrary: isTrackInLibrary(member.track, true),
+              onPress: () =>
+                void player?.playNow(trackUrns, {
+                  context: { kind: 'playlist', label: collectionName },
                 }),
-              ),
-            )
+              onMore: (anchor) => menu.open({ track: member.track! }, anchor),
+              onAddToFavorites: () => handleToggleFavorite(member.track!),
+            })
           }
           return h(MemberRow, {
             member,
+            compact: viewMode === 'compact',
             onOpen: () => {
-              if (member.kind === 'album') ctx.ui.navigate(ALBUM_VIEWS.album, { urn: member.urn })
-              else if (member.kind === 'playlist') ctx.ui.navigate(LIBRARY_VIEWS.playlist, { urn: member.urn })
+              if (member.kind === 'album') {
+                ctx.ui.navigate(ALBUM_VIEWS.album, { urn: member.urn })
+              } else if (member.kind === 'playlist') {
+                ctx.ui.navigate(LIBRARY_VIEWS.playlist, { urn: member.urn })
+              }
             },
           })
         },
       }),
     ),
-    h(ContextMenu, { ctx, ...menu.menuProps, liquid: liquidGlass }),
+    // Context Menus & Modals
+    h(ContextMenu, { ctx, ...menu.menuProps }),
+    h(SaveToPlaylistSheet, { ctx, menuProps: saveToPlaylistMenuProps }),
+    h(ContextMenu, {
+      ctx,
+      open: headerMenuOpen,
+      onClose: () => setHeaderMenuOpen(false),
+      placement: 'top-right',
+      liquid: liquidGlass,
+      x: 0,
+      y: 0,
+      items: unifiedMenuItems,
+      title: collectionName,
+    }),
+    // Rename Collection Sheet
+    h(
+      Sheet,
+      {
+        open: renamingOpen,
+        onClose: () => setRenamingOpen(false),
+        title: t('library:collections.rename') || 'Rename',
+      },
+      h(
+        native.View as never,
+        { style: { gap: tokens.space[3], padding: tokens.space[4] } },
+        h(TextField, {
+          value: renameDraft,
+          onChange: setRenameDraft,
+          placeholder: t('library:collections.rename') || 'Collection Name',
+          testID: 'collection-rename-input',
+        }),
+        h(Button, {
+          onPress: () => void handleConfirmRename(),
+          disabled: !renameDraft.trim(),
+          testID: 'collection-rename-submit',
+          children: t('app:common.confirm') || 'Save',
+        }),
+      ),
+    ),
   )
 }
 
-/** An album/playlist/unknown member: a labelled row that opens where it can. */
-function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () => void }): ReactElement {
+/** An album/playlist/collection member row */
+function MemberRow({
+  member,
+  onOpen,
+  compact,
+}: {
+  member: CollectionMember
+  onOpen: () => void
+  compact?: boolean
+}): ReactElement {
   const native = nativePrimitives()
   const openable = member.kind === 'album' || member.kind === 'playlist'
   return h(
@@ -128,16 +374,26 @@ function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () =>
       style: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: compact ? 4 : tokens.space[2],
+        paddingHorizontal: tokens.space[3],
         gap: tokens.space[3],
-        minHeight: tokens.size.touchTarget,
+        minHeight: compact ? 42 : tokens.size.touchTarget,
+        borderRadius: tokens.radius.sm,
       },
     },
-    h(Text, { variant: 'md' }, member.kind === 'album' ? '💿' : member.kind === 'playlist' ? '≡' : '•'),
+    member.kind === 'album'
+      ? tablerIcon('disc', { size: compact ? 18 : 22, color: c().text.muted })
+      : member.kind === 'playlist'
+        ? tablerIcon('playlist-add', { size: compact ? 18 : 22, color: c().text.muted })
+        : tablerIcon('folder', { size: compact ? 18 : 22, color: c().text.muted }),
     h(
       native.View as never,
       { style: { flex: 1, minWidth: 0 } },
-      h(Text, { numberOfLines: 1 }, member.title),
-      member.subtitle ? h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, member.subtitle) : null,
+      h(Text, { variant: compact ? 'sm' : 'md', numberOfLines: 1 }, member.title),
+      member.subtitle
+        ? h(Text, { variant: 'xs', tone: 'muted', numberOfLines: 1 }, member.subtitle)
+        : null,
     ),
+    openable ? tablerIcon('chevron-right', { size: 20, color: c().text.muted }) : null,
   )
 }

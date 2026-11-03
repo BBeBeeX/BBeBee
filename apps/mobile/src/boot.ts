@@ -18,7 +18,7 @@
 
 import { Appearance, Platform } from 'react-native'
 import { useWindowDimensions } from 'react-native'
-import Svg, { Circle, G, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg'
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Polygon, Polyline, Rect, Stop } from 'react-native-svg'
 import {
   ActivityIndicator,
   Image,
@@ -192,7 +192,7 @@ configureNative({
    * `icons/tabler.tsx`); without this group the kit falls back to text
    * glyphs. Same seam as every other native module here.
    */
-  svg: { Svg, Path, Circle, Rect, Line, Polyline, Polygon, G },
+  svg: { Svg, Path, Circle, Rect, Line, Polyline, Polygon, G, Defs, LinearGradient, Stop },
   useWindowDimensions,
   /*
    * The OS light/dark answer, for the theme layer: without it, appearance

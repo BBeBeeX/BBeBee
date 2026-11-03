@@ -2064,6 +2064,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -2695,6 +2698,9 @@ importers:
       '@BBeBee/protocol':
         specifier: workspace:*
         version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
       '@BBeBee/ui-core':
         specifier: workspace:*
         version: link:../ui-core
@@ -3393,6 +3399,9 @@ importers:
       '@bbebee/plugin-cache':
         specifier: workspace:*
         version: link:../../feature/plugin-cache
+      '@bbebee/plugin-local-scanner':
+        specifier: workspace:*
+        version: link:../../feature/plugin-local-scanner
       '@bbebee/plugin-settings':
         specifier: workspace:*
         version: link:../../feature/plugin-settings

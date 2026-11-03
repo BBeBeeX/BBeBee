@@ -11,14 +11,14 @@
  * `apps/mobile` uses to hand over the real `react-native`.
  */
 
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
 import type { Collection, Paged, Playlist, PlaylistDetail, SavedKind, Track } from '@BBeBee/protocol'
 import { tick } from '@BBeBee/kernel/testing'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
-import { CollectionScreen, FavoritesScreen, LibraryScreen, PlaylistDetailScreen, inject } from './index.js'
+import { CollectionScreen, FavoritesScreen, LibraryScreen, LocalMusicScreen, PlaylistDetailScreen, inject } from './index.js'
 import enCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 import zhCatalogue from '../../../feature/plugin-i18n/src/locales/zh.json'
 import libraryCatalogue from '../../../feature/plugin-i18n/src/locales/library.json'
@@ -73,6 +73,8 @@ const track: Track = {
   urn: TRACK,
   title: 'Alpha',
   artists: [{ urn: 'BBeBee:demo:artist:a', name: 'A', role: 'main', ordinal: 0 }],
+  albumUrn: ALBUM_URN,
+  albumTitle: 'Homogenic',
 }
 
 const storedPlaylist: PlaylistDetail = {
@@ -89,7 +91,7 @@ const storedPlaylist: PlaylistDetail = {
 /** A fake native host: a `div` that keeps the RN props it was given. */
 function hostComponent(name: string) {
   return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
-    const { children, accessibilityLabel, accessibilityRole, onPress, testID } = props
+    const { children, accessibilityLabel, accessibilityRole, onPress, onLongPress, testID } = props
     return h(
       'div',
       {
@@ -98,6 +100,13 @@ function hostComponent(name: string) {
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
         onClick: typeof onPress === 'function' ? (onPress as () => void) : undefined,
+        onContextMenu:
+          typeof onLongPress === 'function'
+            ? (e: any) => {
+                e?.preventDefault?.()
+                ;(onLongPress as () => void)()
+              }
+            : undefined,
       },
       children,
     )
@@ -110,16 +119,23 @@ configureNative({
   Pressable: hostComponent('Pressable'),
   Image: hostComponent('Image'),
   Modal: hostComponent('Modal'),
+  ScrollView: hostComponent('ScrollView'),
   FlashList: function FlashList(props: {
     data?: readonly unknown[]
     renderItem?: (info: { item: unknown; index: number }) => ReactNode
     ListEmptyComponent?: ReactNode
     accessibilityLabel?: string
+    testID?: string
   }) {
     const items = props.data ?? []
     return h(
       'div',
-      { 'data-host': 'FlashList', 'data-label': props.accessibilityLabel, role: 'list' },
+      {
+        'data-host': 'FlashList',
+        'data-label': props.accessibilityLabel,
+        'data-testid': props.testID,
+        role: 'list',
+      },
       items.length === 0
         ? (props.ListEmptyComponent as ReactNode)
         : items.map((item, index) =>
@@ -209,25 +225,40 @@ class PlayerStub extends Service {
   async playFromContext(urn: string, urns?: readonly string[]): Promise<void> {
     this.calls.push(`${urn} <- ${urns?.length ?? 0}`)
   }
+  async playNow(urns: string[]): Promise<void> {
+    this.calls.push(`playNow:${urns.join(',')}`)
+  }
 }
 
 class SourcesStub extends Service {
+  tracks: Track[] = [track]
+  albums: { urn: string; title: string; artists: { urn: string; name: string; role: 'main'; ordinal: number }[]; trackCount?: number }[] = [
+    { urn: ALBUM_URN, title: 'Homogenic', artists: [{ urn: 'a', name: 'Björk', role: 'main', ordinal: 0 }], trackCount: 1 },
+  ]
+  loved: Record<string, boolean> = {}
+
   constructor(ctx: Context) {
     super(ctx, 'sources')
   }
   async getTracks(urns: readonly string[]): Promise<Track[]> {
-    return urns.includes(TRACK) ? [track] : []
+    return this.tracks.filter((t) => urns.includes(t.urn))
+  }
+  async listTracks(): Promise<Paged<Track>> {
+    return { items: this.tracks, hasMore: false }
   }
   async listAlbums() {
-    return { items: [], hasMore: false }
+    return { items: this.albums, hasMore: false }
   }
   async getAlbum(urn: string) {
-    return urn === ALBUM_URN
-      ? { urn, title: 'Homogenic', artists: [{ urn: 'a', name: 'Björk', role: 'main', ordinal: 0 }] }
-      : undefined
+    return this.albums.find((a) => a.urn === urn)
   }
   async getArtist() {
     return undefined
+  }
+  async setLoved(urn: string, loved: boolean): Promise<void> {
+    this.loved[urn] = loved
+    const t = this.tracks.find((item) => item.urn === urn)
+    if (t) t.loved = loved
   }
 }
 
@@ -256,6 +287,7 @@ async function harness() {
     ctx: scoped,
     library: root.library as unknown as LibraryStub,
     player: root.player as unknown as PlayerStub,
+    sources: root.sources as unknown as SourcesStub,
     ui: root.ui as unknown as UiStub,
   }
 }
@@ -307,10 +339,11 @@ describe('LibraryScreen on mobile', () => {
       await tick()
     })
 
-    // The row's ⋯ opens the shared playlist menu; its Delete item asks for
+    // The row's long press opens the shared playlist menu; its Delete item asks for
     // confirmation before it names the right URN.
     await act(async () => {
-      ;(container.querySelector('[data-label="More actions for Road trip"]') as HTMLElement).click()
+      const row = container.querySelector('[data-label="Road trip"]') as HTMLElement
+      fireEvent.contextMenu(row)
       await tick()
     })
     await act(async () => {
@@ -410,13 +443,95 @@ describe('FavoritesScreen on mobile', () => {
 
     expect(library.calls).toContain(`save:${TRACK}:false`)
   })
+
+  it('renders header hero, plays all, and shuffles in FavoritesScreen', async () => {
+    const { ctx, player } = await harness()
+    const { container, getByTestId } = render(h(FavoritesScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Liked songs')
+    expect(container.textContent).toContain('Saved music • 1 song')
+
+    const playBtn = getByTestId('favorites-play')
+    await act(async () => {
+      playBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`${TRACK} <- 1`)
+  })
+
+  it('supports batch mode in FavoritesScreen: select all, batch play, and batch delete', async () => {
+    const { ctx, library, player } = await harness()
+    const { container, getByTestId, queryByTestId } = render(h(FavoritesScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Initially batch action bar is not rendered
+    expect(queryByTestId('batch-action-bar')).toBeNull()
+
+    // Open header menu via library/open-header-menu
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    // Click "Batch operations" in context menu
+    const batchMenuRow = Array.from(container.querySelectorAll('[data-label="Batch operations"]'))[0] as HTMLElement
+    expect(batchMenuRow).toBeTruthy()
+    await act(async () => {
+      batchMenuRow.click()
+      await tick()
+    })
+
+    // Now batch action bar is visible
+    expect(getByTestId('batch-action-bar')).toBeTruthy()
+
+    // Toggle select all
+    const selectAllBtn = getByTestId('batch-select-all')
+    await act(async () => {
+      selectAllBtn.click()
+      await tick()
+    })
+
+    expect(getByTestId('batch-selected-count').textContent).toContain('1 / 1')
+
+    // Batch play
+    const batchPlayBtn = getByTestId('batch-play-btn')
+    await act(async () => {
+      batchPlayBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK}`)
+
+    // Batch delete
+    const batchDeleteBtn = getByTestId('batch-delete-btn')
+    await act(async () => {
+      batchDeleteBtn.click()
+      await tick()
+    })
+
+    expect(library.calls).toContain(`save:${TRACK}:false`)
+
+    // Exit batch
+    const exitBtn = getByTestId('batch-exit-btn')
+    await act(async () => {
+      exitBtn.click()
+      await tick()
+    })
+
+    expect(queryByTestId('batch-action-bar')).toBeNull()
+  })
 })
 
-
 describe('CollectionScreen on mobile', () => {
-  it('renders tracks, albums and playlists as folder members', async () => {
-    const { ctx, ui } = await harness()
-    const { container } = render(h(CollectionScreen, { ctx, id: COLLECTION_ID }))
+  it('renders tracks, albums and playlists as folder members and plays collection tracks', async () => {
+    const { ctx, ui, player } = await harness()
+    const { container, getByTestId } = render(h(CollectionScreen, { ctx, id: COLLECTION_ID }))
     await act(async () => {
       await tick()
     })
@@ -425,11 +540,217 @@ describe('CollectionScreen on mobile', () => {
     expect(container.textContent).toContain('Homogenic')
     expect(container.textContent).toContain('Road trip')
 
+    // Play all collection tracks
+    const playBtn = getByTestId('collection-play')
+    await act(async () => {
+      playBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK}`)
+
+    // Click album member
     await act(async () => {
       const album = Array.from(container.querySelectorAll('[data-label="Homogenic"]'))[0] as HTMLElement
       album.click()
       await tick()
     })
     expect(ui.calls).toContain(`album.view:${JSON.stringify({ urn: ALBUM_URN })}`)
+
+    // Click playlist member
+    await act(async () => {
+      const pl = Array.from(container.querySelectorAll('[data-label="Road trip"]'))[0] as HTMLElement
+      pl.click()
+      await tick()
+    })
+    expect(ui.calls).toContain(`library.playlist:${JSON.stringify({ urn: PLAYLIST_URN })}`)
+  })
+
+  it('opens header menu and supports renaming in CollectionScreen', async () => {
+    const { ctx } = await harness()
+    const { container, getByTestId } = render(h(CollectionScreen, { ctx, id: COLLECTION_ID }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Open header menu via library/open-header-menu
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    const renameOption = Array.from(container.querySelectorAll('[data-label="Rename"]'))[0] as HTMLElement
+    expect(renameOption).toBeTruthy()
+    await act(async () => {
+      renameOption.click()
+      await tick()
+    })
+
+    expect(getByTestId('collection-rename-input')).toBeTruthy()
   })
 })
+
+describe('LocalMusicScreen on mobile', () => {
+  it('switches between songs, albums, and artists views', async () => {
+    const { ctx } = await harness()
+    const { container, getByTestId } = render(h(LocalMusicScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Default is songs / tracks view
+    expect(container.textContent).toContain('Local files')
+    expect(container.textContent).toContain('Files from this computer • 1 songs')
+    expect(getByTestId('local-tracks-list')).toBeTruthy()
+
+    // Switch to Albums view
+    const albumsTab = getByTestId('local-tab-albums')
+    await act(async () => {
+      albumsTab.click()
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Local albums')
+    expect(container.textContent).toContain('Albums from this computer • 1 albums')
+    expect(getByTestId('local-albums-container')).toBeTruthy()
+
+    // Switch to Artists view
+    const artistsTab = getByTestId('local-tab-artists')
+    await act(async () => {
+      artistsTab.click()
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Local artists')
+    expect(getByTestId('local-artists-list')).toBeTruthy()
+  })
+
+  it('plays all local tracks and enters batch mode in songs view', async () => {
+    const { ctx, player } = await harness()
+    const { container, getByTestId } = render(h(LocalMusicScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Play all
+    const playBtn = getByTestId('local-music-play')
+    await act(async () => {
+      playBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK}`)
+
+    // Open header menu via library/open-header-menu
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    // Click "Batch operations"
+    const batchOption = Array.from(container.querySelectorAll('[data-label="Batch operations"]'))[0] as HTMLElement
+    expect(batchOption).toBeTruthy()
+    await act(async () => {
+      batchOption.click()
+      await tick()
+    })
+
+    expect(getByTestId('batch-action-bar')).toBeTruthy()
+  })
+
+  it('renders albums in albums view, plays album and navigates to album detail', async () => {
+    const { ctx, ui, player } = await harness()
+    const { getByTestId } = render(h(LocalMusicScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Switch to Albums view
+    const albumsTab = getByTestId('local-tab-albums')
+    await act(async () => {
+      albumsTab.click()
+      await tick()
+    })
+
+    // Find album card
+    const albumCard = getByTestId(`local-album-card-${ALBUM_URN}`)
+    expect(albumCard).toBeTruthy()
+
+    // Play album directly via overlay play button
+    const playAlbumBtn = getByTestId(`local-album-play-${ALBUM_URN}`)
+    await act(async () => {
+      playAlbumBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK}`)
+
+    // Click album card to navigate
+    await act(async () => {
+      albumCard.click()
+      await tick()
+    })
+
+    expect(ui.calls).toContain(`album.view:${JSON.stringify({ urn: ALBUM_URN })}`)
+  })
+
+  it('renders artists in artists view, selects artist and plays artist tracks', async () => {
+    const { ctx, player } = await harness()
+    const { container, getByTestId } = render(h(LocalMusicScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Switch to Artists view
+    const artistsTab = getByTestId('local-tab-artists')
+    await act(async () => {
+      artistsTab.click()
+      await tick()
+    })
+
+    // Artist row for 'A'
+    const artistRow = getByTestId('local-artist-row-A')
+    expect(artistRow).toBeTruthy()
+
+    // Click artist to view artist tracks
+    await act(async () => {
+      artistRow.click()
+      await tick()
+    })
+
+    expect(getByTestId('local-artist-tracks-list')).toBeTruthy()
+    expect(container.textContent).toContain('Alpha')
+
+    // Play artist tracks
+    const playBtn = getByTestId('local-music-play')
+    await act(async () => {
+      playBtn.click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK}`)
+  })
+
+  it('navigates to scan settings via 3-dots header menu', async () => {
+    const { ctx, ui } = await harness()
+    const { container } = render(h(LocalMusicScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    const settingsBtn = Array.from(container.querySelectorAll('[data-label="Scan settings"]'))[0] as HTMLElement
+    expect(settingsBtn).toBeTruthy()
+    await act(async () => {
+      settingsBtn.click()
+      await tick()
+    })
+
+    expect(ui.calls).toContain(`settings.view:${JSON.stringify({ tab: 'sources' })}`)
+  })
+})
+

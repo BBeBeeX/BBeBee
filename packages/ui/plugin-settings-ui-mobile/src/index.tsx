@@ -14,14 +14,15 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { DownloadRegion, ProxySettings, SourcesService, UiService } from '@BBeBee/protocol'
+import type { DownloadRegion, FsService, ProxySettings, ScannerService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@bbebee/plugin-settings/hooks'
 import { isLocalSource, useAudioSourcesStatus, useSources } from '@bbebee/plugin-sources/hooks'
+import { summarise, useScanSpecifiedDirs, useScanState } from '@bbebee/plugin-local-scanner/hooks'
 import { SourceConfigureModal } from '@bbebee/plugin-sources-ui-mobile'
-import { c, Button, Select, Text, TextField, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Button, IconButton, Select, Text, TextField, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 import { SwitchRow } from './SchemaForm.js'
@@ -221,6 +222,67 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
     void sourcesSvc?.remove?.(id, { forgetCatalogue: true })
   }
 
+  const specifiedDirs = useScanSpecifiedDirs(ctx)
+  const scan = useScanState(ctx)
+  const [isLocalExpanded, setIsLocalExpanded] = useState(false)
+  const [confirmingDeleteFolderId, setConfirmingDeleteFolderId] = useState<string | undefined>(undefined)
+
+  const handleAddFolder = async () => {
+    const fs = serviceOf<FsService>(ctx, 'fs')
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!fs?.pickDirectory || !scanner?.addSpecifiedDir) return
+    try {
+      const picked = await fs.pickDirectory()
+      if (!picked) return
+      const dir = await scanner.addSpecifiedDir(picked as Uri)
+      await scanner.scan?.({ specifiedDirId: dir.id })
+      setIsLocalExpanded(true)
+    } catch (err) {
+      ctx.logger?.error('Failed to add directory:', err)
+    }
+  }
+
+  const handleScanLocal = async () => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner?.scan) return
+    try {
+      await scanner.scan()
+    } catch (err) {
+      ctx.logger?.error('Scan failed:', err)
+    }
+  }
+
+  const handleScanFolder = async (id: string) => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner?.scan) return
+    try {
+      await scanner.scan({ specifiedDirId: id })
+    } catch (err) {
+      ctx.logger?.error('Scan folder failed:', err)
+    }
+  }
+
+  const handleToggleFolder = async (id: string, current: boolean) => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner?.setEnabled) return
+    try {
+      await scanner.setEnabled(id, !current)
+    } catch (err) {
+      ctx.logger?.error('Toggle folder failed:', err)
+    }
+  }
+
+  const handleDeleteFolder = async (id: string) => {
+    const scanner = serviceOf<ScannerService>(ctx, 'scanner')
+    if (!scanner?.removeSpecifiedDir) return
+    try {
+      await scanner.removeSpecifiedDir(id)
+      setConfirmingDeleteFolderId(undefined)
+    } catch (err) {
+      ctx.logger?.error('Remove folder failed:', err)
+    }
+  }
+
   const handleTestProxy = async () => {
     setProxyTesting(true)
     setProxyTestResult(null)
@@ -293,7 +355,13 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const playbackContribs = availableSettings.filter(
     (contribution) => contribution.section === 'playback' || contribution.section === 'audio',
   )
-  const sourcesContribs = availableSettings.filter((contribution) => contribution.section === 'sources')
+  const sourcesContribs = availableSettings.filter(
+    (contribution) =>
+      contribution.section === 'sources' &&
+      contribution.id !== 'sources.settings' &&
+      contribution.id !== 'sources.list' &&
+      contribution.id !== 'scanner.settings',
+  )
   const storageContribs = availableSettings.filter((contribution) => contribution.section === 'storage')
 
   const windowWidth = useWindowWidth()
@@ -687,12 +755,14 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                         }
 
                         const isConfirming = confirmingDeleteId === item.id
+                        const itemKey = local ? 'local' : item.id
 
                         return h(
-                          native.View as never,
+                          (local ? native.Pressable : native.View) as never,
                           {
                             key: item.id,
-                            testID: `settings-source-item-${item.id}`,
+                            testID: `settings-source-item-${itemKey}`,
+                            onPress: local ? () => setIsLocalExpanded((prev) => !prev) : undefined,
                             style: {
                               padding: tokens.space[3],
                               borderRadius: tokens.radius.sm,
@@ -721,6 +791,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                 },
                               },
                               h(native.View as never, {
+                                testID: `settings-source-dot-${itemKey}`,
                                 style: {
                                   width: 8,
                                   height: 8,
@@ -746,6 +817,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                               h(
                                 native.View as never,
                                 {
+                                  testID: `settings-source-auth-${itemKey}`,
                                   style: {
                                     paddingHorizontal: 6,
                                     paddingVertical: 2,
@@ -758,6 +830,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                               h(
                                 native.View as never,
                                 {
+                                  testID: `settings-source-probe-${itemKey}`,
                                   style: {
                                     paddingHorizontal: 6,
                                     paddingVertical: 2,
@@ -778,58 +851,317 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                 justifyContent: 'flex-end',
                                 gap: tokens.space[2],
                                 marginTop: tokens.space[1],
+                                flexWrap: 'wrap',
                               },
                             },
-                            !local
-                              ? h(Button, {
-                                  variant: 'secondary',
-                                  testID: `settings-source-test-${item.id}`,
-                                  disabled: item.isPinging || !item.enabled,
-                                  onPress: () => void testConnection(item.id),
-                                  children: item.isPinging ? '…' : t('settings:sources.test'),
-                                })
-                              : null,
-                            !local
-                              ? h(Button, {
-                                  variant: 'secondary',
-                                  testID: `settings-source-configure-${item.id}`,
-                                  onPress: () => setConfiguringSourceId(item.id),
-                                  children: t('sources:sourcesList.configure'),
-                                })
-                              : null,
-                            h(SwitchRow, {
-                              checked: item.enabled,
-                              accessibilityLabel: item.enabled
-                                ? t('sources:sourcesList.disable')
-                                : t('sources:sourcesList.enable'),
-                              testID: `settings-source-toggle-${item.id}`,
-                              onChange: (checked) => handleToggleSource(item.id, checked),
-                              liquid: liquidGlass,
-                            }),
-                            !local
-                              ? isConfirming
-                                ? h(
-                                    native.View as never,
-                                    { style: { flexDirection: 'row', gap: tokens.space[1], alignItems: 'center' } },
-                                    h(Button, {
-                                      variant: 'primary',
-                                      onPress: () => handleDeleteSource(item.id),
-                                      children: t('app:common.delete'),
+                            ...(local
+                              ? [
+                                  h(Button, {
+                                    variant: 'secondary',
+                                    testID: 'settings-source-add-folder-local',
+                                    onPress: handleAddFolder,
+                                    children: t('localScanner:index.addFolder'),
+                                  }),
+                                  h(Button, {
+                                    variant: 'secondary',
+                                    testID: 'settings-source-scan-local',
+                                    disabled: scan.running,
+                                    onPress: handleScanLocal,
+                                    children: scan.running
+                                      ? t('localScanner:index.scanning')
+                                      : t('localScanner:index.scanNow'),
+                                  }),
+                                  h(SwitchRow, {
+                                    checked: item.enabled,
+                                    accessibilityLabel: item.enabled
+                                      ? t('sources:sourcesList.disable')
+                                      : t('sources:sourcesList.enable'),
+                                    testID: `settings-source-toggle-${itemKey}`,
+                                    onChange: (checked) => handleToggleSource(item.id, checked),
+                                    liquid: liquidGlass,
+                                  }),
+                                  h(
+                                    native.Pressable as never,
+                                    {
+                                      testID: 'settings-source-expand-local',
+                                      accessibilityLabel: isLocalExpanded ? 'Collapse' : 'Expand',
+                                      onPress: () => setIsLocalExpanded((prev) => !prev),
+                                      style: {
+                                        padding: 4,
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                      },
+                                    },
+                                    tablerIcon(isLocalExpanded ? 'chevron-down' : 'chevron-right', {
+                                      size: 18,
+                                      color: 'rgba(255, 255, 255, 0.6)',
                                     }),
-                                    h(Button, {
-                                      variant: 'ghost',
-                                      onPress: () => setConfirmingDeleteId(undefined),
-                                      children: t('app:common.cancel'),
-                                    }),
-                                  )
-                                : h(Button, {
-                                    variant: 'ghost',
-                                    testID: `settings-source-delete-${item.id}`,
-                                    onPress: () => setConfirmingDeleteId(item.id),
-                                    children: t('app:common.delete'),
-                                  })
-                              : null,
+                                  ),
+                                ]
+                              : [
+                                  h(Button, {
+                                    variant: 'secondary',
+                                    testID: `settings-source-test-${item.id}`,
+                                    disabled: item.isPinging || !item.enabled,
+                                    onPress: () => void testConnection(item.id),
+                                    children: item.isPinging ? '…' : t('settings:sources.test'),
+                                  }),
+                                  h(Button, {
+                                    variant: 'secondary',
+                                    testID: `settings-source-configure-${item.id}`,
+                                    onPress: () => setConfiguringSourceId(item.id),
+                                    children: t('sources:sourcesList.configure'),
+                                  }),
+                                  h(SwitchRow, {
+                                    checked: item.enabled,
+                                    accessibilityLabel: item.enabled
+                                      ? t('sources:sourcesList.disable')
+                                      : t('sources:sourcesList.enable'),
+                                    testID: `settings-source-toggle-${item.id}`,
+                                    onChange: (checked) => handleToggleSource(item.id, checked),
+                                    liquid: liquidGlass,
+                                  }),
+                                  isConfirming
+                                    ? h(
+                                        native.View as never,
+                                        { style: { flexDirection: 'row', gap: tokens.space[1], alignItems: 'center' } },
+                                        h(Button, {
+                                          variant: 'primary',
+                                          testID: `settings-source-delete-confirm-${item.id}`,
+                                          onPress: () => handleDeleteSource(item.id),
+                                          children: t('app:common.delete'),
+                                        }),
+                                        h(Button, {
+                                          variant: 'ghost',
+                                          onPress: () => setConfirmingDeleteId(undefined),
+                                          children: t('app:common.cancel'),
+                                        }),
+                                      )
+                                    : h(Button, {
+                                        variant: 'ghost',
+                                        testID: `settings-source-delete-${item.id}`,
+                                        onPress: () => setConfirmingDeleteId(item.id),
+                                        children: t('app:common.delete'),
+                                      }),
+                                ]),
                           ),
+                          local && isLocalExpanded
+                            ? h(
+                                native.View as never,
+                                {
+                                  testID: 'source-local-folders-sheet',
+                                  style: {
+                                    marginTop: tokens.space[2],
+                                    paddingTop: tokens.space[3],
+                                    borderTopWidth: 1,
+                                    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+                                    gap: tokens.space[3],
+                                  },
+                                },
+                                h(
+                                  native.View as never,
+                                  {
+                                    style: {
+                                      flexDirection: 'row',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                    },
+                                  },
+                                  h(
+                                    Text,
+                                    { variant: 'sm', tone: 'muted' },
+                                    `${specifiedDirs.length} ${t('localScanner:index.musicFolders')}`,
+                                  ),
+                                  h(Button, {
+                                    variant: 'secondary',
+                                    testID: 'sheet-add-folder-btn',
+                                    onPress: handleAddFolder,
+                                    children: t('localScanner:index.addFolder'),
+                                  }),
+                                ),
+                                scan.progress
+                                  ? h(Text, {
+                                      variant: 'xs',
+                                      tone: 'muted',
+                                      accessibilityLabel: t('localScanner:index.scanProgress'),
+                                      children: scan.progress.total
+                                        ? t('localScanner:index.scannedOf', {
+                                            done: scan.progress.done,
+                                            total: scan.progress.total,
+                                          })
+                                        : t('localScanner:index.scannedFiles', {
+                                            done: scan.progress.done,
+                                          }),
+                                    })
+                                  : scan.lastSummary
+                                    ? h(Text, {
+                                        variant: 'xs',
+                                        tone: scan.lastSummary.errors > 0 ? 'warn' : 'muted',
+                                        children: t('localScanner:index.lastScan', {
+                                          summary: summarise(scan.lastSummary),
+                                        }),
+                                      })
+                                    : null,
+                                scan.running && scan.progress?.currentFile
+                                  ? h(Text, {
+                                      variant: 'xs',
+                                      tone: 'muted',
+                                      numberOfLines: 1,
+                                      children: scan.progress.currentFile,
+                                    })
+                                  : null,
+                                specifiedDirs.length === 0
+                                  ? h(
+                                      native.View as never,
+                                      {
+                                        testID: 'sheet-folders-empty',
+                                        style: {
+                                          paddingVertical: tokens.space[4],
+                                          alignItems: 'center',
+                                        },
+                                      },
+                                      h(
+                                        Text,
+                                        { variant: 'sm', tone: 'muted' },
+                                        t('localScanner:index.noFoldersYet'),
+                                      ),
+                                    )
+                                  : h(
+                                      native.View as never,
+                                      { style: { gap: tokens.space[2] } },
+                                      ...specifiedDirs.map((dir) => {
+                                        const isConfirmingFolder = confirmingDeleteFolderId === dir.id
+                                        return h(
+                                          native.View as never,
+                                          {
+                                            key: dir.id,
+                                            testID: `local-folder-row-${dir.id}`,
+                                            style: {
+                                              flexDirection: 'row',
+                                              alignItems: 'center',
+                                              justifyContent: 'space-between',
+                                              padding: tokens.space[2],
+                                              borderRadius: tokens.radius.sm,
+                                              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                                              borderWidth: 1,
+                                              borderColor: 'rgba(255, 255, 255, 0.06)',
+                                              opacity: dir.enabled ? 1 : 0.5,
+                                              gap: tokens.space[2],
+                                            },
+                                          },
+                                          h(
+                                            native.View as never,
+                                            {
+                                              style: {
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                gap: tokens.space[2],
+                                                flex: 1,
+                                                minWidth: 0,
+                                              },
+                                            },
+                                            tablerIcon('folder', {
+                                              size: 18,
+                                              color: 'var(--color-primary, #5F87FF)',
+                                            }) ?? h(Text, null, '📁'),
+                                            h(
+                                              native.View as never,
+                                              { style: { flex: 1, minWidth: 0 } },
+                                              h(
+                                                Text,
+                                                {
+                                                  variant: 'sm',
+                                                  numberOfLines: 1,
+                                                  style: { color: '#FFFFFF' },
+                                                },
+                                                dir.uri,
+                                              ),
+                                              dir.lastError
+                                                ? h(
+                                                    Text,
+                                                    {
+                                                      variant: 'xs',
+                                                      tone: 'error',
+                                                      numberOfLines: 1,
+                                                    },
+                                                    dir.lastError,
+                                                  )
+                                                : null,
+                                            ),
+                                          ),
+                                          h(
+                                            native.View as never,
+                                            {
+                                              style: {
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                gap: tokens.space[1],
+                                                flexShrink: 0,
+                                              },
+                                            },
+                                            h(Button, {
+                                              variant: 'ghost',
+                                              disabled: scan.running || !dir.enabled,
+                                              testID: `local-folder-scan-${dir.id}`,
+                                              onPress: () => handleScanFolder(dir.id),
+                                              children: t('localScanner:index.scan'),
+                                            }),
+                                            h(Button, {
+                                              variant: 'ghost',
+                                              testID: `local-folder-toggle-${dir.id}`,
+                                              accessibilityLabel: dir.enabled
+                                                ? t('localScanner:index.disable')
+                                                : t('localScanner:index.enable'),
+                                              onPress: () => handleToggleFolder(dir.id, dir.enabled),
+                                              children: dir.enabled
+                                                ? t('localScanner:index.disable')
+                                                : t('localScanner:index.enable'),
+                                            }),
+                                            isConfirmingFolder
+                                              ? h(
+                                                  native.View as never,
+                                                  {
+                                                    style: {
+                                                      flexDirection: 'row',
+                                                      gap: tokens.space[1],
+                                                      alignItems: 'center',
+                                                    },
+                                                  },
+                                                  h(Button, {
+                                                    variant: 'primary',
+                                                    testID: `local-folder-delete-confirm-${dir.id}`,
+                                                    onPress: () => handleDeleteFolder(dir.id),
+                                                    children: t('app:common.delete'),
+                                                  }),
+                                                  h(Button, {
+                                                    variant: 'ghost',
+                                                    onPress: () => setConfirmingDeleteFolderId(undefined),
+                                                    children: t('app:common.cancel'),
+                                                  }),
+                                                )
+                                              : h(IconButton, {
+                                                  icon: '🗑',
+                                                  accessibilityLabel: t('localScanner:index.removeUri', {
+                                                    uri: dir.uri,
+                                                  }),
+                                                  testID: `local-folder-delete-${dir.id}`,
+                                                  onPress: () => setConfirmingDeleteFolderId(dir.id),
+                                                }),
+                                          ),
+                                        )
+                                      }),
+                                    ),
+                                h(
+                                  Text,
+                                  {
+                                    variant: 'xs',
+                                    tone: 'muted',
+                                    style: { marginTop: tokens.space[1] },
+                                  },
+                                  t('localScanner:index.removeKeepsTracks'),
+                                ),
+                              )
+                            : null,
                         )
                       }),
                     ),

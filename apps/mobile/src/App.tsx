@@ -22,6 +22,8 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native'
 /*
  * ⚠️ `react-native-safe-area-context`, not React Native's own `SafeAreaView`.
@@ -1000,21 +1002,25 @@ function Shell({ ctx }: { ctx: Context }) {
     onOpenDrawer: (() => void) | undefined,
     onBack?: (() => void) | undefined,
     rightAction?: ReactNode,
+    headerStyle?: StyleProp<ViewStyle>,
   ) =>
     h(
       View,
       {
-        style: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          // Extra breathing room above the title, on top of the
-          // SafeAreaView's status-bar inset.
-          paddingTop: 16,
-          paddingBottom: 10,
-          borderBottomColor: palette.border.subtle,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-        },
+        style: [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 16,
+            // Extra breathing room above the title, on top of the
+            // SafeAreaView's status-bar inset.
+            paddingTop: 16,
+            paddingBottom: 10,
+            borderBottomColor: palette.border.subtle,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+          },
+          headerStyle,
+        ],
       },
       onBack
         ? headerGlassButton(
@@ -1044,7 +1050,9 @@ function Shell({ ctx }: { ctx: Context }) {
 
   const libraryHeaderMenuButton = headerGlassButton(
     {
-      onPress: () => ctx.emit('library/open-header-menu'),
+      onPress: () => {
+        ctx.emit('library/open-header-menu')
+      },
       accessibilityLabel: t('library:library.actions') || 'More options',
       testID: 'library-header-menu',
     },
@@ -1052,13 +1060,48 @@ function Shell({ ctx }: { ctx: Context }) {
       h(Text, { style: { color: palette.text.primary, fontSize: 22, fontWeight: '700' } }, '⋯'),
   )
 
-  const isCurrentSettingsSubpage = isSettingsSubpage(currentId) && navState.index > 0
-  const isCurrentLibraryHome = currentId === 'library.home'
+  const getRouteHeaderStyle = (id?: string): ViewStyle | undefined => {
+    if (id === 'library.favorites') {
+      return {
+        backgroundColor: 'rgba(69, 10, 245, 0.5)',
+        borderBottomWidth: 0,
+      }
+    }
+    if (id === 'library.local') {
+      return {
+        backgroundColor: 'rgba(95, 135, 255, 0.15)',
+        borderBottomWidth: 0,
+      }
+    }
+    if (id === 'library.collection') {
+      return {
+        backgroundColor: palette.bg.base,
+        borderBottomWidth: 0,
+      }
+    }
+    if (id === 'album.view') {
+      return {
+        backgroundColor: 'rgba(95, 135, 255, 0.25)',
+        borderBottomWidth: 0,
+      }
+    }
+    return undefined
+  }
+
+  const isLibraryRouteWithMenu = (id?: string): boolean =>
+    id === 'library.home' ||
+    id === 'library.local' ||
+    id === 'library.favorites' ||
+    id === 'library.collection' ||
+    id === 'album.view'
+
+  const canGoBack = navState.index > 0 && !MAIN_TABS.some((tab) => tab.id === currentId)
   const pageHeader = pageHeaderFor(
     pageTitleFor(currentId),
     () => setIsDrawerOpen(true),
-    isCurrentSettingsSubpage ? () => void goBack() : undefined,
-    isCurrentLibraryHome ? libraryHeaderMenuButton : undefined,
+    canGoBack ? () => void goBack() : undefined,
+    isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton : undefined,
+    getRouteHeaderStyle(currentId),
   )
   const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
     navigateTo('album.view', { urn }),
@@ -1074,11 +1117,14 @@ function Shell({ ctx }: { ctx: Context }) {
     leftNavState.history[leftNavState.index] ?? { id: LEFT_PANE_ROOT }
   const leftCurrentId = leftCurrentItem.id
   const leftCurrentParams = leftCurrentItem.params
+  const leftCanGoBack =
+    leftNavState.index > 0 && !MAIN_TABS.some((tab) => tab.id === leftCurrentId)
   const leftPageHeader = pageHeaderFor(
     pageTitleFor(leftCurrentId),
     () => setIsDrawerOpen(true),
-    undefined,
-    leftCurrentId === 'library.home' ? libraryHeaderMenuButton : undefined,
+    leftCanGoBack ? () => void leftGoBack() : undefined,
+    isLibraryRouteWithMenu(leftCurrentId) ? libraryHeaderMenuButton : undefined,
+    getRouteHeaderStyle(leftCurrentId),
   )
   const leftPageBody = pageBodyFor(
     leftCurrentId,
@@ -1549,8 +1595,8 @@ function Shell({ ctx }: { ctx: Context }) {
       pageHeaderFor(
         pageTitleFor(currentId),
         undefined,
-        isCurrentSettingsSubpage ? () => void goBack() : undefined,
-        isCurrentLibraryHome ? libraryHeaderMenuButton : undefined,
+        isSettingsSubpage(currentId) ? () => void goBack() : undefined,
+        isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton : undefined,
       ),
       pageBody,
     ),

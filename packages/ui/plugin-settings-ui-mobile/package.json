@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@bbebee/plugin-cache": "workspace:*",
+    "@bbebee/plugin-local-scanner": "workspace:*",
     "@bbebee/plugin-settings": "workspace:*",
     "@bbebee/plugin-sources": "workspace:*",
     "@bbebee/plugin-sources-ui-mobile": "workspace:*",

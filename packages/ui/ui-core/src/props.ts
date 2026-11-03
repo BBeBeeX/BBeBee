@@ -134,6 +134,11 @@ export interface ContextMenuProps extends CommonProps {
    * positioning — the fullscreen play page's hover bottom bar is one.
    */
   portal?: boolean
+  /**
+   * Presentation placement: 'sheet' renders as bottom sheet, 'top-right'
+   * renders as a floating dropdown / right-click menu near top-right.
+   */
+  placement?: 'sheet' | 'top-right' | 'dropdown'
 }
 
 export interface TrackRowProps extends CommonProps {

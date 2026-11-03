@@ -7,6 +7,9 @@ import type { AppSettings, SettingsService, SettingsContribution, CacheClass, Ca
 import { DEFAULT_APP_SETTINGS } from '@BBeBee/protocol'
 import { configureNative, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 import settingsCatalogue from '../../../feature/plugin-i18n/src/locales/settings.json'
+import localScannerCatalogue from '../../../feature/plugin-i18n/src/locales/localScanner.json'
+import sourcesCatalogue from '../../../feature/plugin-i18n/src/locales/sources.json'
+import enCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 import pluginSettingsUi, { SettingsScreen } from './index.js'
 
 afterEach(cleanup)
@@ -21,7 +24,10 @@ function hostComponent(name: string) {
         'data-label': typeof accessibilityLabel === 'string' ? accessibilityLabel : undefined,
         'data-role': typeof accessibilityRole === 'string' ? accessibilityRole : undefined,
         'data-testid': typeof testID === 'string' ? testID : undefined,
-        onClick: typeof onPress === 'function' ? (onPress as () => void) : undefined,
+        onClick: typeof onPress === 'function' ? (e: any) => {
+          e?.stopPropagation?.()
+          ;(onPress as () => void)()
+        } : undefined,
       },
       children,
     )
@@ -180,8 +186,14 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     t = (key: string, params?: Record<string, string | number>): string => {
       const sep = key.indexOf(':')
       if (sep < 0) return key
-      const catalogue = settingsCatalogue.en as Record<string, unknown>
-      let cur: unknown = catalogue
+      const ns = key.slice(0, sep)
+      const catalogues: Record<string, any> = {
+        settings: settingsCatalogue.en,
+        localScanner: localScannerCatalogue.en,
+        sources: sourcesCatalogue.en,
+        app: enCatalogue,
+      }
+      let cur: unknown = catalogues[ns]
       for (const part of key.slice(sep + 1).split('.')) {
         cur = (cur as Record<string, unknown> | undefined)?.[part]
       }
@@ -197,13 +209,119 @@ class SettingsStub extends Service implements Partial<SettingsService> {
     }
   }
 
+  let calls: string[] = []
+
+  class SourcesStub extends Service {
+    static override readonly name = 'sources'
+    public sources: any[] = [
+      {
+        id: 'local',
+        name: 'Local files',
+        sourceUrl: 'local://',
+        type: 'local',
+        enabled: true,
+      },
+      {
+        id: 'mock-bili',
+        name: 'Bilibili Music',
+        sourceUrl: 'https://bilibili.com',
+        type: 'music',
+        enabled: true,
+      },
+    ]
+
+    constructor(ctx: Context) {
+      super(ctx, 'sources')
+    }
+
+    setEnabled = async (id: string, enabled: boolean) => {
+      calls.push(`sources:setEnabled:${id}:${enabled}`)
+      const s = this.sources.find((item) => item.id === id)
+      if (s) {
+        s.enabled = enabled
+        this.ctx.emit('source/changed', id, ['enabled'])
+      }
+    }
+
+    remove = async (id: string) => {
+      calls.push(`sources:remove:${id}`)
+      this.sources = this.sources.filter((item) => item.id !== id)
+      this.ctx.emit('source/removed', id, true)
+    }
+
+    testConnection = async (id: string) => {
+      calls.push(`sources:testConnection:${id}`)
+      return { status: 'ok' as const, latencyMs: 35 }
+    }
+  }
+
+  class ScannerStub extends Service {
+    static override readonly name = 'scanner'
+    public specifiedDirs = [
+      { id: 'dir-1', uri: '/music/pop', enabled: true, recursive: true },
+      { id: 'dir-2', uri: '/music/rock', enabled: false, recursive: true, lastError: 'Permission denied' },
+    ]
+
+    constructor(ctx: Context) {
+      super(ctx, 'scanner')
+    }
+
+    addSpecifiedDir = async (uri: string) => {
+      calls.push(`scanner:addSpecifiedDir:${uri}`)
+      const dir = { id: `dir-${Date.now()}`, uri, enabled: true, recursive: true }
+      this.specifiedDirs.push(dir)
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+      return dir
+    }
+
+    removeSpecifiedDir = async (id: string) => {
+      calls.push(`scanner:removeSpecifiedDir:${id}`)
+      this.specifiedDirs = this.specifiedDirs.filter((d) => d.id !== id)
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+    }
+
+    setEnabled = async (id: string, enabled: boolean) => {
+      calls.push(`scanner:setEnabled:${id}:${enabled}`)
+      const d = this.specifiedDirs.find((dir) => dir.id === id)
+      if (d) d.enabled = enabled
+      this.ctx.emit('scan/specified-dirs-changed', this.specifiedDirs)
+    }
+
+    scan = async (opts?: { specifiedDirId?: string }) => {
+      calls.push(`scanner:scan:${opts?.specifiedDirId ?? 'all'}`)
+      this.ctx.emit('scan/started', opts?.specifiedDirId ?? 'all')
+      this.ctx.emit('scan/progress', opts?.specifiedDirId ?? 'dir-1', 42, 100)
+      this.ctx.emit('scan/finished', opts?.specifiedDirId ?? 'all', { added: 1, updated: 0, removed: 0, errors: 0 })
+    }
+
+    cancel = () => {
+      calls.push('scanner:cancel')
+      this.ctx.emit('scan/finished', 'all', { added: 0, updated: 0, removed: 0, errors: 0, incomplete: true, cancelled: true })
+    }
+  }
+
+  class FsStub extends Service {
+    static override readonly name = 'fs'
+    constructor(ctx: Context) {
+      super(ctx, 'fs')
+    }
+    pickDirectory = async () => {
+      calls.push('fs:pickDirectory')
+      return '/music/jazz'
+    }
+  }
+
   async function createHarness() {
+    calls = []
     const ctx = new Context()
     await ctx.plugin(UiStub)
     await ctx.plugin(DefaultI18nStub)
     await ctx.plugin(SettingsStub)
     await ctx.plugin(CacheStub)
     await ctx.plugin(DspStub)
+    await ctx.plugin(SourcesStub)
+    await ctx.plugin(ScannerStub)
+    await ctx.plugin(FsStub)
     await ctx.plugin(pluginSettingsUi)
 
     const MockDspCard = () => {
@@ -232,7 +350,7 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       display: 'card',
     })
 
-    return { ctx }
+    return { ctx, calls }
   }
 
   describe('plugin-settings-ui-mobile', () => {
@@ -282,6 +400,67 @@ class SettingsStub extends Service implements Partial<SettingsService> {
 
       expect(container.textContent).toContain('Music sources & files')
       expect(container.textContent).toContain('Configured sources')
+    })
+
+    it('supports local source folder management, scan, and directory picking on mobile', async () => {
+      const { ctx, calls } = await createHarness()
+      const SourcesPage = (ctx.ui as any).viewFor('settings.sources')
+      const { getByTestId, queryByTestId, container } = render(h(SourcesPage, {}))
+
+      // 1. Configured sources: local source item exists
+      expect(getByTestId('settings-source-item-local')).toBeTruthy()
+      expect(getByTestId('settings-source-dot-local')).toBeTruthy()
+      expect(getByTestId('settings-source-add-folder-local')).toBeTruthy()
+      expect(getByTestId('settings-source-scan-local')).toBeTruthy()
+
+      // 2. Scan all local folders
+      await act(async () => {
+        getByTestId('settings-source-scan-local').click()
+      })
+      expect(calls.includes('scanner:scan:all')).toBe(true)
+
+      // 3. Folders sheet collapsed by default
+      expect(queryByTestId('source-local-folders-sheet')).toBeNull()
+
+      // 4. Clicking local source item expands local folders sheet
+      await act(async () => {
+        getByTestId('settings-source-item-local').click()
+      })
+      expect(getByTestId('source-local-folders-sheet')).toBeTruthy()
+      expect(getByTestId('local-folder-row-dir-1')).toBeTruthy()
+      expect(getByTestId('local-folder-row-dir-2')).toBeTruthy()
+      expect(container.textContent).toContain('/music/pop')
+      expect(container.textContent).toContain('/music/rock')
+      expect(container.textContent).toContain('Permission denied')
+
+      // 5. Toggle folder
+      await act(async () => {
+        getByTestId('local-folder-toggle-dir-1').click()
+      })
+      expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
+
+      // 6. Scan single folder
+      await act(async () => {
+        getByTestId('local-folder-scan-dir-1').click()
+      })
+      expect(calls.includes('scanner:scan:dir-1')).toBe(true)
+
+      // 7. Delete folder flow with confirmation
+      await act(async () => {
+        getByTestId('local-folder-delete-dir-1').click()
+      })
+      expect(getByTestId('local-folder-delete-confirm-dir-1')).toBeTruthy()
+      await act(async () => {
+        getByTestId('local-folder-delete-confirm-dir-1').click()
+      })
+      expect(calls.includes('scanner:removeSpecifiedDir:dir-1')).toBe(true)
+
+      // 8. Add folder via pickDirectory
+      await act(async () => {
+        getByTestId('settings-source-add-folder-local').click()
+      })
+      expect(calls.includes('fs:pickDirectory')).toBe(true)
+      expect(calls.includes('scanner:addSpecifiedDir:/music/jazz')).toBe(true)
     })
 
     it('renders the playback sub-page with engine row and DSP contributions', async () => {

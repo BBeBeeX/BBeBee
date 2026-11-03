@@ -122,6 +122,26 @@ export const TABLER_ICON_DEFS: Record<string, IconSvgDefinition> = {
       { tag: 'path', attrs: { d: 'M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6' } },
     ],
   },
+  list: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M9 6l11 0' } },
+      { tag: 'path', attrs: { d: 'M9 12l11 0' } },
+      { tag: 'path', attrs: { d: 'M9 18l11 0' } },
+      { tag: 'path', attrs: { d: 'M5 6l0 .01' } },
+      { tag: 'path', attrs: { d: 'M5 12l0 .01' } },
+      { tag: 'path', attrs: { d: 'M5 18l0 .01' } },
+    ],
+  },
+  'list-check': {
+    elements: [
+      { tag: 'path', attrs: { d: 'M3.5 5.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M3.5 11.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M3.5 17.5l1.5 1.5l2.5 -2.5' } },
+      { tag: 'path', attrs: { d: 'M11 6l9 0' } },
+      { tag: 'path', attrs: { d: 'M11 12l9 0' } },
+      { tag: 'path', attrs: { d: 'M11 18l9 0' } },
+    ],
+  },
   minus: {
     elements: [{ tag: 'path', attrs: { d: 'M5 12l14 0' } }],
   },
@@ -179,6 +199,14 @@ export const TABLER_ICON_DEFS: Record<string, IconSvgDefinition> = {
         },
       },
       { tag: 'path', attrs: { d: 'M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0' } },
+    ],
+  },
+  shuffle: {
+    elements: [
+      { tag: 'path', attrs: { d: 'M18 4l3 3l-3 3' } },
+      { tag: 'path', attrs: { d: 'M18 20l3 -3l-3 -3' } },
+      { tag: 'path', attrs: { d: 'M3 7h3a5 5 0 0 1 5 5a5 5 0 0 0 5 5h5' } },
+      { tag: 'path', attrs: { d: 'M21 7h-5a4.978 4.978 0 0 0 -3 1.8m-4 7.4a4.978 4.978 0 0 1 -3 1.8h-3' } },
     ],
   },
   trash: {
