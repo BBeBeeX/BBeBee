@@ -149,7 +149,7 @@ export const QueueTrackRow = memo(
           ? h(
               'div',
               {
-                'aria-label': t('queue:index.play', 'Play'),
+                'aria-label': t('queue:index.play'),
                 'data-testid': 'queue-track-play-overlay',
                 style: {
                   position: 'absolute',
@@ -227,8 +227,8 @@ export const QueueTrackRow = memo(
               {
                 type: 'button',
                 'data-testid': 'queue-track-more-btn',
-                'aria-label': t('queue:index.moreOptions', 'More options'),
-                title: t('queue:index.moreOptions', 'More options'),
+                'aria-label': t('queue:index.moreOptions'),
+                title: t('queue:index.moreOptions'),
                 onClick: (e: { stopPropagation: () => void; currentTarget: HTMLElement }) => {
                   e.stopPropagation()
                   const rect = e.currentTarget.getBoundingClientRect()
