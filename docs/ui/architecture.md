@@ -54,8 +54,8 @@ screen, `registry.screen`, plus `registry.settings-card`), `plugin-theme-ui-*` (
 `plugin-visualizer-ui-*` (`visualizer.canvas` contributed into `now-playing.visualizer`, plus
 `visualizer.settings`). Where a target's surface genuinely differs, the asymmetry is deliberate:
 `plugin-manager-ui-mobile` has no desktop twin — desktop keeps plugin management inside its
-settings screen's own plugins section — and the mobile theme card omits the glass sub-cards,
-which have no React Native counterpart. Mobile-only entrances that would otherwise strand a
+settings screen's own plugins section — and the mobile theme card carries its own Liquid Glass
+section instead of the desktop glass sub-cards (which stay desktop-only). Mobile-only entrances that would otherwise strand a
 screen (the converter workbench, the manager list, the Discover route) ship as settings
 link-rows: a `settings` contribution with no `action` renders a row whose button hands the view
 id to `ui.navigate`.
@@ -840,12 +840,16 @@ per unknown id buys nothing.
   favorite are disabled, tapping the bar body does nothing (there is no
   fullscreen player to open), but the queue button still works. When a
   track is loaded — including paused — the same bar shows the track.
-- Bar row, left to right: cover, title/artist (flex, truncated), favorite
-  (heart, the library service's `isSaved` / `setSaved` on the current track
-  URN — an existing service, no new service; reach it via `serviceOf`, or
-  by adding `library` to the bar package's inject list, never by raw
-  `ctx.library` from a fiber that did not inject it, per §7.1 item 4),
-  play/pause, queue button.
+- Bar row, left to right: cover, title/artist (flex, truncated), play/pause,
+  next, favorite (heart, the library service's `isSaved` / `setSaved` on the
+  current track URN — an existing service, no new service; reach it via
+  `serviceOf`, or by adding `library` to the bar package's inject list,
+  never by raw `ctx.library` from a fiber that did not inject it, per
+  §7.1 item 4), queue button.
+- Glass: the floating bar, the tab bar, the page-header buttons and the
+  sheets they open are glass surfaces — the mobile Liquid Glass model, the
+  full surface list and what stays solid are in
+  [design-system.md §6.2](design-system.md#mobile-liquid-glass).
 - Tapping the bar body (not its buttons) opens the fullscreen now-playing
   overlay, as today. The queue button opens the queue drawer; it must **not**
   navigate to `queue.view` as a page.
@@ -875,9 +879,10 @@ per unknown id buys nothing.
   play-count heatmap live in the phone drawer definition above, not as
   extra rail rows in the first implementation.
 - The second tab is labelled 音乐库, not the screenshot's 我的歌单.
-- Rail-bottom card: cover, title/artist, play/pause, queue button. Tapping
+- Rail-bottom card: cover, title/artist, play/pause, next, favorite. Tapping
   the card opens the fullscreen overlay (which covers the whole window,
-  rail included); the queue button opens a **right-side drawer** (not a
+  rail included). The queue button moved out of the card into a row
+  directly under it (☰ + play queue), opening a **right-side drawer** (not a
   bottom sheet) rendering the same `QueueScreen`, layered above the overlay
   when the overlay is open.
 - When idle, the rail-bottom card shows the same "暂无播放" placeholder
@@ -945,12 +950,12 @@ per unknown id buys nothing.
   single-column on mobile, horizontal shelf rows) — a shell that tabs to
   `sources.recommend` with no mobile view renders "not available", which
   is not a Home tab.
-- **The current mobile now-playing bar has no favorite and no queue
-  button.** It has cover, title/artist, action slots, and play/pause.
-  The favorite button and the queue button are new bar controls; the
-  drawer open state belongs to the shell (the bar gets an `onOpenQueue`
-  prop), not to the bar, so the tablet rail card and the phone bar share
-  one drawer state shape.
+- **The mobile now-playing bar has since gained favorite, queue and next
+  buttons** (the tablet rail card gained next and favorite, with its queue
+  button moved to the row below the card). The drawer open state still
+  belongs to the shell (the bar gets an `onOpenQueue` prop), not to the
+  bar, so the tablet rail card and the phone bar share one drawer state
+  shape.
 - **`apps/mobile/app.json` locks orientation to `"portrait"`.**
   Tablet landscape is impossible until that becomes `"default"`.
   iOS `supportsTablet` is already `true`; no new native dependency is

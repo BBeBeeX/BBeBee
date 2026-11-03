@@ -225,6 +225,18 @@ export const tokens = {
 - **A 层 —— 组件玻璃（应用内磨砂表面）**：`ui-tokens` 中的 `resolveGlassVariables()` 以 **按表面用户覆盖 > 全局用户值 > 主题预设 > 默认值** 的优先级解析 `--glass-*` CSS 变量。桌面 Shell 的侧栏、主区、播放栏与浮层消费这些变量（纯色保留为 `var()` 回退，关玻璃时与之前像素级一致），其下是氛围背景层，来源可选当前封面、主题、桌面（系统效果）或无。各表面的数值（模糊、饱和度、不透明度、边框不透明度）可在设置中修改（`settings.glass.components` + `settings.glass.surfaces`）。
 - **B 层 —— 窗口玻璃（系统效果）**：桌面主窗口以透明方式创建，经 Tauri `set_effects` 驱动（preload shim 中的 `window.setGlass`）：Windows 上 `acrylic` / `mica` / `blur`，macOS 上 `vibrancy`，Linux 上为受支持的空操作。着色与不透明度只来自 `settings.glass.window` —— 主题预设永远改不了系统窗口外观。
 
+#### 移动端液态玻璃
+
+移动端玻璃与上面两层桌面机制不同 —— 它不用 `settings.glass`，也不用 CSS 变量，因为 React Native 没有 DOM。它是经 `react-native-liquid-glassmorphism` 实现的原生液态玻璃（`apps/mobile/app.json` 里的可选 config plugin，`^1.2.1`）：iOS 26 上是原生 `UIGlassEffect`，Android 13+ 上是 AGSL 折射着色器，低于此的系统用库内回退。需要开发构建（不能用 Expo Go）；壳已经用了 `expo-dev-client`。
+
+设置存在 `AppSettings.liquidGlass`（protocol，归 plugin-theme），在主题卡自己的液态玻璃分区里改 —— 不在桌面玻璃子卡里。分通用档和附加档：通用档（`enabled`、`variant`（`regular`/`clear`）、`interactive`、`intensity`；默认值开 / `regular` / 关 / 60），附加档只用于 Android（`thickness` 1、`refraction` 开、`tilt` 关 —— 常驻栏省电、`edgeReflectionStrength` 1、`legibilityFloor` 0）。`resolveMobileLiquidGlassSettings()` 补默认值并钳制；`SettingsPatch` 可以只 patch 一档，深合并保证 patch 一档不会丢另一档。强度（intensity）对 iOS 26 原生效果无效。
+
+渲染走 `ui-kit-mobile` 的 `GlassSurface`，三档：壳经 `apps/mobile/src/boot.ts` 的 `configureNative` 注入的 `LiquidGlassView`（kit 本身不依赖原生模块），然后是 `BlurView`（`expo-blur`），最后是半透明 `View`。调用方传解析好的 `liquid`；不传的表面保持实色。`enabled` 关掉只去掉原生一档 —— 传了 `liquid` 的表面仍走毛玻璃/半透明档。
+
+目前的玻璃面：底部 tab 栏、悬浮播放栏、页面顶栏按钮（返回、抽屉汉堡、音乐库菜单按钮）与音乐库顶栏菜单 sheet、全部 kit `Sheet`、设置页开关、全屏播放器的关闭 pill 与样式切换按钮、专辑页体内的返回链接、长按/溢出 `ContextMenu`、info `Toast`、传输行的上一首/下一首按钮、`Select` 下拉列表、独立搜索框（音乐库搜索行、搜索页顶栏）。
+
+原则（用户定）：玻璃只给小的浮动件 —— 按钮、pill、菜单、提示。大面保持实色：导航抽屉面板、平板队列侧栏、设置卡片、列表行、Chip、Slider 轨道、玻璃 sheet 里的输入框、抽屉里的按钮。另两条相邻规则：`Toast` 只有 `info` 做玻璃，`error`/`warn`/`ok` 留状态色；传输行的播放按钮保留 accent 填充（行内唯一的醒目色；白字上玻璃在浅色封面上会丢对比）。
+
 ### 6.3 表面层级与后退式纯黑底盘
 
 纵深感通过**微妙的亮度阶梯与半透明图层**来传达，以近黑底盘锚定（默认 `midnight-purple` 深色方案为 `#05060A`）：
