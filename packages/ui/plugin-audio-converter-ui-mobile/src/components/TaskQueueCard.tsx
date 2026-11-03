@@ -90,7 +90,7 @@ export function TaskQueueCard({
       ? h(
           Text,
           { variant: 'xs', tone: 'muted' },
-          `${processing} active · ${pending} waiting`,
+          t('converter:index.queueSummary', { processing, pending }),
         )
       : null,
 

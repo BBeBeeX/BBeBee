@@ -149,10 +149,33 @@ async function harness(state: Partial<TransportState> = {}) {
     viewFor = (id: string) => this.views.get(id)
   }
 
+  class I18nStub extends Service {
+    constructor(ctx: Context) {
+      super(ctx, 'i18n')
+    }
+    readonly locale = 'en'
+    t = (key: string): string => {
+      const map: Record<string, string> = {
+        'app:common.carMode.title': 'Car mode',
+        'app:common.carMode.exit': 'Exit car mode',
+        'app:common.carMode.loading': 'Loading…',
+        'app:common.carMode.nothingPlaying': 'Nothing playing',
+        'app:common.carMode.previousTrack': 'Previous track',
+        'app:common.carMode.nextTrack': 'Next track',
+        'app:common.carMode.play': 'Play',
+        'app:common.carMode.pause': 'Pause',
+      }
+      return map[key] ?? key
+    }
+    register = () => () => {}
+    onLocaleChange = () => () => {}
+  }
+
   const ctx = new Context()
   await ctx.plugin(PlayerStub)
   await ctx.plugin(CarModeStub)
   await ctx.plugin(UiStub)
+  await ctx.plugin(I18nStub)
   return { ctx, calls, ui: ctx.ui as unknown as UiStub, carMode: ctx.carMode as unknown as CarModeStub }
 }
 

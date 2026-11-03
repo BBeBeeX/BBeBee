@@ -39,6 +39,16 @@
     },
     "back": "Back",
     "cancel": "Cancel",
+    "carMode": {
+      "exit": "Exit car mode",
+      "loading": "Loading…",
+      "nextTrack": "Next track",
+      "nothingPlaying": "Nothing playing",
+      "pause": "Pause",
+      "play": "Play",
+      "previousTrack": "Previous track",
+      "title": "Car mode"
+    },
     "cinematicLyricsTemplate": {
       "backToCurrentLyric": "Back to current lyric",
       "lyrics": "Lyrics"

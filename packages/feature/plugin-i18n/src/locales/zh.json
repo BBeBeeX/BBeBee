@@ -39,6 +39,16 @@
     },
     "back": "返回",
     "cancel": "取消",
+    "carMode": {
+      "exit": "退出车载模式",
+      "loading": "加载中…",
+      "nextTrack": "下一首",
+      "nothingPlaying": "暂无播放",
+      "pause": "暂停",
+      "play": "播放",
+      "previousTrack": "上一首",
+      "title": "车载模式"
+    },
     "cinematicLyricsTemplate": {
       "backToCurrentLyric": "回到当前歌词",
       "lyrics": "歌词"

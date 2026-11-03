@@ -101,7 +101,7 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
               h(TextField, {
                 value: newPlaylistName,
                 onChange: setNewPlaylistName,
-                placeholder: 'Playlist name',
+                placeholder: t('app:common.saveToPlaylist.playlistName'),
               }),
             ),
             h(Button, {
@@ -128,7 +128,7 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
               h(TextField, {
                 value: filter,
                 onChange: setFilter,
-                placeholder: 'Filter playlists…',
+                placeholder: t('app:common.saveToPlaylist.findPlaylist'),
               }),
             ),
             h(Button, {

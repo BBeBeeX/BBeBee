@@ -2,7 +2,7 @@ import { createElement as h, memo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
 import { useResolvedArtwork } from '@BBeBee/toolkit/hooks'
-import { Artwork, tablerIcon } from '@BBeBee/ui-kit-desktop'
+import { Artwork, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface QueueTrackRowProps {
@@ -47,6 +47,7 @@ export const QueueTrackRow = memo(
     onDragEnd,
     onKeyboardMove,
   }: QueueTrackRowProps): ReactElement {
+    const { t } = useI18n(ctx)
     const [hovered, setHovered] = useState(false)
     const artwork = useResolvedArtwork(ctx, track.artwork)
     const artists = track.artists?.map((a) => a.name).join(', ')
@@ -148,7 +149,7 @@ export const QueueTrackRow = memo(
           ? h(
               'div',
               {
-                'aria-label': 'Play',
+                'aria-label': t('queue:index.play', 'Play'),
                 'data-testid': 'queue-track-play-overlay',
                 style: {
                   position: 'absolute',
@@ -226,8 +227,8 @@ export const QueueTrackRow = memo(
               {
                 type: 'button',
                 'data-testid': 'queue-track-more-btn',
-                'aria-label': 'More options',
-                title: 'More options',
+                'aria-label': t('queue:index.moreOptions', 'More options'),
+                title: t('queue:index.moreOptions', 'More options'),
                 onClick: (e: { stopPropagation: () => void; currentTarget: HTMLElement }) => {
                   e.stopPropagation()
                   const rect = e.currentTarget.getBoundingClientRect()

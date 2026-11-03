@@ -165,13 +165,11 @@ export function PlayHeatmap({
         ),
     // The grid scrolls horizontally: a year of weeks (~53 columns) cannot fit
     // any pane, a quarter fits without scrolling — same chart, both lengths.
-    Scroller
-      ? h(
-          Scroller as never,
-          { horizontal: true, showsHorizontalScrollIndicator: false },
-          heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
-        )
-      : heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
+    Scroller ? h(
+      Scroller as never,
+      { horizontal: true, showsHorizontalScrollIndicator: false },
+      heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
+    ) : heatmapGrid(native, weeks, monthHeaders, bare, t, selectedDate, onSelectDate),
     // Footer: Filter status and Legend — full variant only.
     bare
       ? null

@@ -884,7 +884,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                     native.Pressable as never,
                                     {
                                       testID: 'settings-source-expand-local',
-                                      accessibilityLabel: isLocalExpanded ? 'Collapse' : 'Expand',
+                                      accessibilityLabel: isLocalExpanded ? t('sources:sourcesList.collapse') : t('sources:sourcesList.expand'),
                                       onPress: () => setIsLocalExpanded((prev) => !prev),
                                       style: {
                                         padding: 4,

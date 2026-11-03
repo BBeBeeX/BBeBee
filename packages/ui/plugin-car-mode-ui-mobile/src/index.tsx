@@ -14,7 +14,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { CAR_MODE_VIEWS } from '@bbebee/plugin-car-mode/views'
 import { isPlayingLike, useTransport } from '@bbebee/plugin-player/hooks'
-import { c, BOTTOM_CHROME_HEIGHT, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const p = () => c()
@@ -30,6 +30,7 @@ const p = () => c()
  */
 export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
   const native = nativePrimitives()
+  const { t } = useI18n(ctx)
   const state = useTransport(ctx)
   const playing = isPlayingLike(state.status)
 
@@ -44,7 +45,7 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
   return h(
     native.View as never,
     {
-      accessibilityLabel: 'Car mode',
+      accessibilityLabel: t('app:common.carMode.title'),
       style: {
         flex: 1,
         alignItems: 'center',
@@ -60,7 +61,7 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
         native.Pressable as never,
         {
           accessibilityRole: 'button',
-          accessibilityLabel: 'Exit car mode',
+          accessibilityLabel: t('app:common.carMode.exit'),
           onPress: exit,
           style: {
             minHeight: tokens.size.touchTarget + tokens.space[2],
@@ -71,7 +72,7 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
             justifyContent: 'center',
           },
         },
-        h(Text, { variant: 'lg', children: 'Exit car mode' }),
+        h(Text, { variant: 'lg', children: t('app:common.carMode.exit') }),
       ),
     ),
     h(
@@ -83,7 +84,10 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
           variant: 'display',
           numberOfLines: 2,
           children:
-            state.nowPlaying?.title ?? (state.trackUrn ? 'Loading…' : 'Nothing playing'),
+            state.nowPlaying?.title ??
+            (state.trackUrn
+              ? t('app:common.carMode.loading')
+              : t('app:common.carMode.nothingPlaying')),
         },
       ),
       state.nowPlaying?.artist
@@ -107,20 +111,22 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
         },
       },
       h(DriveButton, {
-        label: 'Previous track',
+        label: t('app:common.carMode.previousTrack'),
         glyph: '⏮',
         size: 88,
         onPress: () => void ctx.player.previous(),
       }),
       h(DriveButton, {
-        label: playing ? 'Pause' : 'Play',
+        label: playing
+          ? t('app:common.carMode.pause')
+          : t('app:common.carMode.play'),
         glyph: playing ? '⏸' : '▶',
         size: 120,
         accent: true,
         onPress: () => ctx.player.togglePlay(),
       }),
       h(DriveButton, {
-        label: 'Next track',
+        label: t('app:common.carMode.nextTrack'),
         glyph: '⏭',
         size: 88,
         onPress: () => void ctx.player.next(),
@@ -210,7 +216,7 @@ export async function apply(ctx: Context) {
       kind: 'settings',
       id: CAR_MODE_VIEWS.carMode,
       section: 'general',
-      title: 'Car mode',
+      title: 'app:common.carMode.title',
       order: 71,
     })
     /*

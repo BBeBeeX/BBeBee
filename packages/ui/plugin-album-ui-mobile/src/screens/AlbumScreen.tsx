@@ -532,7 +532,7 @@ export function AlbumScreen({
           h(
             Text,
             { variant: 'xs', tone: 'muted' },
-            `${yearText ? `${yearText} • ` : ''}${detail.tracks.length} songs${totalDurationStr ? `, ${totalDurationStr}` : ''}`,
+            `${yearText ? `${yearText} • ` : ''}${t('album:index.songsCount', { length: detail.tracks.length })}${totalDurationStr ? `, ${totalDurationStr}` : ''}`,
           ),
         ),
       ),
@@ -682,7 +682,7 @@ export function AlbumScreen({
             h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: 'Search in album…',
+              placeholder: t('album:index.searchInAlbum'),
             }),
           )
         : null,

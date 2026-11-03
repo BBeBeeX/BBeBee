@@ -6,6 +6,7 @@
 
 # --- audio converter technical specs (sample rates, bit depths, bitrates, channel modes) ---
 packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 0 dB
+packages/ui/plugin-audio-converter-ui-mobile/src/components/FormatOptionsCard.tsx :: 0 dB
 packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 128 kbps
 packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 16-bit
 packages/ui/plugin-audio-converter-ui-desktop/src/components/CompressionSection.tsx :: 192 kbps
@@ -39,10 +40,27 @@ packages/ui/plugin-audio-converter-ui-desktop/src/components/FormatSection.tsx :
 packages/ui/plugin-desktop-lyrics-ui-desktop/src/DesktopLyrics.tsx :: desktop-lyrics: sync effect, hasNativeBridge=${hasNativeBridge}, isEnabled=${isEnabled}
 packages/ui/plugin-desktop-lyrics-ui-desktop/src/DesktopLyrics.tsx :: playing=${isPlaying}
 
+# --- internal route templates ---
+packages/ui/plugin-settings-ui-mobile/src/index.tsx :: /settings/${section.key}
+
+# --- language picker endonyms (always displayed in native language) ---
+packages/ui/plugin-settings-ui-mobile/src/index.tsx :: English
+packages/ui/plugin-settings-ui-mobile/src/index.tsx :: 中文
+
 # --- technical file:// protocol URI templates ---
 packages/ui/plugin-local-scanner-ui-desktop/src/index.tsx :: file://${normalized}
 packages/ui/plugin-local-scanner-ui-desktop/src/index.tsx :: file:///${normalized}
 packages/ui/plugin-settings-ui-desktop/src/SettingsScreen.tsx :: file://${p}
 packages/ui/plugin-settings-ui-desktop/src/components/sections/SourcesSection.tsx :: file://${normalized}
 packages/ui/plugin-settings-ui-desktop/src/components/sections/SourcesSection.tsx :: file:///${normalized}
+packages/ui/plugin-sources-ui-desktop/src/components/OnboardingHero.tsx :: file://${normalized}
+packages/ui/plugin-sources-ui-desktop/src/components/OnboardingHero.tsx :: file:///${normalized}
+packages/ui/plugin-sources-ui-desktop/src/components/OnboardingModal.tsx :: file://${normalized}
+packages/ui/plugin-sources-ui-desktop/src/components/OnboardingModal.tsx :: file:///${normalized}
+
+# --- css property values ---
+packages/ui/plugin-sources-ui-desktop/src/components/RecommendShelfRow.tsx :: currentColor
+
+# --- accessibility labels on presentation kit primitives ---
+packages/ui/ui-kit-desktop/src/components/EqualizerBars.tsx :: Equalizer animation
 
