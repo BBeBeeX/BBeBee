@@ -8,9 +8,11 @@ import type {
   ShareMetadataEnvelope,
   SharePlaylistData,
   ShareService,
+  SettingsService,
   ShareTarget,
   ShareTrackData,
 } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useShareModalState } from '@bbebee/plugin-share/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
@@ -112,6 +114,9 @@ function SharePanel({
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const share = serviceOf<ShareService>(ctx, 'share')
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
 
   // The code is derived once per target — encoding is cheap, but a field that
   // rewrites itself on every render would fight the user's long-press.
@@ -137,6 +142,7 @@ function SharePanel({
       open: true,
       onClose,
       title: t('share:shareHost.shareType', { type: t(TYPE_LABEL_KEYS[target.type]).toLowerCase() }),
+      liquid: liquidGlass,
     },
     h(
       native.View as never,
@@ -163,6 +169,9 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const share = serviceOf<ShareService>(ctx, 'share')
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const [code, setCode] = useState('')
   const [decoded, setDecoded] = useState<ShareMetadataEnvelope | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -222,7 +231,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
 
   return h(
     Sheet,
-    { open: true, onClose, title: t('share:shareHost.readShareCard') },
+    { open: true, onClose, title: t('share:shareHost.readShareCard'), liquid: liquidGlass },
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },

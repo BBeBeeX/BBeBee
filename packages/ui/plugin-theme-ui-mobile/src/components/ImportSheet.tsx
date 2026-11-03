@@ -1,6 +1,8 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
+import type { SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { tokens } from '@BBeBee/ui-tokens'
 import { Button, Sheet, Text, TextField, nativePrimitives, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/toolkit/hooks'
@@ -36,6 +38,9 @@ export function ImportSheet(props: ImportSheetProps): ReactElement | null {
   const { ctx, open, onClose, onImported } = props
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const p = usePalette()
 
   const [text, setText] = useState('')
@@ -82,6 +87,7 @@ export function ImportSheet(props: ImportSheetProps): ReactElement | null {
       onClose,
       title: t('theme:themeManagement.importTheme'),
       testID: 'import-theme-sheet',
+      liquid: liquidGlass,
     },
     h(
       native.View as never,

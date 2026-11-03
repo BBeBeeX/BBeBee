@@ -12,6 +12,8 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { useAppSettings } from '@bbebee/plugin-settings/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -43,6 +45,8 @@ export function AboutSection({
 }: AboutSectionProps): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
+  const { settings } = useAppSettings(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(settings.liquidGlass)
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false)
 
   // The toggle persists across sessions under the same store key the desktop
@@ -153,6 +157,7 @@ export function AboutSection({
           accessibilityLabel: t('settings:about.advancedSettings'),
           testID: 'about-advanced-toggle',
           onChange: handleToggleAdvancedSettings,
+          liquid: liquidGlass,
         }),
       ),
     ]),

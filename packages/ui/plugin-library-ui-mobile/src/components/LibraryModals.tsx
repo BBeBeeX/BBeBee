@@ -8,7 +8,9 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { Collection, Playlist } from '@BBeBee/protocol'
+import type { Collection, Playlist, SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/ui-core'
 import { Button, Sheet, Text, TextField, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { DeleteConfirmTarget } from '../hooks/useLibraryActions.js'
@@ -75,6 +77,12 @@ function NameForm({
 export function LibraryModals(props: LibraryModalsProps): ReactElement {
   const { ctx } = props
   const native = nativePrimitives()
+  // Every sheet in this file reads the setting the same way: fresh on
+  // every render, which is fresh enough for a modal — no setting can
+  // change while one is open, and reopening re-reads.
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const { t } = useI18n(ctx)
   return h(
     native.View as never,
@@ -86,6 +94,7 @@ export function LibraryModals(props: LibraryModalsProps): ReactElement {
         open: props.showCreatePlaylistModal,
         onClose: () => props.setShowCreatePlaylistModal(false),
         title: t('library:libraryModals.createPlaylist'),
+        liquid: liquidGlass,
       },
       h(NameForm, {
         placeholder: t('library:libraryModals.newPlaylistName'),
@@ -104,6 +113,7 @@ export function LibraryModals(props: LibraryModalsProps): ReactElement {
         open: props.showCreateCollectionModal,
         onClose: () => props.setShowCreateCollectionModal(false),
         title: t('library:libraryModals.createFolder'),
+        liquid: liquidGlass,
       },
       h(NameForm, {
         placeholder: t('library:libraryModals.newFolderName'),
@@ -125,6 +135,7 @@ export function LibraryModals(props: LibraryModalsProps): ReactElement {
           props.createInFolderModal?.type === 'playlist'
             ? t('library:createInFolder.createPlaylistInFolder')
             : t('library:createInFolder.createFolder'),
+        liquid: liquidGlass,
       },
       props.createInFolderModal
         ? h(NameForm, {
@@ -185,6 +196,9 @@ function EditPlaylistSheet({
 }): ReactElement | null {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [artworkUrl, setArtworkUrl] = useState('')
@@ -202,7 +216,7 @@ function EditPlaylistSheet({
 
   return h(
     Sheet,
-    { open: true, onClose, title: t('library:editPlaylist.editDetails') },
+    { open: true, onClose, title: t('library:editPlaylist.editDetails'), liquid: liquidGlass },
     h(
       native.View as never,
       { style: { gap: tokens.space[3] } },
@@ -254,6 +268,9 @@ function RenameFolderSheet({
 }): ReactElement | null {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -265,7 +282,7 @@ function RenameFolderSheet({
 
   return h(
     Sheet,
-    { open: true, onClose, title: t('library:renameFolder.renameFolder') },
+    { open: true, onClose, title: t('library:renameFolder.renameFolder'), liquid: liquidGlass },
     h(
       native.View as never,
       { style: { gap: tokens.space[3] } },
@@ -299,6 +316,9 @@ function ConfirmDeleteSheet({
 }): ReactElement | null {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   if (!target) return null
 
   const isPlaylist = target.type === 'playlist'
@@ -309,7 +329,7 @@ function ConfirmDeleteSheet({
 
   return h(
     Sheet,
-    { open: true, onClose, title },
+    { open: true, onClose, title, liquid: liquidGlass },
     h(
       native.View as never,
       { style: { gap: tokens.space[3] } },

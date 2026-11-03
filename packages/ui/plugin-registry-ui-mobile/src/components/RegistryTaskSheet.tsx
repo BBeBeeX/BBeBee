@@ -13,7 +13,9 @@
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { RegistryEntryKind, RegistryTask } from '@BBeBee/protocol'
+import type { RegistryEntryKind, RegistryTask, SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { Button, EmptyState, nativePrimitives, Sheet, Text, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { formatDateTime } from '../utils/format.js'
@@ -74,6 +76,9 @@ export function RegistryTaskSheet({
 }: RegistryTaskSheetProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   // The palette snapshot: subscribe so a theme change repaints the sheet.
   const p = usePalette()
   const finishedCount = tasks.filter((task) => task.status === 'success' || task.status === 'failed').length
@@ -86,6 +91,7 @@ export function RegistryTaskSheet({
       onClose,
       title: t('registry:registryTask.tasks'),
       accessibilityLabel: t('registry:registryTask.taskCenter'),
+      liquid: liquidGlass,
     },
     h(
       native.View as never,

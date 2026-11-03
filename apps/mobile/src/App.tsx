@@ -1249,6 +1249,7 @@ function Shell({ ctx }: { ctx: Context }) {
         {
           open: isQueueOpen,
           onClose: () => setIsQueueOpen(false),
+          liquid: liquidGlass,
         },
         h(
           View,

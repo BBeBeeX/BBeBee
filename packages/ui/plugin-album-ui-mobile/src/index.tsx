@@ -11,12 +11,13 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
-import type { DownloadsService, PlayerService, Track } from '@BBeBee/protocol'
+import type { DownloadsService, PlayerService, SettingsService, Track } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { useAlbum } from '@bbebee/plugin-album/hooks'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
-import { c, Artwork, Button, ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Artwork, Button, ContextMenu, EmptyState, GlassSurface, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { ArtworkProps, TrackRowProps } from '@BBeBee/ui-core'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
@@ -60,6 +61,11 @@ export function AlbumScreen({
 }): ReactElement {
   const native = nativePrimitives()
   const album = useAlbum(ctx, urn)
+  // Read fresh on render: the link is part of the page body, and a
+  // settings change made elsewhere is picked up when the page renders.
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const menu = useTrackMenu(ctx)
   const { t } = useI18n(ctx)
@@ -101,19 +107,28 @@ export function AlbumScreen({
         },
       },
       h(
-        native.Pressable as never,
+        GlassSurface,
         {
-          accessibilityRole: 'button',
-          accessibilityLabel: t('album:index.backToLibrary'),
-          onPress: handleBack,
-          style: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingVertical: tokens.space[1],
-            paddingHorizontal: tokens.space[2],
-          },
+          liquid: liquidGlass,
+          borderRadius: tokens.radius.pill,
+          style: { borderRadius: tokens.radius.pill },
         },
-        h(Text, { variant: 'sm', tone: 'accent', children: t('album:index.backToLibraryShort') }),
+        h(
+          native.Pressable as never,
+          {
+            accessibilityRole: 'button',
+            accessibilityLabel: t('album:index.backToLibrary'),
+            onPress: handleBack,
+            style: {
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: tokens.space[1] + 2,
+              paddingHorizontal: tokens.space[3],
+              borderRadius: tokens.radius.pill,
+            },
+          },
+          h(Text, { variant: 'sm', tone: 'accent', children: t('album:index.backToLibraryShort') }),
+        ),
       ),
     ),
     h(

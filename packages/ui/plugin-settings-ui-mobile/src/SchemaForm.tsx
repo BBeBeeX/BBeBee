@@ -6,8 +6,9 @@ import type {
   SettingsFieldDescriptor,
   SettingsFieldOption,
 } from '@BBeBee/protocol'
-import { useSettingsFields } from '@bbebee/plugin-settings/hooks'
-import { c, Button, Slider, Text, useI18n } from '@BBeBee/ui-kit-mobile'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { useAppSettings, useSettingsFields } from '@bbebee/plugin-settings/hooks'
+import { c, Button, GlassSurface, Slider, Text, useI18n, type LiquidGlassOptions } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { nativePrimitives } from '@BBeBee/ui-kit-mobile'
 
@@ -20,17 +21,26 @@ interface SwitchListEntry {
   description?: string
 }
 
-/** Mobile toggle switch, presentation-only. */
+/**
+ * Mobile toggle switch, presentation-only. With `liquid`, the track is a
+ * glass surface (liquid > blur > translucent) instead of the accent fill:
+ * the on/off cue becomes the knob's side alone, which is why the knob
+ * stays solid white. Without it, the track keeps today's accent/off
+ * fill. The glass sits absolutely behind the knob so the 48×26 touch
+ * area is exactly the visible track.
+ */
 export function SwitchRow({
   checked,
   onChange,
   accessibilityLabel,
   testID,
+  liquid,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   accessibilityLabel: string
   testID?: string
+  liquid?: LiquidGlassOptions
 }) {
   const native = nativePrimitives()
   return h(
@@ -45,11 +55,18 @@ export function SwitchRow({
         width: 48,
         height: 26,
         borderRadius: 13,
-        backgroundColor: checked ? p().accent.base : 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: liquid ? 'transparent' : checked ? p().accent.base : 'rgba(255, 255, 255, 0.15)',
         justifyContent: 'center',
         padding: 2,
       },
     },
+    liquid
+      ? h(GlassSurface, {
+          liquid,
+          borderRadius: 13,
+          style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 13 },
+        })
+      : null,
     h(native.View as never, {
       style: {
         width: 22,
@@ -137,6 +154,10 @@ function FieldRow({
   const fieldLabel = getLocalizedFieldLabel(t, contribution.id, field)
   const fieldDescription = getLocalizedFieldDescription(t, contribution.id, field)
   const { values, change } = useSettingsFields(ctx, contribution)
+  // Subscribed, so a liquid-glass change in the theme card repaints
+  // this row's switches without leaving the settings screen.
+  const { settings } = useAppSettings(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(settings.liquidGlass)
   const [options, setOptions] = useState<readonly SettingsFieldOption[] | undefined>(field.options)
   const [entries, setEntries] = useState<readonly SwitchListEntry[]>([])
   const [note, setNote] = useState<string | undefined>(undefined)
@@ -241,6 +262,7 @@ function FieldRow({
             checked: Boolean(value),
             accessibilityLabel: fieldLabel,
             onChange: (checked: boolean) => void change(field.key, checked),
+            liquid: liquidGlass,
           }),
         ),
       )
@@ -363,6 +385,7 @@ function FieldRow({
               checked: Boolean(record[entry.id]),
               accessibilityLabel: t('settings:schemaForm.entrySwitch', { label: entry.label }),
               onChange: (checked: boolean) => void change(`${field.key}.${entry.id}`, checked),
+              liquid: liquidGlass,
             }),
           ),
         ),

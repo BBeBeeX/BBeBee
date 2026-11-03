@@ -1,6 +1,8 @@
 import { createElement as h, useEffect, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { SourcePingResult } from '@BBeBee/protocol'
+import type { SettingsService, SourcePingResult } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/ui-core'
 import { useSourceParams } from '@bbebee/plugin-sources/hooks'
 import { Button, Sheet, Text, TextField, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -32,6 +34,9 @@ export function SourceConfigureModal({
 }: SourceConfigureModalProps): ReactElement | null {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const { params, record, loading, pingState, testConnection, saveParams } = useSourceParams(
     ctx,
     sourceId,
@@ -253,6 +258,7 @@ export function SourceConfigureModal({
       onClose,
       title: t('sources:sourceConfigure.title', { name: record?.name ?? t('sources:test.sourceWord') }),
       testID: 'source-configure-modal',
+      liquid: liquidGlass,
     },
     h(
       native.View as never,

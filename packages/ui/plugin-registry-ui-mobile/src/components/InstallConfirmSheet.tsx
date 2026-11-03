@@ -13,7 +13,9 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import type { Context } from 'cordis'
-import type { RegistryEntryDetails } from '@BBeBee/protocol'
+import type { RegistryEntryDetails, SettingsService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { serviceOf } from '@BBeBee/toolkit/hooks'
 import { normalizeVersion } from '@BBeBee/toolkit'
 import { Button, nativePrimitives, Sheet, Text, useI18n, usePalette } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -42,6 +44,9 @@ export function InstallConfirmSheet({
 }: InstallConfirmSheetProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   // The palette snapshot: subscribe so a theme change repaints the sheet.
   const p = usePalette()
   const { entry, allowedHosts, securityAudit, repoUrl, commit, commitDiff, plan } = details
@@ -95,6 +100,7 @@ export function InstallConfirmSheet({
       onClose: busy ? () => {} : onClose,
       title: titleText,
       accessibilityLabel: titleText,
+      liquid: liquidGlass,
     },
     h(
       native.View as never,

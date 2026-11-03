@@ -150,7 +150,7 @@ function ClassicMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose, t }) : null,
+    onClose ? h(CloseButton, { ctx, onClose, t }) : null,
     h(CachedArtwork, { ctx, artwork: state.nowPlaying?.artwork, seed: state.trackUrn, size: 280, radius: tokens.radius.lg }),
     h(TrackInfo, {
       state,
@@ -207,7 +207,7 @@ function FullCoverMobileLayout({ ctx, state, position, duration, can, onClose }:
         radius: 0,
       }),
     ),
-    onClose ? h(CloseButton, { onClose, t }) : null,
+    onClose ? h(CloseButton, { ctx, onClose, t }) : null,
     h(CachedArtwork, { ctx, artwork: state.nowPlaying?.artwork, seed: state.trackUrn, size: 240, radius: tokens.radius.lg }),
     h(TrackInfo, {
       state,
@@ -242,7 +242,7 @@ function VinylMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose, t }) : null,
+    onClose ? h(CloseButton, { ctx, onClose, t }) : null,
     /* vinyl disc: circular artwork */
     h(
       native.View as never,
@@ -298,7 +298,7 @@ function CompactMobileLayout({ ctx, state, position, duration, can, onClose }: {
         backgroundColor: p().bg.base,
       },
     },
-    onClose ? h(CloseButton, { onClose, t }) : null,
+    onClose ? h(CloseButton, { ctx, onClose, t }) : null,
     /* top row: artwork + info side-by-side */
     h(
       native.View as never,
@@ -371,7 +371,7 @@ function CinematicMobileLayout({ ctx, state, position, duration, can, onClose }:
         radius: 0,
       }),
     ),
-    onClose ? h(CloseButton, { onClose, t }) : null,
+    onClose ? h(CloseButton, { ctx, onClose, t }) : null,
     /* Square artwork with white border */
     h(
       native.View as never,
@@ -405,23 +405,40 @@ function CinematicMobileLayout({ ctx, state, position, duration, can, onClose }:
 
 /* ── Close button ──────────────────────────────────────────────────────── */
 
-function CloseButton({ onClose, t }: { onClose: () => void; t: I18nService['t'] }): ReactElement {
+function CloseButton({ ctx, onClose, t }: { ctx: Context; onClose: () => void; t: I18nService['t'] }): ReactElement {
   const native = nativePrimitives()
+  // Same glass as the mini-player: the pill's translucent fill gives way
+  // to the liquid/blur/translucent tier, and the chevron stays on the
+  // inner Pressable so accessibility still meets one button.
+  const liquidGlass = useServiceState(ctx, ['settings/changed'], () =>
+    resolveMobileLiquidGlassSettings(
+      serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+    ),
+  )
   return h(
-    native.Pressable as never,
+    GlassSurface,
     {
-      accessibilityRole: 'button',
-      accessibilityLabel: t('nowPlaying:nowPlaying.closePlayer'),
-      onPress: onClose,
+      liquid: liquidGlass,
+      borderRadius: tokens.radius.pill,
       style: {
         alignSelf: 'flex-start',
-        paddingVertical: tokens.space[1],
-        paddingHorizontal: tokens.space[3],
         borderRadius: tokens.radius.pill,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
       },
     },
-    h(Text, { variant: 'lg', children: '⌄' }),
+    h(
+      native.Pressable as never,
+      {
+        accessibilityRole: 'button',
+        accessibilityLabel: t('nowPlaying:nowPlaying.closePlayer'),
+        onPress: onClose,
+        style: {
+          paddingVertical: tokens.space[1],
+          paddingHorizontal: tokens.space[3],
+          borderRadius: tokens.radius.pill,
+        },
+      },
+      h(Text, { variant: 'lg', children: '⌄' }),
+    ),
   )
 }
 

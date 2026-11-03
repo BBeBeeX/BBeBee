@@ -9,7 +9,8 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { FsService, ScannerService, StoreService, UiService, Uri } from '@BBeBee/protocol'
+import type { FsService, ScannerService, SettingsService, StoreService, UiService, Uri } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { SOURCES_VIEWS } from '@bbebee/plugin-sources/views'
 import { serviceOf } from '@BBeBee/ui-core'
 import { Button, Sheet, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
@@ -26,6 +27,9 @@ export interface OnboardingModalProps {
 export function OnboardingModal({ ctx, open, onClose }: OnboardingModalProps): ReactElement | null {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   // `addFolder` runs once; the state exists so a second tap can't double-add.
   const [adding, setAdding] = useState(false)
 
@@ -74,6 +78,7 @@ export function OnboardingModal({ ctx, open, onClose }: OnboardingModalProps): R
       open,
       onClose: markCompleted,
       title: t('sources:recommend.onboarding.modalTitle'),
+      liquid: liquidGlass,
     },
     h(
       native.View as never,

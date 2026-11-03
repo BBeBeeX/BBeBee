@@ -15,7 +15,7 @@ import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { DownloadRegion, ProxySettings, SourcesService, UiService } from '@BBeBee/protocol'
-import { DEFAULT_PROXY_SETTINGS } from '@BBeBee/protocol'
+import { DEFAULT_PROXY_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@bbebee/plugin-settings/hooks'
@@ -182,6 +182,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
   const { settings, update, reset } = useAppSettings(ctx)
+  const liquidGlass = resolveMobileLiquidGlassSettings(settings.liquidGlass)
   const { usage, clear } = useCacheStats(ctx)
   const availableSettings = useAvailableSettings(ctx)
   const grouped = groupBySection(availableSettings)
@@ -358,6 +359,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                     checked: settings.thirdPartySourcesEnabled ?? true,
                     accessibilityLabel: t('settings:network.enableThirdPartyMusicSources'),
                     onChange: (checked) => void update({ thirdPartySourcesEnabled: checked }),
+                    liquid: liquidGlass,
                   }),
                 ),
                 renderRow(
@@ -367,6 +369,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                     checked: settings.thirdPartyLyricSourcesEnabled ?? true,
                     accessibilityLabel: t('settings:network.enableThirdPartyLyricSources'),
                     onChange: (checked) => void update({ thirdPartyLyricSourcesEnabled: checked }),
+                    liquid: liquidGlass,
                   }),
                 ),
                 h(
@@ -394,6 +397,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                     checked: proxy.enabled,
                     accessibilityLabel: t('settings:network.enableNetworkProxy'),
                     onChange: (enabled) => void update({ proxy: { ...proxy, enabled } }),
+                    liquid: liquidGlass,
                   }),
                 ),
                 ...(proxy.enabled
@@ -500,6 +504,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                     const nextRules = { ...proxy.sourceRules, [s.id]: checked }
                                     void update({ proxy: { ...proxy, sourceRules: nextRules } })
                                   },
+                                  liquid: liquidGlass,
                                 }),
                               ),
                             )
@@ -796,6 +801,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                 : t('sources:sourcesList.enable'),
                               testID: `settings-source-toggle-${item.id}`,
                               onChange: (checked) => handleToggleSource(item.id, checked),
+                              liquid: liquidGlass,
                             }),
                             !local
                               ? isConfirming
@@ -870,6 +876,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                         void update({ downloadWifiOnly: checked })
                         void (ctx as { downloads?: { setPolicy(p: { wifiOnly?: boolean }): Promise<void> } }).downloads?.setPolicy?.({ wifiOnly: checked })
                       },
+                      liquid: liquidGlass,
                     }),
                   ),
                 ]),
