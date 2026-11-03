@@ -46,8 +46,9 @@ export async function apply(ctx: Context) {
     yield ctx.ui.contribute({
       kind: 'settings',
       id: AUDIO_CONVERTER_VIEWS.page,
-      section: 'general',
+      section: 'storage',
       title: 'converter:index.title',
+      description: 'converter:index.subtitle',
       order: 72,
     })
   }, 'audio-converter-ui-mobile')

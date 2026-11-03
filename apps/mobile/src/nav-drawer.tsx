@@ -36,6 +36,36 @@ interface RouteLike {
 }
 
 /**
+ * Pages the drawer leaves out: detail surfaces that need parameters a drawer
+ * entry cannot carry (the album and collection pages are opened from library
+ * rows), transport overlays with their own affordances (the queue via the
+ * bar's list button, the player via the bar body), the settings
+ * sub-pages — reached only from the settings home's category rows,
+ * and standalone utility views (audio converter, dsp) which have dedicated entry
+ * points in settings or player chrome.
+ */
+export const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
+  'album.view',
+  'sources.test',
+  'sources.import',
+  'sources.recommend.all',
+  'library.collection',
+  'library.playlist',
+  'library.favorites',
+  'history.view',
+  'queue.view',
+  'now-playing.view',
+  'settings.appearance',
+  'settings.playback',
+  'settings.network',
+  'settings.sources',
+  'settings.storage',
+  'settings.about',
+  'audio-converter.view',
+  'dsp.view',
+])
+
+/**
  * The drawer's page list, read from the registration API: every contributed
  * route that has a view registered on this shell, deduplicated, in
  * contribution order (ties by id) — minus the ids in `exclude`, the shell's

@@ -60,7 +60,7 @@ import {
   isAppearanceMode,
   nextAppearanceMode,
 } from './appearance'
-import { NavDrawerOverlay, collectDrawerPages } from './nav-drawer'
+import { NavDrawerOverlay, collectDrawerPages, DRAWER_EXCLUDED_ROUTES } from './nav-drawer'
 import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
@@ -174,36 +174,9 @@ const DETAIL_TITLES: Readonly<Record<string, string>> = {
   'debug.http-logs': 'settings:httpLogs.title',
   'debug.theme-palette': 'settings:debug.themeVariablePaletteThemePalette',
   'plugin-manager.screen': 'settings:settings.plugins',
+  'audio-converter.view': 'converter:index.title',
+  'dsp.view': 'dsp:dsp.audioEffectsEqualizerDSP',
 }
-
-/**
- * Pages the drawer leaves out: detail surfaces that need parameters a drawer
- * entry cannot carry (the album and collection pages are opened from library
- * rows), transport overlays with their own affordances (the queue via the
- * bar's list button, the player via the bar body), and the settings
- * sub-pages — reached only from the settings home's category rows.
- * Everything else the registration API reports stays in.
- */
-const DRAWER_EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
-  'album.view',
-  // The source test bench is reachable from the debug center's tool cards;
-  // a drawer entry for a developer surface is noise.
-  'sources.test',
-  'sources.import',
-  'sources.recommend.all',
-  'library.collection',
-  'library.playlist',
-  'library.favorites',
-  'history.view',
-  'queue.view',
-  'now-playing.view',
-  'settings.appearance',
-  'settings.playback',
-  'settings.network',
-  'settings.sources',
-  'settings.storage',
-  'settings.about',
-])
 
 /**
  * The foldable left pane is fixed to the library — the pane is a browsing
@@ -743,7 +716,9 @@ function Shell({ ctx }: { ctx: Context }) {
       (id.startsWith('settings.') && id !== 'settings.view') ||
       id.startsWith('debug.') ||
       id === 'plugin-manager.screen' ||
-      id === 'sources.test'
+      id === 'sources.test' ||
+      id === 'audio-converter.view' ||
+      id === 'dsp.view'
     )
   }
 

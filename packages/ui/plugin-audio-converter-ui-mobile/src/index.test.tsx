@@ -206,7 +206,7 @@ describe('plugin-audio-converter-ui-mobile', () => {
     expect(linkRows[0]).toMatchObject({
       kind: 'settings',
       id: 'audio-converter.view',
-      section: 'general',
+      section: 'storage',
       title: 'converter:index.title',
     })
   })

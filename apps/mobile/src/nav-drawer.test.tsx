@@ -15,7 +15,7 @@ import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { configureNative } from '@BBeBee/ui-kit-mobile'
 import { palettes } from '@BBeBee/ui-tokens'
-import { NavDrawerOverlay, collectDrawerPages } from './nav-drawer'
+import { NavDrawerOverlay, collectDrawerPages, DRAWER_EXCLUDED_ROUTES } from './nav-drawer'
 
 afterEach(cleanup)
 
@@ -184,5 +184,24 @@ describe('collectDrawerPages', () => {
     expect(pages.map((page) => page.id)).not.toContain('album.view')
     expect(pages.map((page) => page.id)).not.toContain('queue.view')
     expect(pages.map((page) => page.id)).toContain('library.home')
+  })
+
+  it('excludes audio-converter and dsp routes by default', () => {
+    expect(DRAWER_EXCLUDED_ROUTES.has('audio-converter.view')).toBe(true)
+    expect(DRAWER_EXCLUDED_ROUTES.has('dsp.view')).toBe(true)
+
+    const allRoutes = [
+      ...routes,
+      { id: 'audio-converter.view', title: 'Audio Converter', order: 35 },
+      { id: 'dsp.view', title: 'DSP', order: 65 },
+    ]
+    const pages = collectDrawerPages(
+      allRoutes,
+      () => true,
+      (_id, contributed) => contributed,
+      DRAWER_EXCLUDED_ROUTES,
+    )
+    expect(pages.map((p) => p.id)).not.toContain('audio-converter.view')
+    expect(pages.map((p) => p.id)).not.toContain('dsp.view')
   })
 })

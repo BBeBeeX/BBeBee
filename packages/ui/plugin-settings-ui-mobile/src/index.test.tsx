@@ -313,6 +313,28 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).toContain('Advanced effect tuning and routing')
     })
 
+    it('renders the storage sub-page with download settings and storage contributions', async () => {
+      const { ctx } = await createHarness()
+      ;(ctx.settings as any).contribute({
+        id: 'audio-converter.view',
+        section: 'storage',
+        title: 'Audio Converter',
+        description: 'Convert audio formats and compress files',
+        actionText: 'Open',
+      })
+      const StoragePage = (ctx.ui as any).viewFor('settings.storage')
+      const { container } = render(h(StoragePage, {}))
+
+      expect(container.textContent).toContain('Storage & cache')
+      expect(container.textContent).toContain('Download format')
+      expect(container.textContent).toContain('Download on Wi-Fi only')
+      expect(container.textContent).toContain('Cache usage')
+      expect(container.textContent).toContain('Clear cache')
+      expect(container.textContent).toContain('Audio Converter')
+      expect(container.textContent).toContain('Convert audio formats and compress files')
+      expect(container.textContent).toContain('Open')
+    })
+
     it('dynamically renders contributions registered via settings service', async () => {
       const { ctx } = await createHarness()
       ;(ctx.settings as any).contribute({
