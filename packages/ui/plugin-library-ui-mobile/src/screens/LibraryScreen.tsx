@@ -16,8 +16,8 @@
 import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { DownloadsService, PlayerService, ShareService } from '@BBeBee/protocol'
-import { tryParseUrn } from '@BBeBee/protocol'
+import type { DownloadsService, PlayerService, SettingsService, ShareService } from '@BBeBee/protocol'
+import { resolveMobileLiquidGlassSettings, tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import {
   useCollections,
@@ -85,6 +85,13 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('creator')
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
+  // The header menu's glass surface, read fresh on every render: the
+  // menu opens from a state change, so a settings change made elsewhere
+  // is picked up before the next open, and no setting can change while
+  // this modal is up (it blocks the screen behind it).
+  const liquidGlass = resolveMobileLiquidGlassSettings(
+    serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
+  )
   const [pendingCreate, setPendingCreate] = useState<'playlist' | 'folder' | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [generation, setGeneration] = useState(0)
@@ -846,13 +853,16 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
           }),
       }),
     ),
-    // Combined Header Menu — Create options + Sort options
+    // Combined Header Menu — Create options + Sort options. The only
+    // Sheet in this screen with a glass surface: the three-dot button's
+    // menu. The queue sheet, item menus and dialogs keep their surfaces.
     h(
       Sheet,
       {
         open: headerMenuOpen,
         onClose: () => setHeaderMenuOpen(false),
         title: t('library:library.library'),
+        liquid: liquidGlass,
       },
       h(
         native.View as never,

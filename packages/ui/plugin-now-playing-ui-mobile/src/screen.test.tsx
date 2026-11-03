@@ -334,6 +334,23 @@ describe('NowPlayingBar on mobile', () => {
     expect(end.calls).not.toContain('next')
   })
 
+  it('hides the queue button when the shell asks, keeping play and favorite', async () => {
+    // The tablet rail's variant: the queue lives in the rail's own row
+    // underneath the bar, not in the bar.
+    const { ctx } = await harness(
+      {
+        trackUrn: 'BBeBee:local:track:1',
+        nowPlaying: { title: 'Solar', artist: 'Miles Davis' },
+        status: 'playing',
+      },
+      [{ id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' }],
+    )
+    const { container } = render(h(NowPlayingBar, { ctx, hideQueueButton: true }))
+    expect(container.querySelector('[data-label="Play queue"]')).toBeNull()
+    expect(container.querySelector('[data-label="Pause"]')).toBeTruthy()
+    expect(container.querySelector('[data-label="Add Solar to favorites"]')).toBeTruthy()
+  })
+
   it('stays mounted while idle as a placeholder: nothing to play, queue still reachable', async () => {
     let opened = false
     let queueOpened = false

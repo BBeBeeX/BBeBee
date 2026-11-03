@@ -210,6 +210,19 @@ describe('Sheet', () => {
     const node = find(h(Sheet, { open: true, onClose, children: 'x' }), 'RNModal')
     expect((node!.props as { onRequestClose: () => void }).onRequestClose).toBe(onClose)
   })
+
+  it('renders its children through the glass surface when liquid is passed', () => {
+    // The test host wires no real LiquidGlassView, so the glass tier
+    // falls back to the translucent view — but the content must still
+    // render, and the inner pressable must not paint a solid surface
+    // over the glass.
+    const liquid = {
+      general: { enabled: true, variant: 'regular' as const, interactive: false, intensity: 60 },
+      advanced: { thickness: 1, refraction: true, tilt: false, edgeReflectionStrength: 1, legibilityFloor: 0 },
+    }
+    const nodes = tree(h(Sheet, { open: true, onClose: () => {}, liquid, children: 'glass-menu' }))
+    expect(JSON.stringify(nodes)).toContain('glass-menu')
+  })
 })
 
 describe('List', () => {

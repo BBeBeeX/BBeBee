@@ -650,7 +650,12 @@ function Shell({ ctx }: { ctx: Context }) {
     activeTab?.id === tab.id || (currentId === 'album.view' && tab.id === 'library.home')
 
   const BottomBar = ctx.ui.viewFor('now-playing.bar') as
-    | ComponentType<{ ctx: Context; onOpenNowPlaying?: () => void; onOpenQueue?: () => void }>
+    | ComponentType<{
+        ctx: Context
+        onOpenNowPlaying?: () => void
+        onOpenQueue?: () => void
+        hideQueueButton?: boolean
+      }>
     | undefined
   const NowPlayingView = ctx.ui.viewFor('now-playing.view') as
     | ComponentType<{ ctx: Context; onClose?: () => void }>
@@ -743,9 +748,45 @@ function Shell({ ctx }: { ctx: Context }) {
   }
 
   /*
+   * A header button as a 40pt glass circle: the same `GlassSurface` tier
+   * the tab bar and mini-player use (liquid > blur > translucent), fed by
+   * the shell's resolved liquid-glass settings. Accessibility stays on
+   * the inner Pressable only — the glass wrapper carries no role, so a
+   * screen reader meets one button, not a button inside a button.
+   */
+  const headerGlassButton = (
+    props: { onPress: () => void; accessibilityLabel: string; testID: string },
+    glyph: ReactNode,
+  ) =>
+    h(
+      GlassSurface,
+      {
+        liquid: liquidGlass,
+        intensity: 85,
+        tint: getScheme() === 'light' ? 'light' : 'dark',
+        borderRadius: 20,
+        style: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+      },
+      h(
+        Pressable,
+        {
+          onPress: props.onPress,
+          accessibilityRole: 'button',
+          accessibilityLabel: props.accessibilityLabel,
+          testID: props.testID,
+          style: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+        },
+        glyph,
+      ),
+    )
+
+  /*
    * Every page's header: on sub-pages within a stack, a back chevron returns
    * to the parent; otherwise the drawer's hamburger lives on the left, with the
-   * page's title centered.
+   * page's title centered. Both left icons — and the library's right-hand
+   * menu button below — are glass circles, so every page's chrome matches
+   * the tab bar and mini-player. The 40pt slots on both sides keep the
+   * centered title centered when a side has no button.
    */
   const pageHeaderFor = (
     title: string,
@@ -769,30 +810,16 @@ function Shell({ ctx }: { ctx: Context }) {
         },
       },
       onBack
-        ? h(
-            Pressable,
-            {
-              onPress: onBack,
-              accessibilityRole: 'button',
-              accessibilityLabel: t('app:common.back'),
-              testID: 'nav-back-button',
-              style: { paddingVertical: 4, minWidth: 34 },
-            },
+        ? headerGlassButton(
+            { onPress: onBack, accessibilityLabel: t('app:common.back'), testID: 'nav-back-button' },
             h(Text, { style: { color: palette.text.primary, fontSize: 24, fontWeight: '600' } }, '‹'),
           )
         : onOpenDrawer
-          ? h(
-              Pressable,
-              {
-                onPress: onOpenDrawer,
-                accessibilityRole: 'button',
-                accessibilityLabel: t('app:common.app.openNavDrawer'),
-                testID: 'nav-drawer-open',
-                style: { paddingVertical: 4, minWidth: 34 },
-              },
+          ? headerGlassButton(
+              { onPress: onOpenDrawer, accessibilityLabel: t('app:common.app.openNavDrawer'), testID: 'nav-drawer-open' },
               h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
             )
-          : h(View, { style: { minWidth: 34 } }),
+          : h(View, { style: { minWidth: 40 } }),
       h(
         View,
         { style: { flex: 1, alignItems: 'center' } },
@@ -805,17 +832,14 @@ function Shell({ ctx }: { ctx: Context }) {
           title,
         ),
       ),
-      rightAction ?? h(View, { style: { minWidth: 34 } }),
+      rightAction ?? h(View, { style: { minWidth: 40 } }),
     )
 
-  const libraryHeaderMenuButton = h(
-    Pressable,
+  const libraryHeaderMenuButton = headerGlassButton(
     {
       onPress: () => ctx.emit('library/open-header-menu'),
-      accessibilityRole: 'button',
       accessibilityLabel: t('library:library.actions') || 'More options',
       testID: 'library-header-menu',
-      style: { paddingVertical: 4, minWidth: 34, alignItems: 'center', justifyContent: 'center' },
     },
     tablerIcon('dots', { size: 22, color: palette.text.primary }) ??
       h(Text, { style: { color: palette.text.primary, fontSize: 22, fontWeight: '700' } }, '⋯'),
@@ -983,7 +1007,10 @@ function Shell({ ctx }: { ctx: Context }) {
    * The rail's now-playing card is the same `now-playing.bar` view the phone
    * renders — one player surface, two homes. It is mounted at the rail's
    * bottom with the same callbacks, so a control written once behaves
-   * identically in both layouts (including the idle placeholder).
+   * identically in both layouts (including the idle placeholder). One
+   * deliberate exception: the bar's queue button is hidden in the rail and
+   * the queue lives in its own row underneath, because at 240dp a fourth
+   * button would squeeze the card's title to nothing.
    */
   const tabletChrome = h(
     View,
@@ -1046,8 +1073,32 @@ function Shell({ ctx }: { ctx: Context }) {
             ctx,
             onOpenNowPlaying: () => setIsFullscreenNowPlaying(true),
             onOpenQueue: () => setIsQueueOpen(true),
+            // The rail is 240dp wide: the bar's own queue button would
+            // squeeze its title to nothing, so the button is hidden here
+            // and the queue gets its own row directly underneath the bar.
+            hideQueueButton: true,
           })
         : null,
+      h(
+        Pressable,
+        {
+          onPress: () => setIsQueueOpen(true),
+          accessibilityRole: 'button',
+          accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
+          testID: 'rail-queue-row',
+          style: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            borderTopWidth: 1,
+            borderTopColor: palette.border.subtle,
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+          },
+        },
+        h(Text, { style: { color: palette.accent.base, fontSize: 14 } }, '☰'),
+        h(Text, { style: { color: palette.accent.base, fontSize: 14, fontWeight: '600' } }, t('nowPlaying:nowPlaying.playQueue')),
+      ),
       /*
        * The way into the dual-pane layout lives at the bottom of the rail the
        * user is already looking at, under the now-playing card. The rail only

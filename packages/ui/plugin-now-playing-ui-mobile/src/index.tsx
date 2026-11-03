@@ -559,6 +559,14 @@ export interface NowPlayingBarProps {
    * page history instead.
    */
   onOpenQueue?: () => void
+  /**
+   * Hides the bar's own queue button. The tablet rail passes this: the
+   * rail is only 240dp wide, so the queue moves out of the bar into its
+   * own row underneath it (the shell renders that row), instead of
+   * squeezing the title to nothing. Phone and foldable-right keep the
+   * button in the bar.
+   */
+  hideQueueButton?: boolean
 }
 
 /**
@@ -609,7 +617,7 @@ function useTrackSaved(ctx: Context, urn: string | undefined): boolean {
  * bottom edge (docs/ui/design-system.md §6.8). Idle is the same card reading
  * "暂无播放" at reduced opacity, every control stood down except the queue.
  */
-export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlayingBarProps): ReactElement {
+export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue, hideQueueButton }: NowPlayingBarProps): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
   const palette = usePalette()
@@ -790,16 +798,18 @@ export function NowPlayingBar({ ctx, onOpenNowPlaying, onOpenQueue }: NowPlaying
             disabled: idle || (!serviceOf<LibraryService>(ctx, 'library') && !serviceOf<SourcesService>(ctx, 'sources')),
             onPress: toggleSaved,
           }),
-          h(IconButton, {
-            icon: '☰',
-            accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
-            variant: 'ghost',
-            size: 22,
-            // Usable while idle on purpose: the queue is reachable before the
-            // first track ever plays.
-            disabled: false,
-            onPress: () => onOpenQueue?.(),
-          }),
+          hideQueueButton
+            ? null
+            : h(IconButton, {
+                icon: '☰',
+                accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
+                variant: 'ghost',
+                size: 22,
+                // Usable while idle on purpose: the queue is reachable before the
+                // first track ever plays.
+                disabled: false,
+                onPress: () => onOpenQueue?.(),
+              }),
           ...(() => {
             const ui = serviceOf<UiService>(ctx, 'ui')
             return actionSlots
