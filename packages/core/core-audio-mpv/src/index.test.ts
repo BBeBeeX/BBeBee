@@ -618,6 +618,25 @@ describe('core-audio-mpv native engine features', () => {
     handle.dispose()
   })
 
+  it('a fresh track treats the caller’s default play(0) as position-less to avoid redundant seek 0', async () => {
+    const calls: { method: string; args: unknown[] }[] = []
+    const bridgeCall = async (_service: string, method: string, args: unknown[]) => {
+      calls.push({ method, args })
+      if (method === 'mpvLoad') {
+        return { durationMs: 120_000 }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/fresh.flac', { strategy: 'stream' })
+
+    handle.play(0)
+    const playCall = calls.filter((c) => c.method === 'mpvPlay').at(-1)!
+    expect(playCall.args[0], 'no seek: fresh track starts from engine zero without redundant seek 0').toBeUndefined()
+    handle.dispose()
+  })
+
   it('a duration-less track treats the caller’s default play(0) as position-less too', async () => {
     // A live stream is already at the live edge when the handle is handed
     // out; the player's default play(0) must not reach it as `seek 0`, which
@@ -1029,6 +1048,50 @@ describe('core-audio-mpv native engine features', () => {
     await new Promise((r) => setTimeout(r, 250))
 
     expect(endedFired).toBe(1)
+    handle.dispose()
+  })
+
+  it('absorbs delayed endedCount increment in early playback without premature end', async () => {
+    let currentEndedCount = 0
+    const currentStatus = 'playing'
+    let currentPosition = 200
+
+    const bridgeCall = async (_service: string, method: string) => {
+      if (method === 'mpvLoad') {
+        return { durationMs: 180_000, endedCount: currentEndedCount }
+      }
+      if (method === 'mpvGetState') {
+        return {
+          status: currentStatus,
+          positionMs: currentPosition,
+          durationMs: 180_000,
+          endedCount: currentEndedCount,
+        }
+      }
+      return undefined
+    }
+
+    const { audio } = await harness({ bridgeCall })
+    const handle = await audio.load('file:///music/track2.flac')
+    let endedFired = 0
+    handle.onEnded(() => {
+      endedFired++
+    })
+    handle.play(0)
+
+    // First poll: endedCount = 0, position = 200ms
+    await new Promise((r) => setTimeout(r, 250))
+    expect(endedFired).toBe(0)
+
+    // Delayed ended event from previous track arrives during early playback (endedCount = 1)
+    currentEndedCount = 1
+    currentPosition = 400
+    await new Promise((r) => setTimeout(r, 250))
+
+    // Must be absorbed rather than ending the track prematurely
+    expect(endedFired, 'delayed endedCount in early playback was absorbed').toBe(0)
+
+    handle.dispose()
   })
 
   it('fires onEnded when position rolls over near track end during gapless advance', async () => {

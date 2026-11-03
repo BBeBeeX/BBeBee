@@ -58,7 +58,7 @@ export interface AudioMpvConfig {
   /**
    * How long the engine may report `paused` while a source handle believes it
    * is sounding before the handle reports a stall — or, for a track that
-   * never started, the end. 2000 ms by default; a test against a scripted
+   * never started, the end. 6000 ms by default; a test against a scripted
    * bridge lowers it to keep real-timer waits short.
    */
   pausedStallMs?: number
@@ -95,7 +95,7 @@ export class MpvSourceHandle implements AudioSourceHandle {
     initialEndedCount?: number,
   ) {
     this._durationMs = durationMs
-    this.pausedStallMs = pausedStallMs ?? 2_000
+    this.pausedStallMs = pausedStallMs ?? 6_000
     this.initialEndedCount = initialEndedCount
     this.node = this.context.createGain()
   }
@@ -111,9 +111,15 @@ export class MpvSourceHandle implements AudioSourceHandle {
     // mid-glide (the exact "jumps to 0:00" the gapless handoff exists to
     // prevent). A track of unknown duration (a live stream) gets the same
     // treatment: it is already sitting at the live edge, and `seek 0` against
-    // an unseekable stream can force a reconnect or stall. An explicit
-    // non-zero position is always honoured.
-    const seekAt = (this.resumed || this.durationMs <= 0) && atMs === 0 ? undefined : atMs
+    // an unseekable stream can force a reconnect or stall. Likewise, on a
+    // fresh track sitting at 0, seeking to 0 clears audio buffers and forces
+    // demuxer resync, creating an audible delay. An explicit non-zero position
+    // is always honoured.
+    const isInitialZero = atMs === 0 && this.position === 0
+    const seekAt =
+      (this.resumed || this.durationMs <= 0 || isInitialZero) && atMs === 0
+        ? undefined
+        : atMs
     if (seekAt !== undefined && seekAt >= 0) {
       this.position = seekAt
     }
@@ -143,6 +149,30 @@ export class MpvSourceHandle implements AudioSourceHandle {
               if (this.initialEndedCount === undefined && typeof state.endedCount === 'number') {
                 this.initialEndedCount = state.endedCount
               }
+
+              // In the opening seconds of a track, an increment in endedCount
+              // or stale status='ended' is typically a late-arriving end event
+              // from the previous track that was unloaded asynchronously by the
+              // engine. Absorb it rather than cutting the newly sounding track.
+              const isEarlyPlayback =
+                (this._durationMs <= 0 || this._durationMs > 5000) &&
+                this.position < 2500 &&
+                Date.now() - this.startTime < 3500
+
+              if (
+                isEarlyPlayback &&
+                this.initialEndedCount !== undefined &&
+                typeof state.endedCount === 'number' &&
+                state.endedCount > this.initialEndedCount
+              ) {
+                this.logger?.debug?.(
+                  'mpv: absorbed delayed endedCount (%d -> %d) from previous track',
+                  this.initialEndedCount,
+                  state.endedCount,
+                )
+                this.initialEndedCount = state.endedCount
+              }
+
               const countEnded =
                 this.initialEndedCount !== undefined &&
                 typeof state.endedCount === 'number' &&
@@ -152,10 +182,12 @@ export class MpvSourceHandle implements AudioSourceHandle {
               // position was near the track end and suddenly dropped back to near zero.
               const positionRollover =
                 this._durationMs > 2000 &&
-                this.position >= this._durationMs - 2000 &&
+                this.position >= Math.max(1500, this._durationMs - 2000) &&
                 state.positionMs < 1500
 
-              if (state.status === 'ended' || countEnded || positionRollover) {
+              const statusEnded = state.status === 'ended' && !isEarlyPlayback
+
+              if (statusEnded || countEnded || positionRollover) {
                 this.isPlaying = false
                 if (this.timer) {
                   clearInterval(this.timer)
