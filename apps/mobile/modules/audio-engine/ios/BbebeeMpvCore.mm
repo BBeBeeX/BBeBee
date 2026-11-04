@@ -842,17 +842,29 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
 }
 
 - (NSString *)engineStatusJson {
+  // transcodeAvailable is a property of the linked engine build, like
+  // pcmTapAvailable: the audio-engine iOS framework script refuses to
+  // package a bridge without its FFmpeg encoder SDK, so the bridge
+  // header being visible at compile time is itself the guarantee that
+  // this build can transcode. The per-encoder detail lives in
+  // getTranscodeCapabilities, not here.
+#if __has_include(<BBeBeeAudioBridge/BBeBeeAudioBridge.h>)
+  NSString *transcodeAvailable = @"true";
+#else
+  NSString *transcodeAvailable = @"false";
+#endif
 #if !BBE_BEE_HAVE_MPV
-  return @"{\"running\":false,\"mpvAvailable\":false,\"pcmTapAvailable\":false,"
-          @"\"transcodeAvailable\":false}";
+  return [NSString stringWithFormat:
+      @"{\"running\":false,\"mpvAvailable\":false,\"pcmTapAvailable\":false,"
+      @"\"transcodeAvailable\":%@}", transcodeAvailable];
 #else
   const bool booted = self.isBooted;
   // pcmTapAvailable is a property of the linked engine build: the custom
   // libmpv export mpv_set_pcm_callback is linked in at compile time.
   return [NSString
       stringWithFormat:
-          @"{\"running\":%@,\"mpvAvailable\":%@,\"pcmTapAvailable\":%@,\"transcodeAvailable\":false}",
-          booted ? @"true" : @"false", booted ? @"true" : @"false", @"true"];
+          @"{\"running\":%@,\"mpvAvailable\":%@,\"pcmTapAvailable\":%@,\"transcodeAvailable\":%@}",
+          booted ? @"true" : @"false", booted ? @"true" : @"false", @"true", transcodeAvailable];
 #endif
 }
 

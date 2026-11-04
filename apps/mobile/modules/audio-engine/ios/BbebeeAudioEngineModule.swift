@@ -3,6 +3,10 @@ import Foundation
 
 import ExpoModulesCore
 
+#if BBEBEE_HAVE_BRIDGE
+import BBeBeeAudioBridge
+#endif
+
 /**
  * `BbebeeAudioEngine` — the iOS Expo surface over the in-process libmpv bridge
  * (`BbebeeMpvCore`, which drives the bundled `mpv.framework` directly).
@@ -33,6 +37,42 @@ public class BbebeeAudioEngineModule: Module {
   private let engineQueue = DispatchQueue(label: "expo.modules.audioengine.engine", qos: .userInitiated)
 
   private var core: BbebeeMpvCore?
+
+#if BBEBEE_HAVE_BRIDGE
+  /// Transcode job registry, mirroring the Android JNI contract's polling
+  /// surface: the bridge reports progress/completion through callbacks
+  /// (on the main queue), while `getTranscodeState` is polled from JS on
+  /// the engine queue, so the records live behind their own serial queue.
+  /// Done records are kept like the JNI side's 5-minute retention (pruned
+  /// on each new start) so a state read after completion still answers.
+  private final class TranscodeJobRecord {
+    let bridgeJobId: String
+    var progress: Double = 0
+    var currentTimeSec: Double = 0
+    var durationSec: Double = 0
+    var done = false
+    var ok = false
+    var cancelled = false
+    var error: String?
+    var finishedAt: Date?
+    init(bridgeJobId: String) { self.bridgeJobId = bridgeJobId }
+  }
+
+  private var transcodeJobs: [String: TranscodeJobRecord] = [:]
+  private let transcodeStateQueue = DispatchQueue(label: "expo.modules.audioengine.transcode-state")
+  /// One shared bridge instance for all transcode work. Creating it also
+  /// initializes an idle mpv core (the bridge is a playback instance
+  /// first); that is the price of reusing its transcode surface until
+  /// the bridge gains lazy mpv init. It is created on first transcode
+  /// use, never at module boot.
+  private var transcodeBridge: BBeBeeAudioBridge?
+  private func bridge() -> BBeBeeAudioBridge? {
+    if let existing = transcodeBridge { return existing }
+    guard let created = try? BBeBeeAudioBridge(configDirectory: nil) else { return nil }
+    transcodeBridge = created
+    return created
+  }
+#endif
 
   override public func definition() -> ModuleDefinition {
     Name("BbebeeAudioEngine")
@@ -251,32 +291,67 @@ public class BbebeeAudioEngineModule: Module {
       batchQueue.addOperation(finish)
     }
 
-    // The linked iOS engine build carries no FFmpeg transcoder (the Android
-    // `libbbebee_audio_jni.so` JNI surface is Android-only), so the codec seam
-    // answers honestly instead of pretending: `CodecRn` surfaces the error and
-    // falls back to the inherited `core-codec-desktop` implementation.
+    // Transcode runs through the audio-engine bridge (FFmpeg encoder SDK)
+    // when the xcframework was staged at pod install time; without it the
+    // seam keeps its honest stubs and `CodecRn` falls back to the
+    // inherited `core-codec-desktop` implementation.
     AsyncFunction("transcode") { (options: [String: Any?], promise: Promise) in
+#if BBEBEE_HAVE_BRIDGE
+      engineQueue.async {
+        self.transcode(options: options, promise: promise)
+      }
+#else
       let jobId = Self.stringField(options, "jobId")
       let answer =
         "{\"ok\":false,\"jobId\":\"\(Self.jsonEscaped(jobId))\",\"error\":\"\(Self.jsonEscaped(Self.transcodeUnavailableMessage))\"}"
       promise.resolve(answer)
+#endif
     }
 
     AsyncFunction("cancelTranscode") { (jobId: String, promise: Promise) in
+#if BBEBEE_HAVE_BRIDGE
+      engineQueue.async {
+        promise.resolve(self.cancelTranscode(jobId: jobId))
+      }
+#else
       // No job registry exists to cancel — false is the honest answer.
       _ = jobId
       promise.resolve(false)
+#endif
     }
 
     AsyncFunction("getTranscodeState") { (jobId: String, promise: Promise) in
+#if BBEBEE_HAVE_BRIDGE
+      engineQueue.async {
+        promise.resolve(self.transcodeState(jobId: jobId))
+      }
+#else
       let state =
         "{\"jobId\":\"\(Self.jsonEscaped(jobId))\",\"found\":false,\"running\":false,\"done\":true,"
           + "\"ok\":false,\"cancelled\":false,\"progress\":0,\"currentTimeSec\":0,\"durationSec\":0}"
       promise.resolve(state)
+#endif
     }
 
     AsyncFunction("getTranscodeCapabilities") { (promise: Promise) in
+#if BBEBEE_HAVE_BRIDGE
+      engineQueue.async {
+        guard let bridge = self.bridge() else {
+          promise.resolve("{\"supported\":false,\"encoders\":{}}")
+          return
+        }
+        let caps = bridge.transcodeCapabilities() as? [String: Any] ?? [:]
+        if let data = try? JSONSerialization.data(withJSONObject: caps),
+          let json = String(data: data, encoding: .utf8)
+        {
+          promise.resolve(json)
+        } else {
+          promise.resolve("{\"supported\":false,\"encoders\":{}}")
+        }
+      }
+#else
       promise.resolve("{\"supported\":false,\"encoders\":{}}")
+#endif
     }
   }
 
@@ -295,6 +370,174 @@ public class BbebeeAudioEngineModule: Module {
     return engine
   }
 
+#if BBEBEE_HAVE_BRIDGE
+  // MARK: - Transcode (bridge-backed)
+
+  /// The bridge only speaks plain filesystem paths; `file://` URIs are
+  /// unwrapped (percent-decoded) here. Unlike Android, iOS has no
+  /// `content://` staging — the JS layer deals in file paths, and any
+  /// other scheme fails honestly in the transcoder with an FFmpeg error.
+  private static func filesystemPath(_ uri: String) -> String {
+    if uri.hasPrefix("file://") {
+      return URL(string: uri)?.path ?? uri
+    }
+    return uri
+  }
+
+  private func transcode(options: [String: Any?], promise: Promise) {
+    let requestedJobId = Self.stringField(options, "jobId")
+    let input = Self.filesystemPath(Self.stringField(options, "inputUri"))
+    let output = Self.filesystemPath(Self.stringField(options, "outputUri"))
+    let format = Self.stringField(options, "format").isEmpty ? "mp3" : Self.stringField(options, "format")
+    let bitrate = Self.stringField(options, "bitrate")
+    // The registry key, fixed before the bridge call so the callbacks
+    // below can find the record without depending on the bridge's
+    // return value (which does not exist yet when they are created).
+    let jsJobId = requestedJobId.isEmpty ? UUID().uuidString : requestedJobId
+
+    // A live JS jobId is refused here, like the bridge refuses a live
+    // output path; the bridge's own refusal arrives through its
+    // completion callback instead (see below).
+    let alreadyRunning = transcodeStateQueue.sync { () -> Bool in
+      guard let record = transcodeJobs[jsJobId] else { return false }
+      return !record.done
+    }
+    if alreadyRunning {
+      promise.resolve(
+        "{\"ok\":false,\"jobId\":\"\(Self.jsonEscaped(jsJobId))\",\"error\":\"job '\(Self.jsonEscaped(jsJobId))' is already running\"}"
+      )
+      return
+    }
+
+    guard let bridge = bridge() else {
+      promise.resolve(
+        "{\"ok\":false,\"jobId\":\"\(Self.jsonEscaped(jsJobId))\",\"error\":\"\(Self.jsonEscaped(Self.transcodeUnavailableMessage))\"}"
+      )
+      return
+    }
+
+    // Prune done records older than the JNI side's 5-minute retention.
+    // Only done records go, so a completion still in flight can never
+    // lose its record to a prune (done is set by that completion).
+    let now = Date()
+    transcodeStateQueue.sync {
+      transcodeJobs = transcodeJobs.filter { _, record in
+        !(record.done && record.finishedAt.map { now.timeIntervalSince($0) > 300 } ?? false)
+      }
+    }
+
+    // The desktop-only options, ruled on exactly like Android's
+    // NativeCodecBridge: reported, never silently dropped.
+    var unsupported: [String] = []
+    if Self.hasField(options, "bitDepth") { unsupported.append("bitDepth") }
+    if (options["vbr"] as? Bool) == true && Self.hasField(options, "vbrQuality") {
+      unsupported.append("vbr")
+      unsupported.append("vbrQuality")
+    }
+    if Self.hasField(options, "volumeGainDb") { unsupported.append("volumeGainDb") }
+    if Self.hasField(options, "fadeInSeconds") { unsupported.append("fadeInSeconds") }
+    if Self.hasField(options, "fadeOutSeconds") { unsupported.append("fadeOutSeconds") }
+
+    // Box for this call's bridge jobId, filled in right after the call
+    // returns. The callbacks match on it so a refusal completion — or a
+    // completion arriving after the JS jobId was reused for a new job —
+    // can never be mistaken for this job's finish.
+    var callBridgeJobId: String?
+    let bridgeJobId = bridge.transcode(
+      withInput: input,
+      output: output,
+      format: format,
+      bitrate: bitrate.isEmpty ? nil : bitrate,
+      sampleRate: Int32(Self.intField(options, "sampleRate")),
+      channels: Int32(Self.intField(options, "channels")),
+      startTime: Self.doubleField(options, "startSeconds"),
+      endTime: Self.doubleField(options, "endSeconds"),
+      progress: { [weak self] progress, currentTime, duration in
+        guard let self else { return }
+        self.transcodeStateQueue.async {
+          guard let record = self.transcodeJobs[jsJobId],
+            record.bridgeJobId == callBridgeJobId
+          else { return }
+          record.progress = progress
+          record.currentTimeSec = currentTime
+          record.durationSec = duration
+        }
+      },
+      completion: { [weak self] ok, cancelled, error in
+        guard let self else { return }
+        self.transcodeStateQueue.async {
+          guard let record = self.transcodeJobs[jsJobId],
+            record.bridgeJobId == callBridgeJobId
+          else {
+            // No matching record: this is the bridge's refusal
+            // completion (the start call returned nil), unless the
+            // record belongs to a newer job reusing this key — in
+            // which case there is nothing to answer here either,
+            // because that job's own start already resolved.
+            if self.transcodeJobs[jsJobId] == nil {
+              let answer =
+                "{\"ok\":false,\"jobId\":\"\(Self.jsonEscaped(jsJobId))\",\"error\":\"\(Self.jsonEscaped(error ?? "transcode refused"))\"}"
+              promise.resolve(answer)
+            }
+            return
+          }
+          record.done = true
+          record.ok = ok
+          record.cancelled = cancelled
+          record.error = error
+          record.finishedAt = Date()
+        }
+      }
+    )
+
+    guard let bridgeJobId else {
+      // Refusal: the completion above resolves the start promise on the
+      // main queue with the bridge's reason. Nothing is registered.
+      return
+    }
+    callBridgeJobId = bridgeJobId
+
+    transcodeStateQueue.sync {
+      transcodeJobs[jsJobId] = TranscodeJobRecord(bridgeJobId: bridgeJobId)
+    }
+    var answer = "{\"ok\":true,\"jobId\":\"\(Self.jsonEscaped(jsJobId))\""
+    if !unsupported.isEmpty {
+      let list = unsupported.map { "\"\($0)\"" }.joined(separator: ",")
+      answer += ",\"unsupported\":[\(list)]"
+    }
+    answer += "}"
+    promise.resolve(answer)
+  }
+
+  private func cancelTranscode(jobId: String) -> Bool {
+    let bridgeJobId: String? = transcodeStateQueue.sync {
+      guard let record = transcodeJobs[jobId], !record.done else { return nil }
+      return record.bridgeJobId
+    }
+    guard let bridgeJobId, let bridge = bridge() else { return false }
+    bridge.cancelTranscode(bridgeJobId)
+    return true
+  }
+
+  private func transcodeState(jobId: String) -> String {
+    let record = transcodeStateQueue.sync { transcodeJobs[jobId] }
+    guard let record else {
+      return
+        "{\"jobId\":\"\(Self.jsonEscaped(jobId))\",\"found\":false,\"running\":false,\"done\":true,"
+          + "\"ok\":false,\"cancelled\":false,\"progress\":0,\"currentTimeSec\":0,\"durationSec\":0}"
+    }
+    var state =
+      "{\"jobId\":\"\(Self.jsonEscaped(jobId))\",\"found\":true,\"running\":\(record.done ? "false" : "true"),\"done\":\(record.done ? "true" : "false"),"
+        + "\"ok\":\(record.ok ? "true" : "false"),\"cancelled\":\(record.cancelled ? "true" : "false"),"
+        + "\"progress\":\(record.progress),\"currentTimeSec\":\(record.currentTimeSec),\"durationSec\":\(record.durationSec)"
+    if let error = record.error {
+      state += ",\"error\":\"\(Self.jsonEscaped(error))\""
+    }
+    state += "}"
+    return state
+  }
+#endif
+
   // MARK: - Shared answer constants / JSON helpers
 
   private static let transcodeUnavailableMessage =
@@ -303,6 +546,24 @@ public class BbebeeAudioEngineModule: Module {
   private static func stringField(_ options: [String: Any?], _ key: String) -> String {
     guard let value = options[key] else { return "" }
     return value as? String ?? ""
+  }
+
+  private static func intField(_ options: [String: Any?], _ key: String) -> Int {
+    guard let value = options[key] as? NSNumber else { return 0 }
+    return value.intValue
+  }
+
+  private static func doubleField(_ options: [String: Any?], _ key: String) -> Double {
+    guard let value = options[key] as? NSNumber else { return 0 }
+    return value.doubleValue
+  }
+
+  /// Present with a real value — absent, nil, and NSNull all count as absent,
+  /// which is what the `unsupported` ruling needs (a JS `undefined` field
+  /// must not be reported as a field the engine cannot apply).
+  private static func hasField(_ options: [String: Any?], _ key: String) -> Bool {
+    guard let value = options[key], !(value is NSNull) else { return false }
+    return true
   }
 
   /** Minimal JSON string escaping for ids/messages built by hand. */

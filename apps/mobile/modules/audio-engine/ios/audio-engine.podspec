@@ -52,16 +52,47 @@ Pod::Spec.new do |s|
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17'
   }
 
+  # The static bridge xcframework is staged next to mpv.framework by the
+  # same fetch. The pod only needs it at compile time: the config plugin
+  # already links it into the app target, so the pod must NOT add its own
+  # `-framework BBeBeeAudioBridge` link flag — a static framework linked
+  # into both the pod and the app would duplicate every symbol at app
+  # link time. The Swift flag below switches the module's transcode seam
+  # from its honest stubs to the real bridge calls.
+  bridge_search_dir = nil
+  [
+    File.expand_path('../../../../../resources/ios', __dir__),
+    File.expand_path('../../../third-party/audio-engine/ios', __dir__),
+  ].each do |candidate|
+    if File.directory?(File.join(candidate, 'BBeBeeAudioBridge.xcframework'))
+      bridge_search_dir = candidate
+      break
+    end
+  end
+
+  framework_search_paths = []
   if mpv_search_dir.nil?
     Pod::UI.warn '[audio-engine] No mpv.framework found under resources/ios/ or ' \
                  'third-party/audio-engine/ios/ — the native engine will NOT be linked and ' \
                  'mobile audio degrades to the in-process simulation. ' \
                  'Run `pnpm fetch:audio-engine --app mobile` on this machine.'
   else
-    s.pod_target_xcconfig['FRAMEWORK_SEARCH_PATHS'] = "\"#{mpv_search_dir}\""
+    framework_search_paths << mpv_search_dir
     # Link only — the dynamic framework is embedded and re-signed into the app
     # bundle by the `with-audio-engine` config plugin (embedding from a pod
     # would duplicate it).
     s.pod_target_xcconfig['OTHER_LDFLAGS'] = '$(inherited) -framework mpv'
+  end
+  if bridge_search_dir.nil?
+    Pod::UI.warn '[audio-engine] No BBeBeeAudioBridge.xcframework found — the ' \
+                 'transcode seam stays on its honest stubs. ' \
+                 'Run `pnpm fetch:audio-engine --app mobile` on this machine.'
+  else
+    framework_search_paths << bridge_search_dir
+    s.pod_target_xcconfig['OTHER_SWIFT_FLAGS'] = '$(inherited) -DBBEBEE_HAVE_BRIDGE'
+  end
+  unless framework_search_paths.empty?
+    s.pod_target_xcconfig['FRAMEWORK_SEARCH_PATHS'] =
+      framework_search_paths.map { |d| "\"#{d}\"" }.join(' ')
   end
 end
