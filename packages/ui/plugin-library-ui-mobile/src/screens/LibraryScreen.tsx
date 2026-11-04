@@ -754,6 +754,9 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
 
   const hasArtists = artistItems.length > 0
   const visibleChips = FILTER_CHIPS.filter(({ key }) => key !== 'artist' || hasArtists)
+  const isInitialLoading =
+    (playlists.status === 'loading' || savedAlbumEntries.status === 'loading') &&
+    allItems.length === 0
 
   return h(
     native.View as never,
@@ -809,11 +812,16 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         items: displayItems,
         estimatedItemSize: 76,
         keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
-        empty: h(EmptyState, {
-          icon: 'music',
-          title: t('library:library.nothingFound'),
-          description: t('library:library.importAMusicSourceScan'),
-        }),
+        empty: isInitialLoading
+          ? h(EmptyState, {
+              icon: 'music',
+              title: t('app:common.loading') || 'Loading...',
+            })
+          : h(EmptyState, {
+              icon: 'music',
+              title: t('library:library.nothingFound'),
+              description: t('library:library.importAMusicSourceScan'),
+            }),
 
         renderItem: (item) =>
           h(UnifiedRow, {

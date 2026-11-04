@@ -12,6 +12,7 @@ import type {
   ShareService,
   SourcesService,
   Track,
+  UrnKind,
 } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings, tryParseUrn } from '@BBeBee/protocol'
 import { usePlaylist, useLibraryProfile } from '@bbebee/plugin-library/hooks'
@@ -200,7 +201,11 @@ export function PlaylistDetailScreen({
 
   useEffect(() => {
     loadSavedState()
-    const off = ctx.on('library/changed', () => loadSavedState())
+    const off = ctx.on('library/changed', (kind?: UrnKind) => {
+      if (!kind || kind === 'playlist') {
+        loadSavedState()
+      }
+    })
     return () => void off()
   }, [ctx, loadSavedState])
 
@@ -264,6 +269,12 @@ export function PlaylistDetailScreen({
     if (!library || !detail) return
     const next = !isSaved
     setIsSaved(next)
+    ctx.emit('ui/toast', {
+      message: next
+        ? t('album:index.addedToLibrary')
+        : t('album:index.removedFromLibrary'),
+      tone: 'info',
+    })
     try {
       await library.setSaved(detail.urn, next)
     } catch {
@@ -313,6 +324,10 @@ export function PlaylistDetailScreen({
       .filter((r) => selectedUrns.has(r.track.urn))
       .map((r) => r.track)
     if (selectedTracks.length > 0) {
+      ctx.emit('ui/toast', {
+        message: t('album:index.queuedForDownload'),
+        tone: 'info',
+      })
       void downloads.enqueue(selectedTracks)
       setIsBatchMode(false)
       setSelectedUrns(new Set())
@@ -399,14 +414,14 @@ export function PlaylistDetailScreen({
     items.push({
       id: 'playlist-view-mode',
       label: t('app:common.viewMode.viewMode') || 'View mode',
-      icon: viewMode === 'list' ? 'layout-list' : 'list',
+      icon: 'list',
       submenu: { items: viewChildren },
     })
 
     items.push({
       id: 'playlist-batch-edit',
       label: isBatchMode ? t('library:favorites.exitBatchOperations') : t('library:favorites.batchOperations'),
-      icon: 'checkbox',
+      icon: 'list-check',
       onSelect: () => {
         setIsBatchMode((prev) => !prev)
         setSelectedUrns(new Set())
@@ -434,7 +449,7 @@ export function PlaylistDetailScreen({
       label: isSaved
         ? t('album:index.removeFromMusicLibrary')
         : t('album:index.addToMusicLibrary'),
-      icon: isSaved ? 'heart-filled' : 'heart',
+      icon: isSaved ? (tablerIcon('heart-filled', { size: 20, color: '#E53935' }) ?? '❤️') : 'heart',
       onSelect: () => void handleToggleSavePlaylist(),
     })
 
@@ -443,7 +458,13 @@ export function PlaylistDetailScreen({
         id: 'playlist-download-all',
         label: t('album:index.downloadAll'),
         icon: 'download',
-        onSelect: () => void downloads.enqueue(processedRows.map((r) => r.track)),
+        onSelect: () => {
+          ctx.emit('ui/toast', {
+            message: t('album:index.queuedForDownload'),
+            tone: 'info',
+          })
+          void downloads.enqueue(processedRows.map((r) => r.track))
+        },
       })
     }
 
@@ -520,7 +541,10 @@ export function PlaylistDetailScreen({
       h(
         Text,
         { variant: 'xs', style: { letterSpacing: 1, opacity: 0.85, fontWeight: tokens.font.weight.bold } },
-        (detail.isSmart ? t('library:playlist.smartPlaylist') : t('library:playlistDetail.playlist')).toUpperCase(),
+        (detail.isSmart
+          ? (t('library:library.smartPlaylist') || 'Smart playlist')
+          : (t('library:playlistDetail.playlist') || 'Playlist')
+        ).toUpperCase(),
       ),
       // Hero Middle: Cover + Title + Metadata
       h(
@@ -660,7 +684,7 @@ export function PlaylistDetailScreen({
             },
             tablerIcon(isSaved ? 'heart-filled' : 'heart', {
               size: 22,
-              color: isSaved ? 'var(--color-primary, #5F87FF)' : c().text.muted,
+              color: isSaved ? '#E53935' : c().text.muted,
             }),
           ),
           // Download all
@@ -727,7 +751,7 @@ export function PlaylistDetailScreen({
           },
           tablerIcon('search', {
             size: 20,
-            color: isSearchOpen ? 'var(--color-primary, #5F87FF)' : c().text.muted,
+            color: isSearchOpen ? c().accent.base : c().text.muted,
           }),
         ),
       ),
@@ -739,7 +763,7 @@ export function PlaylistDetailScreen({
             h(TextField, {
               value: searchQuery,
               onChange: setSearchQuery,
-              placeholder: t('library:filterAndSort.searchInPlaylist') || 'Search in playlist',
+              placeholder: t('library:expandedLibrary.searchInPlaylist') || '在歌单中搜索',
             }),
           )
         : null,
@@ -813,6 +837,12 @@ export function PlaylistDetailScreen({
             menu.open({ track, playlistItemId: item.id }, anchor)
           },
         }),
+    }),
+    // Track row ContextMenu
+    h(ContextMenu, {
+      ctx,
+      ...menu.menuProps,
+      liquid: liquidGlass,
     }),
     // Single Top-Right Consolidated ContextMenu
     h(ContextMenu, {

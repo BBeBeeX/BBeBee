@@ -133,31 +133,30 @@ export function RecommendScreen({ ctx, onOpenAlbum, showGuide }: RecommendScreen
             })
 
           : h(
-              // The page is a handful of shelves, so it scrolls as one
-              // recycled list of sections rather than one long ScrollView —
-              // a source count that outgrows the screen keeps scrolling cold.
-              native.FlashList as never,
+              (native.ScrollView ?? native.View) as never,
               {
-                data: sections,
-                keyExtractor: (section: Section) => section.key,
-                renderItem: ({ item }: { item: Section }) =>
-                  item.kind === 'static'
-                    ? h(RecommendShelfRow, {
-                        ctx,
-                        title: item.title,
-                        testID: `recommend-shelf-${item.key}`,
-                        entries: item.entries,
-                        onOpenCard: openCard,
-                        onPlayCard: playCard,
-                      })
-                    : h(SourceShelf, {
-                        ctx,
-                        provider: item.provider,
-                        onOpenCard: openCard,
-                        onPlayCard: playCard,
-                      }),
                 contentContainerStyle: { gap: tokens.space[5], paddingBottom: BOTTOM_CHROME_HEIGHT },
+                showsVerticalScrollIndicator: false,
               },
+              ...sections.map((item) =>
+                item.kind === 'static'
+                  ? h(RecommendShelfRow, {
+                      key: item.key,
+                      ctx,
+                      title: item.title,
+                      testID: `recommend-shelf-${item.key}`,
+                      entries: item.entries,
+                      onOpenCard: openCard,
+                      onPlayCard: playCard,
+                    })
+                  : h(SourceShelf, {
+                      key: item.key,
+                      ctx,
+                      provider: item.provider,
+                      onOpenCard: openCard,
+                      onPlayCard: playCard,
+                    }),
+              ),
             ),
     ),
     h(OnboardingModal, {

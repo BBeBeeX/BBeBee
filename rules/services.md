@@ -122,5 +122,18 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 - **Container sniffing and format reconciliation in `ctx.downloads`:** When remote streams deliver audio whose real magic-bytes container does not match the user's preferred format in `settings.downloadFormat` (e.g. source serves MP3 stream when FLAC was selected), `plugin-download` invokes `ctx.audioConverter.convertDirect` (falling back to `ctx.codec.transcode` if the audio converter plugin is not loaded) to convert the downloaded file to the configured format before embedding metadata tags (Vorbis comment / ID3) and artwork. If transcoding is unavailable or fails, it gracefully falls back to the native detected container format.
 - **Embedded tag integrity:** Vorbis comments written to FLAC files must include `PERFORMER`, `ARTIST`, `ALBUMARTIST`, `DATE`, `YEAR`, `TRACKNUMBER` and valid picture dimensions detected from cover artwork headers.
 
+---
+
+## 9. Download Pipeline & Non-Blocking Queue Batching (`plugin-download`)
+
+- **Batched Enqueueing**: `downloads.enqueue(items)` must batch SQLite insertions and metadata cache writes into a single unified sequence. Avoid invoking per-track SQL transactions and never trigger `refresh()` or `refreshGate()` inside the enqueue loop. `refresh()` and `refreshGate()` are executed exactly once at the conclusion of the enqueue batch, preventing main thread starvation, database lock contention, and UI freezing during multi-track downloads.
+- **Granular Event Invalidation**: Listeners of `library/changed` (such as `useIsSavedTrack` in `player.ts`) must inspect changed track/album URNs rather than invalidating entire application caches globally.
+
+---
+
+## 10. Recommendation Shelf SWR Caching (`useRecommendShelf`)
+
+- **5-Minute SWR Cache Window**: In `plugin-sources`, `useRecommendShelf` caches recommendation feed results in-memory keyed by `sourceId` for 5 minutes. Subsequent screen switches or remounts return the cached feed instantly, avoiding redundant network requests and preventing recommendation shelf layout shifts.
+
 
 

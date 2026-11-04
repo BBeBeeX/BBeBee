@@ -224,14 +224,18 @@ describe('AlbumScreen on mobile', () => {
     ])
   })
 
-  it('queues download all from the action bar', async () => {
+  it('queues download all from the menu', async () => {
     const { ctx, downloads } = await harness()
     const { container } = render(h(AlbumScreen, { ctx, urn: ALBUM_URN }))
     await act(async () => {
       await tick()
     })
     await act(async () => {
-      ;(container.querySelector('[data-testid="album-download-all"]') as HTMLElement).click()
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="download-all"]') as HTMLElement).click()
       await tick()
     })
 

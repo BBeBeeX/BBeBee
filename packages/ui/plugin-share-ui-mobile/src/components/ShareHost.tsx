@@ -15,7 +15,7 @@ import type {
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useShareModalState } from '@bbebee/plugin-share/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, EmptyState, Sheet, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { Artwork, Button, EmptyState, Sheet, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 /** Full-literal catalogue keys for the share type names — never built at runtime. */
@@ -118,12 +118,43 @@ function SharePanel({
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
 
-  // The code is derived once per target — encoding is cheap, but a field that
-  // rewrites itself on every render would fight the user's long-press.
   const code = useMemo(
     () => (share ? share.encodeMetadata(target.type, payloadOf(target)) : ''),
     [share, target],
   )
+
+  const payload = payloadOf(target)
+  const artworkUrl =
+    'artwork' in payload && typeof payload.artwork === 'string'
+      ? payload.artwork
+      : 'artwork' in payload && payload.artwork && typeof payload.artwork === 'object' && 'sourceUrl' in payload.artwork
+        ? (payload.artwork as { sourceUrl?: string }).sourceUrl
+        : undefined
+
+  const title =
+    target.type === 'track'
+      ? target.track.title
+      : target.type === 'playlist'
+        ? target.playlist.name
+        : target.type === 'album'
+          ? target.album.title
+          : target.lyrics.title
+
+  const subtitle =
+    target.type === 'track'
+      ? target.track.artist
+      : target.type === 'playlist'
+        ? t('share:shareAlbum.trackCountSongs', { trackCount: target.playlist.trackCount ?? 0 })
+        : target.type === 'album'
+          ? [
+              target.album.artist,
+              target.album.trackCount
+                ? t('share:shareAlbum.trackCountSongs', { trackCount: target.album.trackCount })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' • ')
+          : target.lyrics.artist
 
   const summary =
     target.type === 'track'
@@ -136,6 +167,28 @@ function SharePanel({
             : t('share:shareHost.targetAlbum', { title: target.album.title })
           : t('share:shareHost.targetLyrics', { title: target.lyrics.title, artist: target.lyrics.artist })
 
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyCode = () => {
+    setCopied(true)
+    const successMsg = t('share:shareActionButtons.copySuccessToast') || '分享码已复制'
+    ctx.emit('ui/toast', { message: successMsg, tone: 'ok' })
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  const handleSystemShare = async () => {
+    if (native.Share) {
+      try {
+        await native.Share.share({
+          message: code,
+          title: title,
+        })
+      } catch (err) {
+        ctx.logger?.error(`Native share failed: ${String(err)}`)
+      }
+    }
+  }
+
   return h(
     Sheet,
     {
@@ -147,19 +200,61 @@ function SharePanel({
     h(
       native.View as never,
       { style: { gap: tokens.space[3], paddingBottom: tokens.space[4] } },
-      h(Text, { variant: 'lg' }, summary),
+      // Share Card Preview
+      h(
+        native.View as never,
+        {
+          style: {
+            alignItems: 'center',
+            padding: tokens.space[4],
+            borderRadius: tokens.radius.lg,
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            gap: tokens.space[2],
+          },
+        },
+        h(Artwork, {
+          size: 130,
+          radius: tokens.radius.md,
+          artwork: artworkUrl ? { id: title, sourceUrl: artworkUrl } : undefined,
+          seed: title,
+        }),
+        h(Text, { variant: 'lg', style: { fontWeight: '700', textAlign: 'center', marginTop: 4 } }, title),
+        subtitle ? h(Text, { variant: 'sm', tone: 'muted', style: { textAlign: 'center' } }, subtitle) : null,
+        h(Text, { style: { position: 'absolute', width: 0, height: 0, opacity: 0 } }, summary),
+      ),
+      // Share Code text input
       h(TextField, {
         value: code,
         onChange: () => {},
         multiline: true,
-        rows: 4,
+        rows: 3,
         disabled: true,
         placeholder: share ? undefined : t('share:shareHost.shareServiceNotReady'),
       }),
+      // Buttons
       h(
-        Text,
-        { variant: 'sm', tone: 'muted' },
-        share ? t('share:shareHost.longPressHint') : t('share:shareHost.shareServiceNotReadyYet'),
+        native.View as never,
+        { style: { flexDirection: 'row', gap: tokens.space[2], marginTop: tokens.space[1] } },
+        h(
+          native.View as never,
+          { style: { flex: 1 } },
+          h(Button, {
+            variant: 'primary',
+            onPress: handleCopyCode,
+            children: copied ? (t('share:shareActionButtons.copiedBase64') || '已复制') : (t('share:shareActionButtons.copyBase64') || '复制分享码'),
+          }),
+        ),
+        native.Share
+          ? h(
+              native.View as never,
+              { style: { flex: 1 } },
+              h(Button, {
+                variant: 'secondary',
+                onPress: handleSystemShare,
+                children: t('app:common.share') || '系统分享',
+              }),
+            )
+          : null,
       ),
     ),
   )

@@ -50,9 +50,9 @@ export function MobileLibraryTrackRow({
   showSource,
   sourceName,
   compact = false,
-  onRemove,
-  isSmart = false,
-  playlistName,
+  onRemove: _onRemove,
+  isSmart: _isSmart = false,
+  playlistName: _playlistName,
 }: MobileLibraryTrackRowProps): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
@@ -212,18 +212,8 @@ export function MobileLibraryTrackRow({
             }),
           )
         : null,
-      !batchMode && onRemove && !isSmart
-        ? h(IconButton, {
-            icon: 'x',
-            accessibilityLabel: t('library:index.removeFrom', {
-              title: track.title,
-              name: playlistName ?? t('library:playlistDetail.playlist'),
-            }),
-            variant: 'ghost',
-            onPress: () => onRemove(),
-          })
-        : null,
       h(IconButton, {
+        testID: `track-more-${track.urn}`,
         icon: 'dots',
         accessibilityLabel: t('library:libraryTrack.more'),
         variant: 'ghost',

@@ -9,7 +9,7 @@
  * `ctx.ui`.
  */
 
-import { createElement as h, useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Animated,
@@ -195,6 +195,24 @@ const LEFT_PANE_ROOT = 'library.home'
 interface HistoryItem {
   id: string
   params?: Record<string, unknown>
+}
+
+interface CachedPageItem {
+  key: string
+  id: string
+  params?: Record<string, unknown>
+}
+
+function getPageKey(id: string, params?: Record<string, unknown>): string {
+  if (!params || Object.keys(params).length === 0) {
+    return id
+  }
+  const sortedKeys = Object.keys(params).sort()
+  const sortedParams: Record<string, unknown> = {}
+  for (const k of sortedKeys) {
+    sortedParams[k] = params[k]
+  }
+  return `${id}:${JSON.stringify(sortedParams)}`
 }
 
 /**
@@ -841,6 +859,43 @@ function Shell({ ctx }: { ctx: Context }) {
     navState.history[navState.index] ?? (defaultTab ? { id: defaultTab.id } : undefined)
   const currentId = currentItem?.id
   const currentParams = currentItem?.params
+  const currentKey = currentId ? getPageKey(currentId, currentParams) : ''
+
+  const [cachedPages, setCachedPages] = useState<Map<string, CachedPageItem>>(() => {
+    const map = new Map<string, CachedPageItem>()
+    if (currentKey && currentId) {
+      map.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
+    }
+    return map
+  })
+
+  const pagesToRender = useMemo(() => {
+    const map = new Map(cachedPages)
+    if (currentKey && currentId && !map.has(currentKey)) {
+      map.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
+    }
+    return map
+  }, [cachedPages, currentKey, currentId, currentParams])
+
+  useEffect(() => {
+    if (currentKey && currentId) {
+      setCachedPages((prev) => {
+        if (prev.has(currentKey)) return prev
+        const next = new Map(prev)
+        next.set(currentKey, { key: currentKey, id: currentId, params: currentParams })
+        // LRU prune if exceeds 12 cached pages, keeping the main tab roots intact
+        if (next.size > 12) {
+          for (const [k, p] of next) {
+            if (!MAIN_TABS.some((tab) => tab.id === p.id) && k !== currentKey) {
+              next.delete(k)
+              break
+            }
+          }
+        }
+        return next
+      })
+    }
+  }, [currentKey, currentId, currentParams])
 
   const activeTab = TABS.find((tab) => tab.id === currentId)
 
@@ -873,6 +928,9 @@ function Shell({ ctx }: { ctx: Context }) {
         onClose?: () => void
         [key: string]: unknown
       }>
+    | undefined
+  const ShareHost = ctx.ui.viewFor('share.host') as
+    | ComponentType<{ ctx: Context }>
     | undefined
 
   /* ── the page surface, shared by every layout ─────────────────────────── */
@@ -1107,8 +1165,34 @@ function Shell({ ctx }: { ctx: Context }) {
     isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton : undefined,
     getRouteHeaderStyle(currentId),
   )
-  const pageBody = pageBodyFor(currentId, currentParams, goBack, (urn) =>
-    navigateTo('album.view', { urn }),
+  const pageBody = h(
+    View,
+    { style: { flex: 1, position: 'relative' } },
+    Array.from(pagesToRender.values()).map((page) => {
+      const isCurrent = page.key === currentKey
+      return h(
+        View,
+        {
+          key: page.key,
+          testID: `page-${page.id}`,
+          pointerEvents: isCurrent ? 'auto' : 'none',
+          style: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: isCurrent ? 'flex' : 'none',
+          },
+        },
+        pageBodyFor(
+          page.id,
+          page.params,
+          goBack,
+          (urn) => navigateTo('album.view', { urn }),
+        ),
+      )
+    }),
   )
 
   /*
@@ -1823,6 +1907,7 @@ function Shell({ ctx }: { ctx: Context }) {
     // mounts the same element inside its left pane, and the tablet has no
     // drawer (the rail is its navigation).
     layout === 'phone' && isDrawerOpen ? drawerOverlay : null,
+    ShareHost ? h(ShareHost, { ctx }) : null,
     activeToast
       ? h(
           View,

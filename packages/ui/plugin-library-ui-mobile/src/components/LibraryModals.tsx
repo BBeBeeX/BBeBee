@@ -248,7 +248,7 @@ function EditPlaylistSheet({
         disabled: name.trim().length === 0 || saving,
         loading: saving,
         testID: 'edit-playlist-save',
-        children: t('userProfile.save'),
+        children: t('library:userProfile.save') || t('app:common.save') || '保存',
       }),
     ),
   )

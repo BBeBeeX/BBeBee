@@ -74,6 +74,10 @@ export interface NativePrimitives {
    * (`apps/mobile/src/boot.ts`) is the one place allowed to touch it.
    */
   LiquidGlassView?: unknown
+  /**
+   * React Native's `Share` module, injected so components can invoke system share.
+   */
+  Share?: { share(content: { message: string; title?: string; url?: string }): Promise<unknown> }
 }
 
 /** The `react-native-svg` exports the Tabler icon geometry needs. */

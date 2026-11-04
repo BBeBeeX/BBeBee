@@ -400,9 +400,16 @@ describe('PlaylistDetailScreen on mobile', () => {
     })
 
     await act(async () => {
-      const removes = container.querySelectorAll('[data-label="Remove Alpha from Road trip"]')
-      expect(removes).toHaveLength(2)
-      ;(removes[0] as HTMLElement).click()
+      const moreButtons = container.querySelectorAll(`[data-testid="track-more-${TRACK}"]`)
+      expect(moreButtons.length).toBeGreaterThanOrEqual(1)
+      ;(moreButtons[0] as HTMLElement).click()
+      await tick()
+    })
+
+    await act(async () => {
+      const removeBtn = container.querySelector('[data-testid="remove-from-playlist"]') as HTMLElement
+      expect(removeBtn).not.toBeNull()
+      removeBtn.click()
       await tick()
     })
 
@@ -424,7 +431,7 @@ describe('PlaylistDetailScreen on mobile', () => {
       await tick()
     })
 
-    expect(container.textContent).toContain('Smart playlist')
+    expect(container.textContent).toContain('SMART PLAYLIST')
     expect(container.querySelectorAll('[data-label^="Remove"]')).toHaveLength(0)
   })
 

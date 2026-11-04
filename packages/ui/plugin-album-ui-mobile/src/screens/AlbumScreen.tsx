@@ -10,6 +10,7 @@ import type {
   ShareService,
   SourcesService,
   Track,
+  UrnKind,
 } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useAlbum } from '@bbebee/plugin-album/hooks'
@@ -123,9 +124,27 @@ export function AlbumScreen({
 
   useEffect(() => {
     loadSavedState()
-    const off = ctx.on('library/changed', () => loadSavedState())
+    const off = ctx.on('library/changed', (kind?: UrnKind) => {
+      const albumUrn = album.data?.urn
+      if (!library || !albumUrn) return
+      if (!kind || kind === 'album') {
+        library.isSaved(albumUrn).then((saved) => setIsSaved(saved)).catch(() => {})
+      }
+      if (!kind || kind === 'track') {
+        if (typeof library.listSaved === 'function') {
+          library.listSaved('track').then((res) => {
+            if (res?.items) setSavedTrackUrns(new Set(res.items.map((i) => i.urn)))
+          }).catch(() => {})
+        }
+      }
+      if (!kind) {
+        if (typeof library.listCollections === 'function') {
+          library.listCollections().then((cols) => setCollections(cols)).catch(() => {})
+        }
+      }
+    })
     return () => void off()
-  }, [ctx, loadSavedState])
+  }, [ctx, library, album.data?.urn, loadSavedState])
 
   const albumData = album.data
   const rawTracks = useMemo(() => albumData?.tracks ?? [], [albumData?.tracks])
@@ -173,6 +192,12 @@ export function AlbumScreen({
     if (!library || !albumData) return
     const next = !isSaved
     setIsSaved(next)
+    ctx.emit('ui/toast', {
+      message: next
+        ? t('album:index.addedToLibrary')
+        : t('album:index.removedFromLibrary'),
+      tone: 'info',
+    })
     try {
       await library.setSaved(albumData.urn, next)
     } catch {
@@ -240,6 +265,10 @@ export function AlbumScreen({
     if (!downloads || !albumData) return
     const selectedTracks = albumData.tracks.filter((t) => selectedUrns.has(t.urn))
     if (selectedTracks.length > 0) {
+      ctx.emit('ui/toast', {
+        message: t('album:index.queuedForDownload'),
+        tone: 'info',
+      })
       void downloads.enqueue(selectedTracks)
       setIsBatchMode(false)
       setSelectedUrns(new Set())
@@ -265,7 +294,7 @@ export function AlbumScreen({
         label: isSaved
           ? t('album:index.removeFromMusicLibrary')
           : t('album:index.addToMusicLibrary'),
-        icon: isSaved ? 'heart-filled' : 'heart',
+        icon: isSaved ? (tablerIcon('heart-filled', { size: 20, color: '#E53935' }) ?? '❤️') : 'heart',
         onSelect: () => void handleToggleSaveAlbum(),
       },
     ]
@@ -276,6 +305,10 @@ export function AlbumScreen({
         label: t('album:index.downloadAll'),
         icon: 'download',
         onSelect: () => {
+          ctx.emit('ui/toast', {
+            message: t('album:index.queuedForDownload'),
+            tone: 'info',
+          })
           void downloads.enqueue(albumData.tracks)
         },
       })
@@ -572,7 +605,7 @@ export function AlbumScreen({
                 width: 44,
                 height: 44,
                 borderRadius: 22,
-                backgroundColor: 'var(--color-primary, #5F87FF)',
+                backgroundColor: c().accent.base,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: sortedUrns.length === 0 ? 0.5 : 1,
@@ -599,67 +632,6 @@ export function AlbumScreen({
             },
             tablerIcon('shuffle', { size: 22, color: c().text.muted }),
           ),
-          // Save album heart
-          h(
-            native.Pressable as never,
-            {
-              testID: 'album-heart-trigger',
-              accessibilityRole: 'button',
-              accessibilityLabel: isSaved
-                ? t('album:index.removeFromMusicLibrary')
-                : t('album:index.addToMusicLibrary'),
-              onPress: () => void handleToggleSaveAlbum(),
-              style: { padding: 8 },
-            },
-            tablerIcon(isSaved ? 'heart-filled' : 'heart', {
-              size: 22,
-              color: isSaved ? 'var(--color-primary, #5F87FF)' : c().text.muted,
-            }),
-          ),
-          // Download all
-          downloads
-            ? h(
-                native.Pressable as never,
-                {
-                  testID: 'album-download-all',
-                  accessibilityRole: 'button',
-                  accessibilityLabel: t('album:index.downloadAll'),
-                  onPress: () => void downloads.enqueue(detail.tracks),
-                  style: { padding: 8 },
-                },
-                tablerIcon('download', { size: 22, color: c().text.muted }),
-              )
-            : null,
-          // Share
-          shareService
-            ? h(
-                native.Pressable as never,
-                {
-                  testID: 'album-share-btn',
-                  accessibilityRole: 'button',
-                  accessibilityLabel: t('album:index.shareAlbum'),
-                  onPress: () => {
-                    const coverUrl =
-                      typeof detail.artwork === 'string'
-                        ? detail.artwork
-                        : (detail.artwork as { sourceUrl?: string } | undefined)?.sourceUrl
-                    shareService.shareAlbum(
-                      {
-                        urn: detail.urn,
-                        title: detail.title,
-                        artist: artistsText,
-                        artwork: coverUrl,
-                        year: detail.year,
-                        trackCount: detail.tracks.length,
-                      },
-                      detail.tracks,
-                    )
-                  },
-                  style: { padding: 8 },
-                },
-                tablerIcon('share', { size: 22, color: c().text.muted }),
-              )
-            : null,
         ),
         // Search trigger
         h(
@@ -673,7 +645,7 @@ export function AlbumScreen({
           },
           tablerIcon('search', {
             size: 20,
-            color: isSearchOpen ? 'var(--color-primary, #5F87FF)' : c().text.muted,
+            color: isSearchOpen ? c().accent.base : c().text.muted,
           }),
         ),
       ),
@@ -746,6 +718,12 @@ export function AlbumScreen({
           onHeartPress: (t) => saveToPlaylistMenu.open(t, { x: 0, y: 0 }),
           onMore: (anchor) => menu.open({ track }, anchor),
         }),
+    }),
+    // Track row ContextMenu
+    h(ContextMenu, {
+      ctx,
+      ...menu.menuProps,
+      liquid: liquidGlass,
     }),
     // Single Top-Right Consolidated ContextMenu
     h(ContextMenu, {

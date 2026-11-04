@@ -1008,8 +1008,16 @@ export interface RecommendShelfState extends AsyncState<readonly BrowseEntry[]> 
  * The shelf never pages: "show all" is where more lives, and a shelf that
  * silently grew would move its own tail under the user's pointer.
  */
+const RECOMMEND_SHELF_CACHE = new Map<string, { items: readonly BrowseEntry[]; timestamp: number }>()
+const RECOMMEND_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export function useRecommendShelf(ctx: Context, sourceId: string | undefined): RecommendShelfState {
-  const [state, setState] = useState<AsyncState<readonly BrowseEntry[]>>({ status: 'idle' })
+  const cached = sourceId ? RECOMMEND_SHELF_CACHE.get(sourceId) : undefined
+  const [state, setState] = useState<AsyncState<readonly BrowseEntry[]>>(() => {
+    if (!sourceId) return { status: 'idle' }
+    if (cached) return { status: 'ready', data: cached.items }
+    return { status: 'loading' }
+  })
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
@@ -1017,16 +1025,28 @@ export function useRecommendShelf(ctx: Context, sourceId: string | undefined): R
       setState({ status: 'idle' })
       return
     }
+    const currentCached = RECOMMEND_SHELF_CACHE.get(sourceId)
+    const isFresh = currentCached && Date.now() - currentCached.timestamp < RECOMMEND_CACHE_TTL_MS
+    if (isFresh && attempt === 0) {
+      setState({ status: 'ready', data: currentCached.items })
+      return
+    }
+
     let cancelled = false
-    setState({ status: 'loading' })
+    if (!currentCached) {
+      setState({ status: 'loading' })
+    }
     ctx.sources
       .recommend(sourceId, { cursor: '1' })
       .then((result) => {
+        RECOMMEND_SHELF_CACHE.set(sourceId, { items: result.items, timestamp: Date.now() })
         if (!cancelled) setState({ status: 'ready', data: result.items })
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setState({ status: 'error', error: error instanceof Error ? error : new Error(String(error)) })
+          if (!currentCached) {
+            setState({ status: 'error', error: error instanceof Error ? error : new Error(String(error)) })
+          }
         }
       })
     return () => {
@@ -1034,7 +1054,11 @@ export function useRecommendShelf(ctx: Context, sourceId: string | undefined): R
     }
   }, [ctx, sourceId, attempt])
 
-  const reload = useCallback(() => setAttempt((n) => n + 1), [])
+  const reload = useCallback(() => {
+    if (sourceId) RECOMMEND_SHELF_CACHE.delete(sourceId)
+    setAttempt((n) => n + 1)
+  }, [sourceId])
+
   return { ...state, reload }
 }
 

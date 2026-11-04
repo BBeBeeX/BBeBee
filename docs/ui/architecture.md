@@ -81,6 +81,7 @@ Docs-side specifics:
 - **Screen View Decomposition**: Heavy screens with multiple view modes (such as `LibraryScreen`) decouple view renderings into `src/components/views/*` (`CollapsedLibraryView`, `ExpandedLibraryView`, `SidebarFolderView`), action logic into `src/hooks/*` (`useLibraryActions`, `useTableSort`), and control bars/modals into `src/components/*`. Data hydration shared by both platforms (`useLibraryHydration`) lives headless in the feature package's own `hooks` subpath — one copy, consumed by the desktop and mobile twins alike.
 - **Pure Helper Hoisting**: Reusable pure logic that outgrows one feature (such as formatting durations, artwork IDs, and string helpers) belongs in `@BBeBee/toolkit` (Layer 4 pure library), maintaining a single source of truth across desktop and mobile without duplication.
 - **Share UI Modal & Canvas Architecture (`plugin-share-ui-desktop`)**: Modal workflows (`ShareTrackModal`, `SharePlaylistModal`, `ShareAlbumModal`, `ShareLyricsModal`) decouple shared presentation (`ShareModalHeader`, `BackgroundModeSelector`, `LocalSourceWarning`, `DisabledReasonToast`, `ShareActionButtons`) and state (`useShareModalState`). Previews render directly onto a live `<canvas>` using identical rendering functions (`drawTrackCard`, `drawPlaylistCard`, `drawAlbumCard`, `drawLyricsCard`) to ensure 100% pixel-perfect synchronization with exported PNGs, using non-distorting cover scaling (`drawImageCover`) and 3-line text wrapping (`wrapText`).
+- **Share UI Mobile Architecture (`plugin-share-ui-mobile`)**: Mobile presents `ShareHost` modal overlays for tracks, playlists, albums, and lyrics. It renders a rich visual cover card preview, provides one-tap Base64 share code copying, and triggers the native OS system share sheet via React Native `Share` without platform SDK leaks outside core primitives.
 
 ---
 
@@ -944,12 +945,17 @@ per unknown id buys nothing.
 
 **Prerequisites the shell work alone does not cover.**
 
-- **No mobile Recommend view exists yet.** `plugin-sources-ui-mobile`
-  registers only search / import / test; the Recommend screen exists only
-  on desktop. The Home tab is blocked on porting it (desktop shelves,
-  single-column on mobile, horizontal shelf rows) — a shell that tabs to
-  `sources.recommend` with no mobile view renders "not available", which
-  is not a Home tab.
+- **Mobile Recommend view (`sources.recommend`)**: `plugin-sources-ui-mobile`
+  provides `RecommendScreen`, rendering curated recommendation shelves (single-column
+  layout with horizontal card rows). In addition, `useRecommendShelf` (`plugin-sources`)
+  implements 5-minute SWR caching to prevent repetitive network refetches when navigating
+  between tabs.
+- **Mobile Multi-Page Retain Caching (`pagesToRender`)**: The mobile shell
+  (`apps/mobile/src/App.tsx`) maintains a bounded LRU retain cache of up to 12
+  visited routes/screens. The active route is rendered with `display: 'flex'`,
+  `pointerEvents: 'auto'`, while background retained screens stay mounted with
+  `display: 'none'`, `pointerEvents: 'none'`. This eliminates blank screen flashes,
+  retains scroll offsets and local UI state, and brings instant navigation parity with desktop.
 - **The mobile now-playing bar has since gained favorite, queue and next
   buttons** (the tablet rail card gained next and favorite, with its queue
   button moved to the row below the card). The drawer open state still

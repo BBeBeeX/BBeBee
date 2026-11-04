@@ -82,9 +82,15 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 - `@BBeBee/toolkit/hooks` provides `useService` and `useServiceState(key, events, select)` backed by `useSyncExternalStore`; `@BBeBee/ui-core` re-exports them, so existing imports keep working.
 - No `useEffect` for domain mutations (call service methods directly).
-- Optimistic updates must reside in the service, not in React component state.
+- **Optimistic UI Feedback & Instant Actions**:
+  - Interactive actions (e.g. toggling favorite on albums, playlists or tracks, batch downloading) must flip local UI state optimistically and emit instant user feedback via `ctx.emit('ui/toast', ...)` before awaiting background persistence.
+  - If asynchronous persistence fails, the optimistic UI state must be gracefully rolled back.
+- **Mobile Multi-Page Retain Caching (`pagesToRender`)**:
+  - The mobile shell in `apps/mobile/src/App.tsx` maintains a bounded LRU retain cache of up to 12 active/visited routes (`pagesToRender`).
+  - Active routes render with `display: 'flex'`, `pointerEvents: 'auto'`, while background retained routes remain mounted with `display: 'none'`, `pointerEvents: 'none'`.
+  - This preserves scroll offsets, component hierarchies, and interactive states across tab switching and deep links without unmounting or triggering repetitive network/DB fetches.
 - Lists must be virtualized:
-  - Mobile: `@shopify/flash-list` (`FlashList`)
+  - Mobile: `@shopify/flash-list` (`FlashList`) or native `ScrollView` for smooth structured shelf rows
   - Desktop: `@tanstack/react-virtual`
 
 ### Service access through `serviceOf`
@@ -147,6 +153,9 @@ contributions — a plugin's section disappears when the plugin does.
 ### Context Menu Design Standards
 - **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "Add to playlist" (`add-to-playlist`), never "Add to collection / Move to folder" (`add-to-collection`).
 - **Recursive Track Gathering**: When adding a folder's contents to other playlists ("Add to another playlist") or playing a folder, `collectAllFolderTracks` (exported from `@bbebee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).
+- **Mobile Touch Responsiveness & Sibling Backdrop Layering**: In `ui-kit-mobile`'s `ContextMenu`, the dismiss backdrop `Pressable` must be placed as a sibling element to the menu card container rather than wrapping it. Wrapping forces React Native's responder system through a nested hit-test chain, introducing perceptible delay before rows register taps.
+- **Menu Favorite State Indicator**: When a menu action reflects an active "favorite/saved" status (e.g. `save-album`, `save-playlist`, `heart-filled`), the icon must render solid red (`#E53935`) for unambiguous visual feedback across dark and light palettes.
+- **Zero Web CSS Variables on Mobile**: Mobile views and SVG icons (`tabler.tsx`) must never reference web CSS variables (`var(--...)`). React Native cannot evaluate CSS properties, rendering them transparent. Always use theme token getters (`c().accent.base`) or explicit palette tokens.
 
 ---
 

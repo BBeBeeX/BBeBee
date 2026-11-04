@@ -130,6 +130,7 @@ configureNative({
   Pressable: hostComponent('Pressable'),
   Image: hostComponent('Image'),
   Modal: hostComponent('Modal'),
+  ScrollView: hostComponent('ScrollView'),
   // FlashList takes `data`/`renderItem`, not children, so it needs its own.
   FlashList: function FlashList(props: {
     data?: readonly unknown[]

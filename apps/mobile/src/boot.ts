@@ -25,6 +25,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   Text,
   TextInput,
   View,
@@ -230,6 +231,7 @@ configureNative({
   TextInput,
   ScrollView,
   BlurView,
+  Share,
   /*
    * Liquid Glass for `GlassSurface`'s first tier. Same seam as `BlurView`:
    * the kit never imports the native module itself. This is a native

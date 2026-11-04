@@ -25,6 +25,7 @@ import type {
   SourcesService,
   Track,
   TransportState,
+  UrnKind,
 } from '@BBeBee/protocol'
 import { serviceOf, useServiceState } from './react.js'
 import { shallowArrayEqual } from './store.js'
@@ -145,10 +146,30 @@ export function useTracksByUrn(ctx: Context, urns: readonly string[]): ReadonlyM
   const [generation, setGeneration] = useState(0)
 
   useEffect(() => {
-    const off = ctx.on('library/changed', () => {
-      getTrackCache(ctx).clear()
-      setCache(new Map())
-      setGeneration((n) => n + 1)
+    const off = ctx.on('library/changed', (kind?: UrnKind, changedUrns?: string[]) => {
+      // Non-track changes (like album, playlist) do not invalidate track metadata
+      if (kind && kind !== 'track') return
+
+      const globalCache = getTrackCache(ctx)
+      if (changedUrns && changedUrns.length > 0) {
+        let hasAffected = false
+        for (const urn of changedUrns) {
+          globalCache.delete(urn)
+          if (cacheRef.current.has(urn)) hasAffected = true
+        }
+        if (hasAffected) {
+          setCache((prev) => {
+            const next = new Map(prev)
+            for (const urn of changedUrns) next.delete(urn)
+            return next
+          })
+          setGeneration((n) => n + 1)
+        }
+      } else {
+        globalCache.clear()
+        setCache(new Map())
+        setGeneration((n) => n + 1)
+      }
     })
     return () => void off()
   }, [ctx])

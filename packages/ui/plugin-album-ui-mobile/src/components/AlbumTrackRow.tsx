@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { Text, c, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { IconButton, Text, c, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface AlbumTrackRowProps {
@@ -76,7 +76,7 @@ export function AlbumTrackRow({
             ? 'rgba(95, 135, 255, 0.08)'
             : 'transparent',
         borderLeftWidth: active ? 3 : 0,
-        borderLeftColor: 'var(--color-primary, #5F87FF)',
+        borderLeftColor: c().accent.base,
       },
     },
     // Left: Batch Checkbox or Playing indicator (index number column hidden)
@@ -101,7 +101,7 @@ export function AlbumTrackRow({
         ? h(
             native.View as never,
             { style: { width: 20, alignItems: 'center', justifyContent: 'center' } },
-            tablerIcon('play', { size: 14, color: 'var(--color-primary, #5F87FF)' }),
+            tablerIcon('play', { size: 14, color: c().accent.base }),
           )
         : null,
     // Center: Metadata (Title, Artist, Source badge)
@@ -174,24 +174,16 @@ export function AlbumTrackRow({
         )
       : null,
     // Right: More Options Button
-    h(
-      native.Pressable as never,
-      {
-        accessibilityRole: 'button',
-        accessibilityLabel: t('album:index.moreOptions'),
-        onPress: (event: { nativeEvent?: { pageX?: number; pageY?: number } }) =>
-          onMore({
-            x: event.nativeEvent?.pageX ?? 0,
-            y: event.nativeEvent?.pageY ?? 0,
-          }),
-        style: {
-          width: 32,
-          height: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-      },
-      tablerIcon('dots', { size: 18, color: 'var(--text-muted, #7C8BA1)' }),
-    ),
+    h(IconButton, {
+      testID: `album-track-more-${track.urn}`,
+      icon: 'dots',
+      accessibilityLabel: t('album:index.moreOptions'),
+      variant: 'ghost',
+      onPress: () =>
+        onMore({
+          x: 0,
+          y: 0,
+        }),
+    }),
   )
 }

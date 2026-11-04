@@ -41,7 +41,9 @@ const MENU_ICON_GLYPHS: Record<string, string> = {
   search: '🔍',
   shuffle: '🔀',
   'list-check': '☑',
+  checkbox: '☑',
   list: '☰',
+  'layout-list': '☰',
 }
 
 function menuIconGlyph(icon: ReactNode): ReactNode {
@@ -51,9 +53,11 @@ function menuIconGlyph(icon: ReactNode): ReactNode {
   // the real Tabler geometry renders, exactly as the desktop kit does. The
   // glyph map stays as the fallback for shells and tests without SVG.
   if (hasSvgIcons()) {
-    const drawn = tablerIcon(icon, { size: 20 })
+    const color = icon === 'heart-filled' ? '#E53935' : undefined
+    const drawn = tablerIcon(icon, { size: 20, color })
     if (drawn) return drawn
   }
+  if (icon === 'heart-filled') return '❤️'
   const mapped = MENU_ICON_GLYPHS[icon]
   if (mapped) return mapped
   return /^[a-z0-9-]+$/i.test(icon) ? null : icon
@@ -331,9 +335,8 @@ export function ContextMenu(
 
   if (isDropdown) {
     const dropdownInner = h(
-      native.Pressable as never,
+      native.View as never,
       {
-        onPress: () => {},
         ...common(props),
         style: {
           paddingHorizontal: tokens.space[2],
@@ -416,18 +419,22 @@ export function ContextMenu(
         onRequestClose: close,
       },
       h(
-        native.Pressable as never,
-        {
+        native.View as never,
+        { style: { flex: 1 } },
+        h(native.Pressable as never, {
           onPress: close,
           style: {
-            flex: 1,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.25)',
           },
-        },
+        }),
         h(
-          native.Pressable as never,
+          native.View as never,
           {
-            onPress: (e: { stopPropagation?: () => void }) => e?.stopPropagation?.(),
             style: {
               position: 'absolute',
               top: props.placement === 'dropdown' && props.y ? Math.max(16, props.y) : 76,
@@ -441,13 +448,11 @@ export function ContextMenu(
   }
 
   // Opt-in glass surface, same shape as `Sheet`'s: the glass pipeline is
-  // the sheet's surface and the inner pressable goes transparent so it
+  // the sheet's surface and the inner view goes transparent so it
   // cannot paint over it. Without `liquid` the solid overlay stays.
   const inner = h(
-    native.Pressable as never,
+    native.View as never,
     {
-      // A press inside must not close it; only the backdrop does.
-      onPress: () => {},
       ...common(props),
       style: {
         paddingHorizontal: tokens.space[3],
@@ -477,11 +482,19 @@ export function ContextMenu(
       onRequestClose: close,
     },
     h(
-      native.Pressable as never,
-      {
+      native.View as never,
+      { style: { flex: 1, justifyContent: 'flex-end' } },
+      h(native.Pressable as never, {
         onPress: close,
-        style: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-      },
+        style: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        },
+      }),
       props.liquid
         ? h(
             GlassSurface,

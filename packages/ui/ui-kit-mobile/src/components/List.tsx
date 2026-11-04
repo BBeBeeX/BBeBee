@@ -28,7 +28,7 @@ export function List<T>(props: ListProps<T>): ReactElement {
     onEndReachedThreshold: 0.5,
     ListEmptyComponent: props.empty as ReactNode,
     contentContainerStyle: [
-      { paddingBottom: 160 },
+      { flexGrow: 1, paddingBottom: 160 },
       ...(Array.isArray(customStyle) ? customStyle : customStyle ? [customStyle] : []),
     ],
   })

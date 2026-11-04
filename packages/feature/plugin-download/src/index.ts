@@ -764,6 +764,8 @@ export class Downloads extends Service implements DownloadsService {
     opts: { quality?: StreamQuality } = {},
   ): Promise<readonly DownloadTask[]> {
     const queued: DownloadTask[] = []
+    const newlyCreated: Array<{ id: string; urn: string; target: Uri; meta?: DownloadTrackMeta }> = []
+
     for (const item of items) {
       if (!item) continue
       const { urn, meta } = normalizeEnqueueItem(item)
@@ -778,78 +780,81 @@ export class Downloads extends Service implements DownloadsService {
           this.ownCtx.logger.warn(`download: ensureTrackRow failed for ${safeUrn}: ${String(e)}`)
         })
       }
-      const task = await this.enqueueOne(safeUrn, opts.quality, meta)
-      if (task) queued.push(task)
+      const existing = this.list.find((task) => task.trackUrn === safeUrn && task.state !== 'done')
+      if (existing) {
+        if (meta?.title && (!existing.title || existing.title === existing.trackUrn)) {
+          existing.title = meta.title
+          this.patch(existing.id, { title: meta.title })
+        }
+        if (meta?.artist && !existing.artist) {
+          existing.artist = meta.artist
+          this.patch(existing.id, { artist: meta.artist })
+        }
+        queued.push(existing)
+        continue
+      }
+
+      const id = `dl_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`
+      const target = this.fileFor(safeUrn, meta)
+      const now = Date.now()
+      try {
+        await this.ownCtx.db.exec(
+          `INSERT INTO download_tasks (id, track_urn, target_uri, state, quality, bytes_done,
+                                       priority, attempts, policy_id, created_at, updated_at)
+           VALUES (?, ?, ?, 'queued', ?, 0, 1, 0, ?, ?, ?)`,
+          [id, safeUrn, target, opts.quality ?? this.policyValue.quality, POLICY_ID, now, now],
+        )
+        this.targets.set(id, target)
+        newlyCreated.push({ id, urn: safeUrn, target, meta })
+      } catch (error) {
+        // Lost a race against another enqueue for the same track. The task that
+        // won is the answer; anything else is a real write failure.
+        await this.refresh()
+        const winner = this.list.find((task) => task.trackUrn === safeUrn && task.state !== 'done')
+        if (winner) {
+          queued.push(winner)
+        } else {
+          this.ownCtx.logger.warn(`download: could not queue ${safeUrn}: ${String(error)}`)
+        }
+      }
     }
+
+    if (newlyCreated.length > 0) {
+      await this.refresh()
+      for (const item of newlyCreated) {
+        const created = this.byId(item.id)
+        if (created) {
+          if (item.meta?.title && (!created.title || created.title === created.trackUrn)) {
+            created.title = item.meta.title
+            this.patch(item.id, { title: item.meta.title })
+          }
+          if (item.meta?.artist && !created.artist) {
+            created.artist = item.meta.artist
+            this.patch(item.id, { artist: item.meta.artist })
+          }
+          this.targets.set(item.id, item.target)
+          this.ownCtx.logger.info(`download: queued ${item.urn}`)
+          this.safeEmit(() => this.ownCtx.emit('download/queued', item.id))
+          queued.push(created)
+        }
+      }
+    }
+
     void this.refreshGate()
     return queued
   }
 
   /**
    * Queue one task, or return the active one.
-   *
-   * The partial unique index (`state != 'done'`) is the authority on "already
-   * downloading this": two presses on a screen for a track already queued, or
-   * an enqueue racing a retry, must not produce two writers on one path.
    */
   private async enqueueOne(
     urn: string,
     quality: StreamQuality | undefined,
     meta?: DownloadTrackMeta,
   ): Promise<DownloadTask | undefined> {
-    if (typeof urn !== 'string' || !urn.trim() || urn === '[object Object]') {
-      this.ownCtx.logger.warn(`download: enqueueOne called with invalid urn: ${String(urn)}`)
-      return undefined
-    }
-    const existing = this.list.find((task) => task.trackUrn === urn && task.state !== 'done')
-    if (existing) {
-      if (meta?.title && (!existing.title || existing.title === existing.trackUrn)) {
-        existing.title = meta.title
-        this.patch(existing.id, { title: meta.title })
-      }
-      if (meta?.artist && !existing.artist) {
-        existing.artist = meta.artist
-        this.patch(existing.id, { artist: meta.artist })
-      }
-      return existing
-    }
-
-    const id = `dl_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`
-    const target = this.fileFor(urn, meta)
-    const now = Date.now()
-    try {
-      await this.ownCtx.db.exec(
-        `INSERT INTO download_tasks (id, track_urn, target_uri, state, quality, bytes_done,
-                                     priority, attempts, policy_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'queued', ?, 0, 1, 0, ?, ?, ?)`,
-        [id, urn, target, quality ?? this.policyValue.quality, POLICY_ID, now, now],
-      )
-    } catch (error) {
-      // Lost a race against another enqueue for the same track. The task that
-      // won is the answer; anything else is a real write failure.
-      await this.refresh()
-      const winner = this.list.find((task) => task.trackUrn === urn && task.state !== 'done')
-      if (winner) return winner
-      this.ownCtx.logger.warn(`download: could not queue ${urn}: ${String(error)}`)
-      return undefined
-    }
-
-    await this.refresh()
-    const created = this.byId(id)
-    if (created) {
-      if (meta?.title && (!created.title || created.title === created.trackUrn)) {
-        created.title = meta.title
-        this.patch(id, { title: meta.title })
-      }
-      if (meta?.artist && !created.artist) {
-        created.artist = meta.artist
-        this.patch(id, { artist: meta.artist })
-      }
-    }
-    this.targets.set(id, target)
-    this.ownCtx.logger.info(`download: queued ${urn}`)
-    this.safeEmit(() => this.ownCtx.emit('download/queued', id))
-    return this.byId(id)
+    const item: EnqueueItem = meta ? { ...meta, urn } : urn
+    const res = await this.enqueue([item], { quality })
+    return res[0]
   }
 
   async pause(id: string): Promise<void> {
