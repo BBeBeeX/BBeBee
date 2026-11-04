@@ -5,6 +5,7 @@ import { tokens, type Palette } from '@BBeBee/ui-tokens'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { I18nService } from '@BBeBee/protocol'
 import { c, nativePrimitives } from '../primitives.js'
+import { tablerIcon } from '../icons/tabler.js'
 import { Button } from './Button.js'
 
 let jsonEpoch = 0
@@ -88,7 +89,8 @@ function JsonBranch(props: {
         accessibilityRole: 'button',
         style: { flexDirection: 'row', alignItems: 'baseline', gap: tokens.space[1] },
       },
-      h(native.Text as never, { style: { color: palette.text.disabled } }, open ? '▼' : '▶'),
+      tablerIcon(open ? 'chevron-down' : 'chevron-right', { size: 14, color: palette.text.disabled }) ??
+        h(native.Text as never, { style: { color: palette.text.disabled } }, open ? '▼' : '▶'),
       props.name !== undefined
         ? h(native.Text as never, { style: { color: palette.text.secondary } }, props.name)
         : null,

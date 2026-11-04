@@ -659,7 +659,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
           native.View as never,
           { key: 'service-missing', testID: 'registry-service-missing' },
           h(EmptyState, {
-            icon: '⚠️',
+            icon: 'alert',
             title: t('registry:registry.registryServiceNotLoaded'),
             description: t('registry:registry.cannotBrowseCommunityContentTry'),
           }),
@@ -674,11 +674,12 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             native.View as never,
             { key: 'empty', testID: 'registry-empty' },
             h(EmptyState, {
-              icon: '🧭',
+              icon: 'compass',
               title: query ? t('registry:registry.noMatchingContent') : t('registry:registry.nothingInThisCategoryYet'),
               description: query ? t('registry:registry.tryADifferentKeyword') : undefined,
             }),
           )
+
 
   return h(
     native.View as never,

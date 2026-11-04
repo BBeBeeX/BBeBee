@@ -123,9 +123,10 @@ export function HttpLogsScreen({ ctx }: { ctx: Context }): ReactElement {
         estimatedItemSize: 72,
         keyExtractor: (entry) => String(entry.sn),
         empty: h(EmptyState, {
-          icon: '🌐',
+          icon: 'world',
           title: t('settings:httpLogs.notCaptured'),
         }),
+
         renderItem: (entry) => {
           const expanded = expandedSn === entry.sn
           return h(

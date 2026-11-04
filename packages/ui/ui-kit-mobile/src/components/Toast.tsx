@@ -28,8 +28,9 @@ export function Toast(props: ToastProps & { liquid?: LiquidGlassOptions }): Reac
     }),
     props.action as ReactNode,
     props.onDismiss
-      ? h(IconButton, { icon: '×', accessibilityLabel: 'Dismiss', onPress: props.onDismiss })
+      ? h(IconButton, { icon: 'x', accessibilityLabel: 'Dismiss', onPress: props.onDismiss })
       : null,
+
   ]
   if (glass) {
     // The live region and alert role stay on a transparent outer view:

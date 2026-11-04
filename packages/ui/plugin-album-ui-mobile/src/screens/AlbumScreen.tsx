@@ -419,7 +419,7 @@ export function AlbumScreen({
 
   if (album.status === 'error' || !album.data) {
     return h(EmptyState, {
-      icon: '⚠',
+      icon: 'alert',
       title: t('album:index.albumUnavailable'),
       description: album.error?.message,
       action: h(Button, { onPress: handleBack, variant: 'secondary', children: t('album:index.backToLibrary') }),
@@ -517,11 +517,14 @@ export function AlbumScreen({
                   justifyContent: 'center',
                 },
               },
-              h(
-                Text,
-                { style: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' } },
-                detail.artists?.[0]?.name?.[0]?.toUpperCase() ?? '♪',
-              ),
+              detail.artists?.[0]?.name?.[0]?.toUpperCase()
+                ? h(
+                    Text,
+                    { style: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' } },
+                    detail.artists[0]!.name[0]!.toUpperCase(),
+                  )
+                : (tablerIcon('music', { size: 12, color: '#FFFFFF' }) ??
+                    h(Text, { style: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' } }, '♪')),
             ),
             h(
               Text,

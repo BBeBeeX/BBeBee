@@ -259,7 +259,7 @@ export function ContextMenu(
               ? !creating
                 ? h(MenuRow, {
                     key: '__create',
-                    item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    item: { id: '__create', label: submenu.create.label, icon: 'plus' },
                     isDropdown,
                     onActivate: () => {
                       setCreating(true)
@@ -306,7 +306,7 @@ export function ContextMenu(
                   )
                 : h(MenuRow, {
                     key: '__create',
-                    item: { id: '__create', label: submenu.create.label, icon: '\uff0b' },
+                    item: { id: '__create', label: submenu.create.label, icon: 'plus' },
                     isDropdown,
                     onActivate: () => setCreating(true),
                   })

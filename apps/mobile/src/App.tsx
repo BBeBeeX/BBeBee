@@ -1025,14 +1025,17 @@ function Shell({ ctx }: { ctx: Context }) {
       onBack
         ? headerGlassButton(
             { onPress: onBack, accessibilityLabel: t('app:common.back'), testID: 'nav-back-button' },
-            h(Text, { style: { color: palette.text.primary, fontSize: 24, fontWeight: '600' } }, '‹'),
+            tablerIcon('chevron-left', { size: 24, color: palette.text.primary }) ??
+              h(Text, { style: { color: palette.text.primary, fontSize: 24, fontWeight: '600' } }, '‹'),
           )
         : onOpenDrawer
           ? headerGlassButton(
               { onPress: onOpenDrawer, accessibilityLabel: t('app:common.app.openNavDrawer'), testID: 'nav-drawer-open' },
-              h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
+              tablerIcon('menu-2', { size: 22, color: palette.text.primary }) ??
+                h(Text, { style: { color: palette.text.primary, fontSize: 20 } }, '☰'),
             )
           : h(View, { style: { minWidth: 40 } }),
+
       h(
         View,
         { style: { flex: 1, alignItems: 'center' } },
@@ -1560,7 +1563,8 @@ function Shell({ ctx }: { ctx: Context }) {
             paddingHorizontal: 20,
           },
         },
-        h(Text, { style: { color: palette.accent.base, fontSize: 14 } }, '☰'),
+        tablerIcon('list', { size: 18, color: palette.accent.base }) ??
+          h(Text, { style: { color: palette.accent.base, fontSize: 14 } }, '☰'),
         h(Text, { style: { color: palette.accent.base, fontSize: 14, fontWeight: '600' } }, t('nowPlaying:nowPlaying.playQueue')),
       ),
       /*
@@ -1788,7 +1792,8 @@ function Shell({ ctx }: { ctx: Context }) {
                 accessibilityLabel: t('app:common.close'),
                 style: { padding: 6 },
               },
-              h(Text, { style: { color: palette.text.secondary, fontSize: 16 } }, '✕'),
+              tablerIcon('x', { size: 20, color: palette.text.secondary }) ??
+                h(Text, { style: { color: palette.text.secondary, fontSize: 16 } }, '✕'),
             ),
           ),
           h(View, { style: { flex: 1 } }, h(QueueView, { ctx })),

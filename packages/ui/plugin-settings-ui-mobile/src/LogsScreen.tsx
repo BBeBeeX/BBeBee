@@ -144,9 +144,10 @@ export function LogsScreen({ ctx }: { ctx: Context }): ReactElement {
         estimatedItemSize: 56,
         keyExtractor: (rec) => String(rec.sn),
         empty: h(EmptyState, {
-          icon: '⏱',
+          icon: 'clock',
           title: t('settings:logs.noMatchingRecords'),
         }),
+
         renderItem: (rec) =>
           h(
             native.View as never,

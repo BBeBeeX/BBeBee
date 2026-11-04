@@ -258,7 +258,7 @@ function ImportPanel({ ctx, onClose }: { ctx: Context; onClose: () => void }): R
             }),
           )
         : h(EmptyState, {
-            icon: '⇪',
+            icon: 'share',
             title: t('share:shareHost.pasteAShareCode'),
             description: t('share:shareHost.pasteAShareCodeCopied'),
           }),

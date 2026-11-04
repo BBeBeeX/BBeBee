@@ -82,12 +82,13 @@ export function RecommendCard({
               },
             },
             h(IconButton, {
-              icon: '▶',
+              icon: 'play',
               accessibilityLabel: t('sources:recommend.playAlbum', { title: entry.title }),
               variant: 'primary',
               size: tokens.size.icon,
               onPress: () => onPlay(entry),
             }),
+
           )
         : null,
     ),

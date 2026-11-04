@@ -768,8 +768,8 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         accessibilityLabel: t('library:collapsedLibrary.musicLibraryQuickLinks'),
         style: { flexDirection: 'row', gap: tokens.space[3] },
       },
-      quickCard('heart', '♥', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
-      quickCard('download', '⬇', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
+      quickCard('heart', 'heart', t('library:unifiedLibrary.favorites'), favoriteUrns.length, LIBRARY_VIEWS.favorites),
+      quickCard('download', 'download', t('library:library.localAndDownloads'), localTracks.length, LIBRARY_VIEWS.local),
     ),
     // Toolbar: filter chips, then search toggle at the far right.
     h(
@@ -810,10 +810,11 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         estimatedItemSize: 76,
         keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
         empty: h(EmptyState, {
-          icon: '♪',
+          icon: 'music',
           title: t('library:library.nothingFound'),
           description: t('library:library.importAMusicSourceScan'),
         }),
+
         renderItem: (item) =>
           h(UnifiedRow, {
             key: item.isChild ? `${item.id}:child` : item.id,

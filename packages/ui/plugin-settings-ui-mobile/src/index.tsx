@@ -37,13 +37,14 @@ const p = () => c()
 
 /** The fixed settings categories: their sub-route, header title key and glyph. */
 const SECTIONS = [
-  { key: 'appearance', id: 'settings.appearance', titleKey: 'settings:mobile.sectionAppearance', icon: '◐' },
-  { key: 'playback', id: 'settings.playback', titleKey: 'settings:mobile.sectionPlayback', icon: '♫' },
-  { key: 'network', id: 'settings.network', titleKey: 'settings:settings.networkProxy', icon: '⇄' },
-  { key: 'sources', id: 'settings.sources', titleKey: 'settings:mobile.sectionSources', icon: '☁︎' },
-  { key: 'storage', id: 'settings.storage', titleKey: 'settings:mobile.sectionStorage', icon: '↓' },
-  { key: 'about', id: 'settings.about', titleKey: 'settings:mobile.sectionAbout', icon: 'ⓘ' },
+  { key: 'appearance', id: 'settings.appearance', titleKey: 'settings:mobile.sectionAppearance', icon: 'palette' },
+  { key: 'playback', id: 'settings.playback', titleKey: 'settings:mobile.sectionPlayback', icon: 'music' },
+  { key: 'network', id: 'settings.network', titleKey: 'settings:settings.networkProxy', icon: 'arrows-exchange' },
+  { key: 'sources', id: 'settings.sources', titleKey: 'settings:mobile.sectionSources', icon: 'cloud' },
+  { key: 'storage', id: 'settings.storage', titleKey: 'settings:mobile.sectionStorage', icon: 'download' },
+  { key: 'about', id: 'settings.about', titleKey: 'settings:mobile.sectionAbout', icon: 'info-circle' },
 ] as const
+
 
 type SectionKey = (typeof SECTIONS)[number]['key']
 
@@ -134,10 +135,13 @@ export function SettingsScreen({ ctx }: { ctx: Context }): ReactElement {
           borderBottomColor: 'rgba(255, 255, 255, 0.06)',
         },
       },
-      h(Text, { style: { color: p().text.primary, fontSize: 20, width: 30, textAlign: 'center' } }, icon),
+      tablerIcon(icon, { size: 22, color: p().text.primary }) ??
+        h(Text, { style: { color: p().text.primary, fontSize: 20, width: 30, textAlign: 'center' } }, icon),
       h(Text, { style: { flex: 1, color: p().text.primary, fontSize: 16 } }, title),
-      h(Text, { style: { color: p().text.secondary, fontSize: 20 } }, '›'),
+      tablerIcon('chevron-right', { size: 20, color: p().text.secondary }) ??
+        h(Text, { style: { color: p().text.secondary, fontSize: 20 } }, '›'),
     )
+
 
   return h(
     native.View as never,

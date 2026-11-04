@@ -5,7 +5,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import { c, BOTTOM_CHROME_HEIGHT, Button, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Button, IconButton, Slider, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { useDsp } from '@bbebee/plugin-dsp/hooks'
 import { EQ10_BANDS } from '@bbebee/plugin-dsp/effects'
@@ -399,15 +399,17 @@ export function DspScreen({ ctx }: DspScreenProps): ReactElement {
               h(
                 native.View as never,
                 { style: { flexDirection: 'row', gap: 6 } },
-                h(Button, {
+                h(IconButton, {
+                  icon: 'chevron-up',
+                  accessibilityLabel: 'Move up',
                   disabled: index === 0,
                   onPress: () => void handleMoveUp(index),
-                  children: '↑',
                 }),
-                h(Button, {
+                h(IconButton, {
+                  icon: 'chevron-down',
+                  accessibilityLabel: 'Move down',
                   disabled: index === chain.length - 1,
                   onPress: () => void handleMoveDown(index),
-                  children: '↓',
                 }),
               ),
             ),

@@ -122,10 +122,11 @@ export function RegistryTaskSheet({
             native.View as never,
             { testID: 'registry-tasks-empty' },
             h(EmptyState, {
-              icon: '☰',
+              icon: 'list',
               title: t('registry:registryTask.noTasksYet'),
               description: t('registry:registryTask.progressShowsHereWhileYou'),
             }),
+
           )
         : h(
             native.View as never,

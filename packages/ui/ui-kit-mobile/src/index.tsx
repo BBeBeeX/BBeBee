@@ -47,7 +47,7 @@ export { EmptyState } from './components/EmptyState.js'
 export { JsonTree, type JsonDirective } from './components/JsonTree.js'
 export { Toast } from './components/Toast.js'
 export { GlassSurface, type GlassSurfaceProps, type LiquidGlassOptions } from './components/GlassSurface.js'
-export { tablerIcon, hasSvgIcons, DEFAULT_STROKE_WIDTH, type TablerIconProps } from './icons/tabler.js'
+export { tablerIcon, hasSvgIcons, DEFAULT_STROKE_WIDTH, ICON_ALIASES, type TablerIconProps } from './icons/tabler.js'
 
 /**
  * The total vertical height of the mobile bottom floating chrome:

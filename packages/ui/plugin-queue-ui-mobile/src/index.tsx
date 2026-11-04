@@ -222,10 +222,11 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         native.View as never,
         { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
         h(EmptyState, {
-          icon: '🎵',
+          icon: 'playlist',
           title: t('queue:index.nothingQueued'),
           description: t('queue:index.playSomethingFromYourLibrary'),
         }),
+
       )
     }
 
@@ -329,10 +330,11 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
         native.View as never,
         { style: { flex: 1, justifyContent: 'center', alignItems: 'center' } },
         h(EmptyState, {
-          icon: '🎵',
+          icon: 'history',
           title: t('queue:index.noPlayRecordsYet'),
           description: t('queue:index.afterPlayingMusicFromThe'),
         }),
+
       )
     }
 

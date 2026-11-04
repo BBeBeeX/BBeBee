@@ -14,7 +14,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import { CAR_MODE_VIEWS } from '@bbebee/plugin-car-mode/views'
 import { isPlayingLike, useTransport } from '@bbebee/plugin-player/hooks'
-import { c, BOTTOM_CHROME_HEIGHT, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, BOTTOM_CHROME_HEIGHT, Text, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const p = () => c()
@@ -112,7 +112,7 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
       },
       h(DriveButton, {
         label: t('app:common.carMode.previousTrack'),
-        glyph: '⏮',
+        glyph: 'skip-back',
         size: 88,
         onPress: () => void ctx.player.previous(),
       }),
@@ -120,14 +120,14 @@ export function CarModeScreen({ ctx }: { ctx: Context }): ReactElement {
         label: playing
           ? t('app:common.carMode.pause')
           : t('app:common.carMode.play'),
-        glyph: playing ? '⏸' : '▶',
+        glyph: playing ? 'pause' : 'play',
         size: 120,
         accent: true,
         onPress: () => ctx.player.togglePlay(),
       }),
       h(DriveButton, {
         label: t('app:common.carMode.nextTrack'),
-        glyph: '⏭',
+        glyph: 'skip-forward',
         size: 88,
         onPress: () => void ctx.player.next(),
       }),
@@ -152,6 +152,9 @@ function DriveButton({ label, glyph, size, accent = false, onPress }: {
   onPress: () => void
 }): ReactElement {
   const native = nativePrimitives()
+  const iconColor = accent ? p().accent.on : p().text.primary
+  const iconSize = Math.round(size * 0.42)
+  const renderedIcon = tablerIcon(glyph, { size: iconSize, color: iconColor })
   return h(
     native.Pressable as never,
     {
@@ -167,19 +170,21 @@ function DriveButton({ label, glyph, size, accent = false, onPress }: {
         backgroundColor: accent ? p().accent.base : 'rgba(255, 255, 255, 0.12)',
       },
     },
-    h(
-      native.Text as never,
-      {
-        style: {
-          color: accent ? p().accent.on : p().text.primary,
-          fontSize: size / 2.2,
-          lineHeight: size,
+    renderedIcon ??
+      h(
+        native.Text as never,
+        {
+          style: {
+            color: iconColor,
+            fontSize: size / 2.2,
+            lineHeight: size,
+          },
         },
-      },
-      glyph,
-    ),
+        glyph,
+      ),
   )
 }
+
 
 /* ── the plugin entry ───────────────────────────────────────────────────── */
 

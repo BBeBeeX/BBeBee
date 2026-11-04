@@ -87,14 +87,14 @@ function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTr
     { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[4] } },
     glassButton(
       h(IconButton, {
-        icon: '⏮',
+        icon: 'skip-back',
         accessibilityLabel: t('nowPlaying:nowPlayingStyles.previousTrack'),
         disabled: !can.canPrevious,
         onPress: () => void ctx.player.previous(),
       }),
     ),
     h(IconButton, {
-      icon: can.canPause ? '⏸' : '▶',
+      icon: can.canPause ? 'pause' : 'play',
       accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
       variant: 'primary',
       size: tokens.size.iconLarge,
@@ -103,12 +103,13 @@ function TransportRow({ ctx, can }: { ctx: Context; can: ReturnType<typeof useTr
     }),
     glassButton(
       h(IconButton, {
-        icon: '⏭',
+        icon: 'skip-forward',
         accessibilityLabel: t('nowPlaying:nowPlayingStyles.nextTrack'),
         disabled: !can.canNext,
         onPress: () => void ctx.player.next(),
       }),
     ),
+
   )
 }
 
@@ -824,7 +825,7 @@ export function NowPlayingBar({ ctx, isCompact, onOpenNowPlaying, onOpenQueue, h
           native.View as never,
           { style: { flexDirection: 'row', alignItems: 'center' } },
           h(IconButton, {
-            icon: can.canPause ? '⏸' : '▶',
+            icon: can.canPause ? 'pause' : 'play',
             accessibilityLabel: can.canPause ? t('nowPlaying:nowPlaying.pause') : t('nowPlaying:nowPlaying.play'),
             variant: 'ghost',
             size: 22,
@@ -844,7 +845,7 @@ export function NowPlayingBar({ ctx, isCompact, onOpenNowPlaying, onOpenQueue, h
             hideQueueButton
               ? null
               : h(IconButton, {
-                  icon: '☰',
+                  icon: 'list',
                   accessibilityLabel: t('nowPlaying:nowPlaying.playQueue'),
                   variant: 'ghost',
                   size: 22,
@@ -853,6 +854,7 @@ export function NowPlayingBar({ ctx, isCompact, onOpenNowPlaying, onOpenQueue, h
                   disabled: false,
                   onPress: () => onOpenQueue?.(),
                 }),
+
             ...(() => {
               const ui = serviceOf<UiService>(ctx, 'ui')
               return actionSlots

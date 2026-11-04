@@ -2,6 +2,7 @@ import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import { tokens } from '@BBeBee/ui-tokens'
 import { c, common, nativePrimitives } from '../primitives.js'
+import { tablerIcon } from '../icons/tabler.js'
 import { Text } from './Text.js'
 import { Sheet } from './Sheet.js'
 import type { LiquidGlassOptions } from './GlassSurface.js'
@@ -110,7 +111,10 @@ export function Select<T extends string = string>(props: SelectProps<T>): ReactE
               style: { fontWeight: isSelected ? '700' : '400' },
               children: option.label,
             }),
-            isSelected ? h(Text, { style: { color: p.accent.base, fontSize: 16 } }, '✓') : null,
+            isSelected
+              ? (tablerIcon('check', { size: 18, color: p.accent.base }) ??
+                h(Text, { style: { color: p.accent.base, fontSize: 16 } }, '✓'))
+              : null,
           )
         }),
       ),

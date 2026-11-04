@@ -220,7 +220,7 @@ export function LyricsPanel({ ctx }: LyricsPanelProps): ReactElement {
     )
   } else if (status === 'idle' || status === 'no-lyrics' || (status === 'ready' && !hasLines)) {
     content = h(EmptyState, {
-      icon: '🎵',
+      icon: 'lyrics',
       testID: 'lyrics-panel-empty',
       title:
         status === 'idle'

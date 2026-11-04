@@ -121,16 +121,17 @@ export function RecommendScreen({ ctx, onOpenAlbum, showGuide }: RecommendScreen
       },
       isColdStart
         ? h(EmptyState, {
-            icon: '🎵',
+            icon: 'music',
             title: t('sources:recommend.coldStartTitle'),
             description: t('sources:recommend.coldStartDescription'),
           })
         : !hasAnyContent
           ? h(EmptyState, {
-              icon: '🎵',
+              icon: 'music',
               title: t('sources:recommend.noRecommendations'),
               description: t('sources:recommend.onceAMusicSourceImplementing'),
             })
+
           : h(
               // The page is a handful of shelves, so it scrolls as one
               // recycled list of sections rather than one long ScrollView —

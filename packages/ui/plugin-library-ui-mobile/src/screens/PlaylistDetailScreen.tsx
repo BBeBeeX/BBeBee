@@ -74,7 +74,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         items: urns,
         keyExtractor: (trackUrn, index) => `${trackUrn}:${index}`,
         empty: h(EmptyState, {
-          icon: '♪',
+          icon: 'music',
           title: t('library:playlistDetail.nothingHereYet'),
           description: detail.isSmart
             ? t('library:playlistDetail.noTrackMatchesTheseRules')
@@ -99,7 +99,8 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
             detail.isSmart
               ? null
               : h(IconButton, {
-                  icon: '×',
+                  icon: 'x',
+
                   // The item's own id, not the track URN: the same track twice
                   // in a playlist is two rows, and removing one must not
                   // remove both.

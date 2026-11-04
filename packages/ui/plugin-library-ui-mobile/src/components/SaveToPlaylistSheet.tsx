@@ -84,11 +84,15 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
             ),
           ),
         ),
-        h(
-          Text,
-          { variant: 'md', tone: menuProps.liked ? 'accent' : 'muted' },
-          menuProps.liked ? '✓' : '＋',
-        ),
+        tablerIcon(menuProps.liked ? 'check' : 'plus', {
+          size: 18,
+          color: menuProps.liked ? c().accent.base : c().text.muted,
+        }) ??
+          h(
+            Text,
+            { variant: 'md', tone: menuProps.liked ? 'accent' : 'muted' },
+            menuProps.liked ? '✓' : '＋',
+          ),
       ),
       // Search / Filter or New Playlist input
       isCreating
@@ -173,11 +177,15 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
                 t('library:playlistDetail.tracksOther', { count: pl.trackCount ?? 0 }),
               ),
             ),
-            h(
-              Text,
-              { variant: 'md', tone: contains ? 'accent' : 'muted' },
-              contains ? '✓' : '＋',
-            ),
+            tablerIcon(contains ? 'check' : 'plus', {
+              size: 18,
+              color: contains ? c().accent.base : c().text.muted,
+            }) ??
+              h(
+                Text,
+                { variant: 'md', tone: contains ? 'accent' : 'muted' },
+                contains ? '✓' : '＋',
+              ),
           )
         }),
       ),

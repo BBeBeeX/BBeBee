@@ -200,7 +200,7 @@ export function SearchScreen({
       ? null
       : search.status === 'error' && search.error
         ? h(EmptyState, {
-            icon: '⚠',
+            icon: 'alert',
             title: t('sources:search.searchFailed'),
             description: search.error.message,
             action: h(Button, {
@@ -227,10 +227,11 @@ export function SearchScreen({
                 estimatedItemSize: tokens.size.row,
                 keyExtractor: (row) => row.key,
                 empty: h(EmptyState, {
-                  icon: '🔎',
+                  icon: 'search',
                   title: t('sources:index.nothingFound'),
                   description: t('sources:index.noSelectedSourceHadA'),
                 }),
+
                 renderItem: (row) =>
                   row.kind === 'header'
                     ? h(

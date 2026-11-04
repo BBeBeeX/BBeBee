@@ -81,7 +81,7 @@ export function TrackRow(
       : null,
     props.onToggleLoved
       ? h(IconButton, {
-          icon: props.track.loved ? '♥' : '♡',
+          icon: props.track.loved ? 'heart-filled' : 'heart',
           accessibilityLabel: props.track.loved
             ? t('app:common.track.unlike', 'Unlike')
             : t('app:common.track.like', 'Like'),
@@ -90,10 +90,11 @@ export function TrackRow(
         })
       : null,
     props.onDownload && !props.track.urn.startsWith('BBeBee:local:')
-      ? h(IconButton, { icon: '⬇', accessibilityLabel: t('app:common.track.download', 'Download'), onPress: props.onDownload })
+      ? h(IconButton, { icon: 'download', accessibilityLabel: t('app:common.track.download', 'Download'), onPress: props.onDownload })
       : null,
     props.onMore
-      ? h(IconButton, { icon: '⋯', accessibilityLabel: t('app:common.track.more', 'More'), onPress: props.onMore })
+      ? h(IconButton, { icon: 'dots', accessibilityLabel: t('app:common.track.more', 'More'), onPress: props.onMore })
       : null,
+
   )
 }

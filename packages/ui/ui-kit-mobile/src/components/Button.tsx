@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { ButtonProps, ButtonVariant, IconButtonProps } from '@BBeBee/ui-core'
 import { c, common, nativePrimitives } from '../primitives.js'
+import { tablerIcon } from '../icons/tabler.js'
 
 function buttonStyle(variant: ButtonVariant, disabled: boolean): Record<string, unknown> {
   const p = c()
@@ -78,6 +79,10 @@ export function Button(props: ButtonProps): ReactElement {
 export function IconButton(props: IconButtonProps): ReactElement {
   const native = nativePrimitives()
   const { variant = 'ghost', disabled = false, size = tokens.size.icon } = props
+  const renderedIcon = tablerIcon(props.icon, {
+    size,
+    color: labelColor(variant),
+  })
   return h(
     native.Pressable as never,
     {
@@ -94,10 +99,12 @@ export function IconButton(props: IconButtonProps): ReactElement {
         paddingHorizontal: 0,
       },
     },
-    h(
-      native.Text as never,
-      { style: { color: labelColor(variant), fontSize: size } },
-      props.icon,
-    ),
+    renderedIcon ??
+      h(
+        native.Text as never,
+        { style: { color: labelColor(variant), fontSize: size } },
+        props.icon,
+      ),
   )
 }
+

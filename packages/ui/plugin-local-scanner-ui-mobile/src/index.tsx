@@ -120,10 +120,11 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
       estimatedItemSize: tokens.size.row,
       keyExtractor: (dir) => dir.id,
       empty: h(EmptyState, {
-        icon: '📁',
+        icon: 'folder',
         title: t('localScanner:index.noFoldersYet'),
         description: t('localScanner:index.addOneAndItsMusic'),
       }),
+
       renderItem: (dir) =>
         h(
           native.View as never,
@@ -162,12 +163,13 @@ export function ScanSpecifiedDirsScreen({ ctx }: { ctx: Context }): ReactElement
             children: dir.enabled ? t('localScanner:index.disable') : t('localScanner:index.enable'),
           }),
           h(IconButton, {
-            icon: '🗑',
+            icon: 'trash',
             // Removing a specified dir keeps its tracks by default: losing a library
             // to a mis-clicked button is far worse than a stale row.
             accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
             onPress: () => void ctx.scanner.removeSpecifiedDir(dir.id),
           }),
+
         ),
     }),
     h(Text, {

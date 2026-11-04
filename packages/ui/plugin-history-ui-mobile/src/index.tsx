@@ -324,7 +324,7 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
     uniqueRecords.length === 0 && !loading
       ? h(EmptyState, {
-          icon: '🎵',
+          icon: 'history',
           title: selectedDate
             ? t('history:history.noPlayRecordsFor', { selectedDate })
             : t('history:index.noPlayRecordsYet'),

@@ -195,7 +195,7 @@ export function MobileLibraryTrackRow({
         : null,
       onAddToFavorites
         ? h(IconButton, {
-            icon: inLibrary ? '♥' : '♡',
+            icon: inLibrary ? 'heart-filled' : 'heart',
             accessibilityLabel: inLibrary
               ? t('library:index.removeFromFavorites', { title: track.title })
               : t('app:track.like'),
@@ -204,7 +204,7 @@ export function MobileLibraryTrackRow({
           })
         : null,
       h(IconButton, {
-        icon: '⋯',
+        icon: 'dots',
         accessibilityLabel: t('library:libraryTrack.more'),
         variant: 'ghost',
         onPress: () =>

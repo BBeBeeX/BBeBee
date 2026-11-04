@@ -89,11 +89,12 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
     ),
     tasks.length === 0
       ? h(EmptyState, {
-          icon: '⬇',
+          icon: 'download',
           title: t('download:index.noDownloads'),
           description: t('download:index.emptyDescriptionCompact'),
         })
       : null,
+
     active.length > 0 ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: active }) : null,
     finished.length > 0
       ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finished })
@@ -241,7 +242,7 @@ function actionsFor(
       }),
       h(IconButton, {
         key: 'remove',
-        icon: '🗑',
+        icon: 'trash',
         accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
@@ -260,7 +261,7 @@ function actionsFor(
       }),
       h(IconButton, {
         key: 'remove',
-        icon: '🗑',
+        icon: 'trash',
         accessibilityLabel: t('download:index.deleteTask', { title: task.title }),
         onPress: () => void ctx.downloads.remove(task.id),
         testID: `download-remove-${task.id}`,
@@ -288,12 +289,13 @@ function actionsFor(
   actions.push(
     h(IconButton, {
       key: 'cancel',
-      icon: '✕',
+      icon: 'x',
       accessibilityLabel: t('download:index.cancelTask', { title: task.title }),
       onPress: () => void ctx.downloads.cancel(task.id),
       testID: `download-cancel-${task.id}`,
     }),
   )
+
   return actions
 }
 
