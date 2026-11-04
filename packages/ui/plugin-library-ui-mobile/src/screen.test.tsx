@@ -427,6 +427,83 @@ describe('PlaylistDetailScreen on mobile', () => {
     expect(container.textContent).toContain('Smart playlist')
     expect(container.querySelectorAll('[data-label^="Remove"]')).toHaveLength(0)
   })
+
+  it('renders header hero, plays all, and shuffles in PlaylistDetailScreen', async () => {
+    const { ctx, player } = await harness()
+    const { container } = render(h(PlaylistDetailScreen, { ctx, urn: PLAYLIST_URN }))
+    await act(async () => {
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Road trip')
+
+    // Play all via playlist-play
+    await act(async () => {
+      getByTestIdHelper(container, 'playlist-play').click()
+      await tick()
+    })
+    expect(player.calls).toContain(`${TRACK} <- 2`)
+
+    // Shuffle via playlist-shuffle
+    await act(async () => {
+      getByTestIdHelper(container, 'playlist-shuffle').click()
+      await tick()
+    })
+    expect(player.calls.some((c) => c.startsWith('playNow:'))).toBe(true)
+  })
+
+  it('opens header menu on library/open-header-menu in PlaylistDetailScreen', async () => {
+    const { ctx } = await harness()
+    const { container } = render(h(PlaylistDetailScreen, { ctx, urn: PLAYLIST_URN }))
+    await act(async () => {
+      await tick()
+    })
+
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    expect(container.textContent).toContain('Batch operations')
+    expect(container.textContent).toContain('Sort by')
+  })
+
+  it('supports batch mode in PlaylistDetailScreen', async () => {
+    const { ctx, player } = await harness()
+    const { container } = render(h(PlaylistDetailScreen, { ctx, urn: PLAYLIST_URN }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Open menu and enter batch mode
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    const batchMenuRow = Array.from(container.querySelectorAll('[data-label="Batch operations"]'))[0] as HTMLElement
+    expect(batchMenuRow).toBeTruthy()
+    await act(async () => {
+      batchMenuRow.click()
+      await tick()
+    })
+
+    expect(getByTestIdHelper(container, 'batch-select-all')).toBeTruthy()
+
+    // Select all
+    await act(async () => {
+      getByTestIdHelper(container, 'batch-select-all').click()
+      await tick()
+    })
+
+    // Batch play
+    await act(async () => {
+      getByTestIdHelper(container, 'batch-play-btn').click()
+      await tick()
+    })
+
+    expect(player.calls).toContain(`playNow:${TRACK},${TRACK}`)
+  })
 })
 
 describe('FavoritesScreen on mobile', () => {

@@ -1082,7 +1082,7 @@ function Shell({ ctx }: { ctx: Context }) {
         borderBottomWidth: 0,
       }
     }
-    if (id === 'album.view') {
+    if (id === 'album.view' || id === 'library.playlist') {
       return {
         backgroundColor: 'rgba(95, 135, 255, 0.25)',
         borderBottomWidth: 0,
@@ -1096,7 +1096,8 @@ function Shell({ ctx }: { ctx: Context }) {
     id === 'library.local' ||
     id === 'library.favorites' ||
     id === 'library.collection' ||
-    id === 'album.view'
+    id === 'album.view' ||
+    id === 'library.playlist'
 
   const canGoBack = navState.index > 0 && !MAIN_TABS.some((tab) => tab.id === currentId)
   const pageHeader = pageHeaderFor(

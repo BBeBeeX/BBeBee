@@ -27,6 +27,7 @@ export { SaveToPlaylistSheet, type SaveToPlaylistSheetProps } from './components
 export { MobileLibraryTrackRow, type MobileLibraryTrackRowProps } from './components/MobileLibraryTrackRow.js'
 export { LocalAlbumCard, type LocalAlbumCardProps } from './components/LocalAlbumCard.js'
 export { LocalArtistRow, type LocalArtistRowProps } from './components/LocalArtistRow.js'
+export { QuadArtworkCollage, type QuadArtworkCollageProps } from './components/QuadArtworkCollage.js'
 export { useLibraryActions, type DeleteConfirmTarget } from './hooks/useLibraryActions.js'
 export { useTrackLibraryInfo } from './hooks/useTrackLibraryInfo.js'
 

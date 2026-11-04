@@ -12,8 +12,10 @@ export interface BatchActionBarProps {
   onToggleSelectAll: () => void
   onBatchPlay: () => void
   onBatchAddToPlaylist: (anchor?: { x: number; y: number }) => void
+  onBatchDownload?: () => void
   onBatchDelete?: () => void
   onExitBatch: () => void
+  downloadDisabled?: boolean
   deleteLabel?: string
   deleteDisabled?: boolean
 }
@@ -26,8 +28,10 @@ export function BatchActionBar({
   onToggleSelectAll,
   onBatchPlay,
   onBatchAddToPlaylist,
+  onBatchDownload,
   onBatchDelete,
   onExitBatch,
+  downloadDisabled = false,
   deleteLabel,
   deleteDisabled = false,
 }: BatchActionBarProps): ReactElement {
@@ -139,6 +143,18 @@ export function BatchActionBar({
           children: t('library:batchAction.addTo'),
         },
       ),
+      onBatchDownload
+        ? h(
+            Button,
+            {
+              testID: 'batch-download-btn',
+              variant: 'secondary',
+              disabled: !hasSelection || downloadDisabled,
+              onPress: onBatchDownload,
+              children: t('album:index.downloadAll') || 'Download',
+            },
+          )
+        : null,
       onBatchDelete
         ? h(
             Button,
