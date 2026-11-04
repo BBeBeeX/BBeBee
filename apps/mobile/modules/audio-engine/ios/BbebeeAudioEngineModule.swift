@@ -5,6 +5,7 @@ import ExpoModulesCore
 
 #if BBEBEE_HAVE_BRIDGE
 import BBeBeeAudioBridge
+import UIKit
 #endif
 
 /**
@@ -55,16 +56,17 @@ public class BbebeeAudioEngineModule: Module {
     var cancelled = false
     var error: String?
     var finishedAt: Date?
+    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     init(bridgeJobId: String) { self.bridgeJobId = bridgeJobId }
   }
 
   private var transcodeJobs: [String: TranscodeJobRecord] = [:]
   private let transcodeStateQueue = DispatchQueue(label: "expo.modules.audioengine.transcode-state")
-  /// One shared bridge instance for all transcode work. Creating it also
-  /// initializes an idle mpv core (the bridge is a playback instance
-  /// first); that is the price of reusing its transcode surface until
-  /// the bridge gains lazy mpv init. It is created on first transcode
-  /// use, never at module boot.
+  /// One shared bridge instance for all transcode work. The bridge
+  /// creates its mpv core lazily on first playback touch, and this
+  /// module only ever touches its transcode surface, so the instance
+  /// costs no playback core. It is created on first transcode use,
+  /// never at module boot.
   private var transcodeBridge: BBeBeeAudioBridge?
   private func bridge() -> BBeBeeAudioBridge? {
     if let existing = transcodeBridge { return existing }
@@ -438,6 +440,18 @@ public class BbebeeAudioEngineModule: Module {
     if Self.hasField(options, "fadeInSeconds") { unsupported.append("fadeInSeconds") }
     if Self.hasField(options, "fadeOutSeconds") { unsupported.append("fadeOutSeconds") }
 
+    // A background task for the job's lifetime: transcode is pure CPU
+    // work, not playback, so the audio background mode does not keep it
+    // alive — without this, iOS suspends the app mid-transcode and the
+    // job freezes instead of finishing or cancelling. On expiry the
+    // handler cancels the job, so it ends cleanly (temp file deleted)
+    // instead of leaving a partial output; the completion below then
+    // ends the task. Begun before the bridge call so even an immediate
+    // backgrounding is covered; ended on refusal too.
+    var bgTask = UIApplication.shared.beginBackgroundTask(withName: "bbebee-transcode") { [weak self] in
+      self?.cancelTranscode(jobId: jsJobId)
+    }
+
     // Box for this call's bridge jobId, filled in right after the call
     // returns. The callbacks match on it so a refusal completion — or a
     // completion arriving after the JS jobId was reused for a new job —
@@ -486,19 +500,32 @@ public class BbebeeAudioEngineModule: Module {
           record.cancelled = cancelled
           record.error = error
           record.finishedAt = Date()
+          // Single end point for the background task: success, failure,
+          // and cancel all land here, including expiry-driven cancel.
+          let taskToEnd = record.backgroundTask
+          record.backgroundTask = .invalid
+          if taskToEnd != .invalid {
+            UIApplication.shared.endBackgroundTask(taskToEnd)
+          }
         }
       }
     )
 
     guard let bridgeJobId else {
       // Refusal: the completion above resolves the start promise on the
-      // main queue with the bridge's reason. Nothing is registered.
+      // main queue with the bridge's reason. Nothing is registered, so
+      // the task begun above ends here.
+      if bgTask != .invalid {
+        UIApplication.shared.endBackgroundTask(bgTask)
+      }
       return
     }
     callBridgeJobId = bridgeJobId
 
     transcodeStateQueue.sync {
-      transcodeJobs[jsJobId] = TranscodeJobRecord(bridgeJobId: bridgeJobId)
+      let record = TranscodeJobRecord(bridgeJobId: bridgeJobId)
+      record.backgroundTask = bgTask
+      transcodeJobs[jsJobId] = record
     }
     var answer = "{\"ok\":true,\"jobId\":\"\(Self.jsonEscaped(jsJobId))\""
     if !unsupported.isEmpty {
