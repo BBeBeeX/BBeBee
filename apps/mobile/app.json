@@ -23,6 +23,7 @@
     },
     "android": {
       "package": "org.bbebee.app",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1A1A24"

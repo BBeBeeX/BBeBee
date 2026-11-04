@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  '@nyariv/sandboxjs@0.9.7': 905a9b4a5a7a8c7e82b31ebd05be7663ca9ebc9b81293492dd1d7e0abccadbed
   content-type: b3b46346d671abcda59bd9b8e17fb720437c6e210775d353b213ca472392ec8d
 
 importers:
@@ -934,7 +935,7 @@ importers:
         version: link:../../protocol
       '@nyariv/sandboxjs':
         specifier: 0.9.7
-        version: 0.9.7
+        version: 0.9.7(patch_hash=905a9b4a5a7a8c7e82b31ebd05be7663ca9ebc9b81293492dd1d7e0abccadbed)
       acorn:
         specifier: ^8.14.0
         version: 8.18.0
@@ -8763,7 +8764,7 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
-  '@nyariv/sandboxjs@0.9.7': {}
+  '@nyariv/sandboxjs@0.9.7(patch_hash=905a9b4a5a7a8c7e82b31ebd05be7663ca9ebc9b81293492dd1d7e0abccadbed)': {}
 
   '@react-native/assets-registry@0.86.3': {}
 

@@ -559,7 +559,7 @@
       "openSourceLicense": "开源许可证",
       "openSourcedUnderTheMIT": "以 MIT 许可证开源——自由、灵活、透明",
       "resetAllSettings": "重置所有设置",
-      "restoreAllPreferencesToTheir": "将所有偏好恢复为初始默认值（已下载的歌曲和播放列表不会被删除）",
+      "restoreAllPreferencesToTheir": "将所有偏好恢复为初始默认值（已下载的歌曲和歌单不会被删除）",
       "secureSandbox": "安全沙盒",
       "sourceParsingRunsInAn": "源解析运行在隔离的 QuickJS Realm 沙盒中，与网络和本地权限完全隔绝",
       "viewTheRuntimeEnvironmentLive": "查看运行时环境、实时发现页日志、源测试与微内核架构拓扑（检查器）",

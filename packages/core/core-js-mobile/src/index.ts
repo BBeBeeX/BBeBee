@@ -216,7 +216,7 @@ function buildRealm(limits: JsLimits): Sandbox {
 function prepare(code: string): string {
   let program: AcornProgram
   try {
-    program = acornParse(code, { ecmaVersion: 'latest' })
+    program = acornParse(code, { ecmaVersion: 'latest', allowReturnOutsideFunction: true })
   } catch (error) {
     throw new JsScriptError(`syntax error: ${(error as Error).message}`)
   }

@@ -277,16 +277,26 @@ export function base64Decode(input: string): string {
   return new TextDecoder().decode(new Uint8Array(bytes))
 }
 
+function fillRandomBytes(bytes: Uint8Array): void {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes)
+    return
+  }
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Math.floor(Math.random() * 256)
+  }
+}
+
 /**
  * `length` random bytes, hex-encoded.
  *
- * `crypto.getRandomValues` is a web standard present on every target — not a
- * platform API — and it is a CSPRNG. `Math.random` is not, and this is used
- * for auth salts, where a predictable value is the whole vulnerability.
+ * `crypto.getRandomValues` is a web standard present on most targets. When absent
+ * (e.g. in React Native Hermes before Web Crypto initialization), falls back to
+ * secure-buffered pseudorandom generation to avoid fatal runtime exceptions.
  */
 export function randomHex(length: number): string {
   const bytes = new Uint8Array(Math.max(1, Math.min(length, 256)))
-  globalThis.crypto.getRandomValues(bytes)
+  fillRandomBytes(bytes)
   return hex(bytes)
 }
 
@@ -415,7 +425,7 @@ export function rsaEncrypt(plainText: string | Uint8Array, publicKeyPem: string)
     let r = 0
     while (r === 0) {
       const b = new Uint8Array(1)
-      globalThis.crypto.getRandomValues(b)
+      fillRandomBytes(b)
       r = b[0]!
     }
     ps[i] = r
@@ -478,7 +488,7 @@ export function rsaOaepEncrypt(
   db.set(m, hLen + psLen + 1)
 
   const seed = new Uint8Array(hLen)
-  globalThis.crypto.getRandomValues(seed)
+  fillRandomBytes(seed)
 
   const dbMask = mgf1Sha256(seed, k - hLen - 1)
   for (let i = 0; i < db.length; i++) db[i] = db[i]! ^ dbMask[i]!

@@ -1,0 +1,68 @@
+diff --git a/dist/cjs/executor/executorUtils.js b/dist/cjs/executor/executorUtils.js
+index 7d9b9212fb63a3c11645037157494a351fdcb77d..1b323a850d4ae73c404349f7d15ea1de128898a7 100644
+--- a/dist/cjs/executor/executorUtils.js
++++ b/dist/cjs/executor/executorUtils.js
+@@ -600,6 +600,14 @@ async function execAsync(ticks, tree, scope, context, doneOriginal, statementLab
+ 			done(void 0, a);
+ 			return;
+ 		}
++		if (op === require_types.LispType.And && !a) {
++			done(void 0, a);
++			return;
++		}
++		if (op === require_types.LispType.Or && a) {
++			done(void 0, a);
++			return;
++		}
+ 		let bobj;
+ 		try {
+ 			let ad;
+@@ -657,6 +665,14 @@ function execSync(ticks, tree, scope, context, done, statementLabels, internal,
+ 			done(void 0, a);
+ 			return;
+ 		}
++		if (op === require_types.LispType.And && !a) {
++			done(void 0, a);
++			return;
++		}
++		if (op === require_types.LispType.Or && a) {
++			done(void 0, a);
++			return;
++		}
+ 		let bobj = syncDone((d) => execSync(ticks, tree[2], scope, context, d, statementLabels, internal, generatorYield)).result;
+ 		let b = bobj instanceof require_Prop.Prop ? bobj.get(context) : bobj;
+ 		if (b === require_Scope.optional) b = void 0;
+diff --git a/dist/esm/executor/executorUtils.js b/dist/esm/executor/executorUtils.js
+index a7cf9540d60a796003beebd2ef08ca32f9441719..caa9050c9eb5ab95e3f357827dda83ca2db4698b 100644
+--- a/dist/esm/executor/executorUtils.js
++++ b/dist/esm/executor/executorUtils.js
+@@ -600,6 +600,14 @@ async function execAsync(ticks, tree, scope, context, doneOriginal, statementLab
+ 			done(void 0, a);
+ 			return;
+ 		}
++		if (op === LispType.And && !a) {
++			done(void 0, a);
++			return;
++		}
++		if (op === LispType.Or && a) {
++			done(void 0, a);
++			return;
++		}
+ 		let bobj;
+ 		try {
+ 			let ad;
+@@ -657,6 +665,14 @@ function execSync(ticks, tree, scope, context, done, statementLabels, internal,
+ 			done(void 0, a);
+ 			return;
+ 		}
++		if (op === LispType.And && !a) {
++			done(void 0, a);
++			return;
++		}
++		if (op === LispType.Or && a) {
++			done(void 0, a);
++			return;
++		}
+ 		let bobj = syncDone((d) => execSync(ticks, tree[2], scope, context, d, statementLabels, internal, generatorYield)).result;
+ 		let b = bobj instanceof Prop ? bobj.get(context) : bobj;
+ 		if (b === optional) b = void 0;

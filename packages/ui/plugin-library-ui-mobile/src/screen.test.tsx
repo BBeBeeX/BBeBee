@@ -75,6 +75,7 @@ const track: Track = {
   artists: [{ urn: 'BBeBee:demo:artist:a', name: 'A', role: 'main', ordinal: 0 }],
   albumUrn: ALBUM_URN,
   albumTitle: 'Homogenic',
+  loved: true,
 }
 
 const storedPlaylist: PlaylistDetail = {
@@ -437,7 +438,12 @@ describe('FavoritesScreen on mobile', () => {
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-label="Remove Alpha from favorites"]') as HTMLElement).click()
+      ;(container.querySelector('[data-label="More"]') as HTMLElement).click()
+      await tick()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="remove-favorite"]') as HTMLElement).click()
       await tick()
     })
 

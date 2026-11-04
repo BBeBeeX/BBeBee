@@ -257,8 +257,8 @@
       "selectedSongs": "已选 {selectedCount} / {totalCount} 首"
     },
     "builtinMenu": {
-      "pinPlaylist": "固定播放列表",
-      "unpinPlaylist": "取消固定播放列表"
+      "pinPlaylist": "固定歌单",
+      "unpinPlaylist": "取消固定歌单"
     },
     "collapsedLibrary": {
       "backToMusicLibrary": "返回音乐库",
@@ -267,10 +267,10 @@
       "musicLibraryQuickLinks": "音乐库快捷链接"
     },
     "collection": {
-      "addAlbumsOrPlaylistsFrom": "从音乐库添加专辑或播放列表。",
+      "addAlbumsOrPlaylistsFrom": "从音乐库添加专辑或歌单。",
       "collectionFallback": "合集",
       "collections": "合集",
-      "collectionsDescription": "属于你自己的文件夹：专辑和播放列表汇聚一处，合集可以嵌套。",
+      "collectionsDescription": "属于你自己的文件夹：专辑和歌单汇聚一处，合集可以嵌套。",
       "couldNotOpenTheCollection": "无法打开该合集",
       "itemsOne": "{count} 个项目",
       "itemsOther": "{count} 个项目",
@@ -281,13 +281,13 @@
     },
     "confirmDelete": {
       "deleteAlbum": "删除专辑",
-      "deletePlaylist": "删除播放列表",
-      "deletePlaylistThisCannotBe": "删除播放列表“{name}”？此操作无法撤销。",
+      "deletePlaylist": "删除歌单",
+      "deletePlaylistThisCannotBe": "删除歌单“{name}”？此操作无法撤销。",
       "removeTheAlbumFromThe": "将专辑“{name}”从音乐库中移除？"
     },
     "createInFolder": {
       "createFolder": "新建文件夹",
-      "createPlaylistInFolder": "在文件夹中新建播放列表",
+      "createPlaylistInFolder": "在文件夹中新建歌单",
       "creating": "创建中…"
     },
     "editPlaylist": {
@@ -301,7 +301,7 @@
       "httpsOrUploadFromThe": "https://... 或从左侧上传",
       "name": "名称",
       "nameAndDetails": "名称与详情",
-      "photoConsent": "选择照片即表示你同意我们将其用作播放列表封面。",
+      "photoConsent": "选择照片即表示你同意我们将其用作歌单封面。",
       "saving": "保存中…"
     },
     "expandedLibrary": {
@@ -313,7 +313,7 @@
       "musicLibrary": "音乐库",
       "pinned": "已固定",
       "plays": "播放次数",
-      "searchInPlaylist": "在播放列表中搜索",
+      "searchInPlaylist": "在歌单中搜索",
       "searchTheMusicLibrary": "搜索音乐库",
       "title": "标题"
     },
@@ -343,12 +343,12 @@
       "title": "标题"
     },
     "index": {
-      "couldNotReadPlaylists": "无法读取播放列表：{message}",
-      "createAPlaylistOrA": "创建播放列表或合集，或导入音乐源以填充专辑列表。",
+      "couldNotReadPlaylists": "无法读取歌单：{message}",
+      "createAPlaylistOrA": "创建歌单或合集，或导入音乐源以填充专辑列表。",
       "moreActionsFor": "{name} 的更多操作",
       "newCollectionName": "新合集名称",
       "nothingSavedYet": "暂无收藏内容",
-      "playlistsAlbumsCollections": "{playlists} 个播放列表 · {length} 张专辑 · {collections} 个合集",
+      "playlistsAlbumsCollections": "{playlists} 个歌单 · {length} 张专辑 · {collections} 个合集",
       "removeFrom": "将 {title} 从 {name} 中移除",
       "removeFromFavorites": "将 {title} 从收藏中移除",
       "saveATrackFromThe": "从音乐库收藏曲目后会显示在这里。"
@@ -369,32 +369,32 @@
       "nothingFound": "未找到内容",
       "open": "打开",
       "playItem": "播放{title}",
-      "playlistByOwner": "播放列表 • {owner}",
+      "playlistByOwner": "歌单 • {owner}",
       "recentlyAdded": "最近添加",
       "recentlyPlayed": "最近播放",
       "single": "单曲",
-      "smartPlaylist": "智能播放列表",
+      "smartPlaylist": "智能歌单",
       "unknownArtist": "未知艺人"
     },
     "libraryCreateDropdown": {
       "create": "新建",
-      "createAPlaylistWithSongs": "用歌曲创建播放列表",
+      "createAPlaylistWithSongs": "用歌曲创建歌单",
       "folder": "文件夹",
       "importShare": "导入分享",
-      "managePlaylists": "管理播放列表",
-      "playlist": "播放列表",
+      "managePlaylists": "管理歌单",
+      "playlist": "歌单",
       "readAShareCardOr": "读取分享卡片或图片"
     },
     "libraryModals": {
       "createFolder": "新建文件夹",
-      "createPlaylist": "新建播放列表",
+      "createPlaylist": "新建歌单",
       "newFolderName": "新文件夹名称",
-      "newPlaylistName": "新播放列表名称"
+      "newPlaylistName": "新歌单名称"
     },
     "libraryToolbar": {
       "albums": "专辑",
       "artists": "艺人",
-      "playlists": "播放列表",
+      "playlists": "歌单",
       "search": "搜索",
       "searchTheLibrary": "搜索音乐库…"
     },
@@ -439,22 +439,22 @@
     },
     "playlistDetail": {
       "add": "添加",
-      "addTracksToFill": "从音乐库添加曲目以填充该播放列表。",
-      "couldNotOpenThePlaylist": "无法打开该播放列表",
+      "addTracksToFill": "从音乐库添加曲目以填充该歌单。",
+      "couldNotOpenThePlaylist": "无法打开该歌单",
       "customOrder": "自定义排序",
       "dateAdded": "添加日期",
       "download": "下载",
-      "noPlaylistChosen": "未选择播放列表",
-      "noTrackMatchesPlaylistRules": "目前没有曲目符合该播放列表的规则。",
+      "noPlaylistChosen": "未选择歌单",
+      "noTrackMatchesPlaylistRules": "目前没有曲目符合该歌单的规则。",
       "noTrackMatchesTheseRules": "目前没有曲目符合这些规则。",
       "nothingHereYet": "这里还没有内容",
       "play": "播放",
-      "playlist": "播放列表",
-      "publicPlaylist": "公开播放列表",
-      "removeFromThisPlaylist": "从该播放列表中移除",
-      "sharePlaylist": "分享播放列表",
-      "smartPlaylist": " • 智能播放列表",
-      "smartPlaylistDescription": "智能播放列表 — 曲目由其规则生成",
+      "playlist": "歌单",
+      "publicPlaylist": "公开歌单",
+      "removeFromThisPlaylist": "从该歌单中移除",
+      "sharePlaylist": "分享歌单",
+      "smartPlaylist": " • 智能歌单",
+      "smartPlaylistDescription": "智能歌单 — 曲目由其规则生成",
       "songCount": " • {count} 首歌",
       "tracksOne": "{count} 首歌",
       "tracksOther": "{count} 首歌"
@@ -467,7 +467,7 @@
       "renameFolder": "重命名文件夹"
     },
     "sidebarFolder": {
-      "clickCreateToAddA": "点击新建以添加播放列表，或从音乐库添加内容。",
+      "clickCreateToAddA": "点击新建以添加歌单，或从音乐库添加内容。",
       "noItemsYet": "暂无项目",
       "searchInFolder": "在文件夹中搜索…",
       "thisFolderIsEmpty": "该文件夹为空"
@@ -475,10 +475,10 @@
     "trackLibraryActionButton": {
       "addToFavorites": "将“{title}”添加到收藏",
       "addToFavorites2": "添加到收藏",
-      "addToPlaylist": "将“{title}”添加到播放列表",
-      "addToPlaylist2": "添加到播放列表",
-      "newPlaylist": "新建播放列表",
-      "playlistNamePrompt": "播放列表名称："
+      "addToPlaylist": "将“{title}”添加到歌单",
+      "addToPlaylist2": "添加到歌单",
+      "newPlaylist": "新建歌单",
+      "playlistNamePrompt": "歌单名称："
     },
     "unifiedLibrary": {
       "collapse": "收起",
@@ -488,11 +488,11 @@
       "favorites": "收藏"
     },
     "userProfile": {
-      "description": "本地用户个人资料；播放列表和其他内容将以此名称作为创建者。",
+      "description": "本地用户个人资料；歌单和其他内容将以此名称作为创建者。",
       "mine": "Mine",
       "save": "保存",
       "saved": "已保存",
-      "shownAsTheCreatorWhen": "创建播放列表时将显示为创建者",
+      "shownAsTheCreatorWhen": "创建歌单时将显示为创建者",
       "title": "用户",
       "userID": "用户 ID",
       "username": "用户名",

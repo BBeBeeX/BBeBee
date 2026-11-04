@@ -5,7 +5,7 @@ import { c, nativePrimitives } from '@BBeBee/ui-kit-mobile'
 
 export interface HeaderGradientProps {
   tint?: string
-  height?: number
+  height?: number | string
   style?: unknown
 }
 
@@ -15,7 +15,7 @@ export interface HeaderGradientProps {
  * - Mid color at 62%
  * - App background (solid) at 100%
  */
-export function HeaderGradient({ tint, height = 260, style }: HeaderGradientProps): ReactElement {
+export function HeaderGradient({ tint, height = '100%', style }: HeaderGradientProps): ReactElement {
   const native = nativePrimitives()
   const p = c()
   const svg = native.svg as Record<string, unknown> | undefined
@@ -51,6 +51,7 @@ export function HeaderGradient({ tint, height = 260, style }: HeaderGradientProp
             top: 0,
             left: 0,
             right: 0,
+            bottom: 0,
             height,
             overflow: 'hidden',
           },
@@ -96,6 +97,7 @@ export function HeaderGradient({ tint, height = 260, style }: HeaderGradientProp
         top: 0,
         left: 0,
         right: 0,
+        bottom: 0,
         height,
         backgroundColor: topColor,
         opacity: tint ? 0.35 : 0.15,

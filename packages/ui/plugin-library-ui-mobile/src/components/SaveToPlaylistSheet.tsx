@@ -1,7 +1,7 @@
 import { createElement as h, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { SaveToPlaylistMenuController } from '@BBeBee/ui-menus'
+import type { SaveToPlaylistMenuController, SaveToPlaylistOption } from '@BBeBee/ui-menus'
 import { Button, Sheet, Text, TextField, c, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
@@ -28,9 +28,108 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
   }
 
   const q = filter.trim().toLowerCase()
-  const filteredPlaylists = q
-    ? menuProps.playlists.filter((p) => p.name.toLowerCase().includes(q))
-    : menuProps.playlists
+  const matches = (name: string) => !q || name.toLowerCase().includes(q)
+
+  const directSavedPlaylists = menuProps.playlists.filter((p) => p.containsTrack === true && matches(p.name))
+  const directUnsavedPlaylists = menuProps.playlists.filter((p) => !p.containsTrack && matches(p.name))
+
+  const colSavedPlaylists = (menuProps.collections ?? []).flatMap((col) =>
+    col.playlists
+      .filter((p) => p.containsTrack === true && matches(p.name))
+      .map((p) => ({ ...p, folderName: col.name })),
+  )
+  const colUnsavedPlaylists = (menuProps.collections ?? []).flatMap((col) =>
+    col.playlists
+      .filter((p) => !p.containsTrack && matches(p.name))
+      .map((p) => ({ ...p, folderName: col.name })),
+  )
+
+  const allSaved = [...directSavedPlaylists, ...colSavedPlaylists]
+  const allUnsaved = [...directUnsavedPlaylists, ...colUnsavedPlaylists]
+
+  const renderPlaylistRow = (pl: SaveToPlaylistOption & { folderName?: string }, isSaved: boolean) =>
+    h(
+      native.Pressable as never,
+      {
+        key: pl.urn,
+        accessibilityRole: 'checkbox',
+        accessibilityLabel: pl.name,
+        disabled: pl.isSmart,
+        onPress: () => {
+          void menuProps.onTogglePlaylist(pl.urn, isSaved)
+        },
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: tokens.space[2],
+          paddingHorizontal: tokens.space[3],
+          borderRadius: tokens.radius.sm,
+          opacity: pl.isSmart ? 0.5 : 1,
+        },
+      },
+      h(
+        native.View as never,
+        { style: { flex: 1, minWidth: 0 } },
+        h(Text, { numberOfLines: 1 }, pl.name),
+        h(
+          Text,
+          { variant: 'sm', tone: 'muted' },
+          pl.folderName
+            ? `${pl.folderName} • ${t('library:playlistDetail.tracksOther', { count: pl.trackCount ?? 0 })}`
+            : t('library:playlistDetail.tracksOther', { count: pl.trackCount ?? 0 }),
+        ),
+      ),
+      isSaved
+        ? (tablerIcon('check', { size: 18, color: c().accent.base }) ??
+          h(Text, { variant: 'md', tone: 'accent' }, '✓'))
+        : (tablerIcon('plus', { size: 18, color: c().text.muted }) ??
+          h(Text, { variant: 'md', tone: 'muted' }, '＋')),
+    )
+
+  const renderLikedRow = (isSaved: boolean) =>
+    h(
+      native.Pressable as never,
+      {
+        accessibilityRole: 'button',
+        accessibilityLabel: t('library:favorites.likedSongs'),
+        onPress: () => {
+          void menuProps.onToggleLiked()
+        },
+        style: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: tokens.space[2],
+          paddingHorizontal: tokens.space[3],
+          backgroundColor: isSaved ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+          borderRadius: tokens.radius.sm,
+        },
+      },
+      h(
+        native.View as never,
+        { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[3] } },
+        tablerIcon(isSaved ? 'heart-filled' : 'heart', {
+          size: 20,
+          color: isSaved ? c().accent.base : c().text.muted,
+        }),
+        h(
+          native.View as never,
+          null,
+          h(Text, { variant: 'md' }, t('library:favorites.likedSongs')),
+          h(
+            Text,
+            { variant: 'sm', tone: 'muted' },
+            t('library:favorites.savedOther', { count: menuProps.likedCount }),
+          ),
+        ),
+      ),
+      isSaved
+        ? (tablerIcon('check', { size: 18, color: c().accent.base }) ??
+          h(Text, { variant: 'md', tone: 'accent' }, '✓'))
+        : (tablerIcon('plus', { size: 18, color: c().text.muted }) ??
+          h(Text, { variant: 'md', tone: 'muted' }, '＋')),
+    )
 
   return h(
     Sheet,
@@ -46,54 +145,7 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
     },
     h(
       native.View as never,
-      { style: { gap: tokens.space[3], maxHeight: 420 } },
-      // Liked songs quick toggle row
-      h(
-        native.Pressable as never,
-        {
-          accessibilityRole: 'button',
-          accessibilityLabel: t('library:favorites.likedSongs'),
-          onPress: () => {
-            void menuProps.onToggleLiked()
-          },
-          style: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingVertical: tokens.space[2],
-            paddingHorizontal: tokens.space[3],
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: tokens.radius.sm,
-          },
-        },
-        h(
-          native.View as never,
-          { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[3] } },
-          tablerIcon(menuProps.liked ? 'heart-filled' : 'heart', {
-            size: 20,
-            color: menuProps.liked ? 'var(--bb-state-loved, #FF4D6D)' : c().text.muted,
-          }),
-          h(
-            native.View as never,
-            null,
-            h(Text, { variant: 'md' }, t('library:favorites.likedSongs')),
-            h(
-              Text,
-              { variant: 'sm', tone: 'muted' },
-              t('library:favorites.savedOther', { count: menuProps.likedCount }),
-            ),
-          ),
-        ),
-        tablerIcon(menuProps.liked ? 'check' : 'plus', {
-          size: 18,
-          color: menuProps.liked ? c().accent.base : c().text.muted,
-        }) ??
-          h(
-            Text,
-            { variant: 'md', tone: menuProps.liked ? 'accent' : 'muted' },
-            menuProps.liked ? '✓' : '＋',
-          ),
-      ),
+      { style: { gap: tokens.space[3], maxHeight: 460 } },
       // Search / Filter or New Playlist input
       isCreating
         ? h(
@@ -132,7 +184,7 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
               h(TextField, {
                 value: filter,
                 onChange: setFilter,
-                placeholder: t('library:trackLibraryActionButton.findPlaylist'),
+                placeholder: t('app:common.saveToPlaylist.findPlaylist'),
               }),
             ),
             h(Button, {
@@ -141,53 +193,24 @@ export function SaveToPlaylistSheet({ ctx, menuProps }: SaveToPlaylistSheetProps
               children: t('library:trackLibraryActionButton.newPlaylist'),
             }),
           ),
-      // Playlists list
+      // Scrollable list with Upper saved section + Divider + Lower other section
       h(
         native.ScrollView as never,
-        { style: { maxHeight: 260 } },
-        filteredPlaylists.map((pl) => {
-          const contains = pl.containsTrack === true
-          return h(
-            native.Pressable as never,
-            {
-              key: pl.urn,
-              accessibilityRole: 'checkbox',
-              accessibilityLabel: pl.name,
-              disabled: pl.isSmart,
-              onPress: () => {
-                void menuProps.onTogglePlaylist(pl.urn, contains)
-              },
-              style: {
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: tokens.space[2],
-                paddingHorizontal: tokens.space[3],
-                borderRadius: tokens.radius.sm,
-                opacity: pl.isSmart ? 0.5 : 1,
-              },
-            },
-            h(
-              native.View as never,
-              { style: { flex: 1, minWidth: 0 } },
-              h(Text, { numberOfLines: 1 }, pl.name),
-              h(
-                Text,
-                { variant: 'sm', tone: 'muted' },
-                t('library:playlistDetail.tracksOther', { count: pl.trackCount ?? 0 }),
-              ),
-            ),
-            tablerIcon(contains ? 'check' : 'plus', {
-              size: 18,
-              color: contains ? c().accent.base : c().text.muted,
-            }) ??
-              h(
-                Text,
-                { variant: 'md', tone: contains ? 'accent' : 'muted' },
-                contains ? '✓' : '＋',
-              ),
-          )
+        { style: { maxHeight: 340 } },
+        // Upper section: Current saved locations
+        menuProps.liked ? renderLikedRow(true) : null,
+        allSaved.map((pl) => renderPlaylistRow(pl, true)),
+        // Divider line (中间有分隔行)
+        h(native.View as never, {
+          style: {
+            height: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            marginVertical: tokens.space[2],
+          },
         }),
+        // Lower section: Other locations (not containing this track)
+        !menuProps.liked ? renderLikedRow(false) : null,
+        allUnsaved.map((pl) => renderPlaylistRow(pl, false)),
       ),
     ),
   )

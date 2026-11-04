@@ -2,8 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { formatDuration } from '@BBeBee/toolkit'
-import { Text, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { Text, c, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface AlbumTrackRowProps {
@@ -16,6 +15,8 @@ export interface AlbumTrackRowProps {
   onPress: () => void
   onMore: (anchor: { x: number; y: number }) => void
   onAddToFavorites?: (track: Track) => void
+  onHeartPress?: (track: Track) => void
+  hideHeart?: boolean
   batchMode?: boolean
   selected?: boolean
   onToggleSelect?: () => void
@@ -27,13 +28,15 @@ export interface AlbumTrackRowProps {
 export function AlbumTrackRow({
   ctx,
   track,
-  index,
+  index: _index,
   active = false,
   isPlaying = false,
   inLibrary = false,
   onPress,
   onMore,
   onAddToFavorites,
+  onHeartPress,
+  hideHeart = false,
   batchMode = false,
   selected = false,
   onToggleSelect,
@@ -76,7 +79,7 @@ export function AlbumTrackRow({
         borderLeftColor: 'var(--color-primary, #5F87FF)',
       },
     },
-    // Left: Batch Checkbox or Number index / Play indicator
+    // Left: Batch Checkbox or Playing indicator (index number column hidden)
     batchMode
       ? h(
           native.Pressable as never,
@@ -94,23 +97,13 @@ export function AlbumTrackRow({
             selected ? '☑' : '☐',
           ),
         )
-      : h(
-          native.View as never,
-          { style: { width: 28, alignItems: 'center', justifyContent: 'center' } },
-          isPlaying
-            ? tablerIcon('play', { size: 14, color: 'var(--color-primary, #5F87FF)' })
-            : h(
-                Text,
-                {
-                  variant: 'sm',
-                  tone: active ? 'accent' : 'muted',
-                  style: {
-                    fontWeight: active ? tokens.font.weight.bold : tokens.font.weight.regular,
-                  },
-                },
-                String(index + 1),
-              ),
-        ),
+      : isPlaying
+        ? h(
+            native.View as never,
+            { style: { width: 20, alignItems: 'center', justifyContent: 'center' } },
+            tablerIcon('play', { size: 14, color: 'var(--color-primary, #5F87FF)' }),
+          )
+        : null,
     // Center: Metadata (Title, Artist, Source badge)
     h(
       native.View as never,
@@ -152,32 +145,21 @@ export function AlbumTrackRow({
           : null,
       ),
     ),
-    // Right: Duration
-    track.durationMs
-      ? h(
-          Text,
-          {
-            variant: 'sm',
-            tone: 'muted',
-            style: {
-              width: 44,
-              textAlign: 'right',
-              fontVariant: ['tabular-nums'],
-            },
-          },
-          formatDuration(track.durationMs),
-        )
-      : null,
-    // Right: Favorite Heart Toggle
-    onAddToFavorites
+    // Right: Favorite Heart Toggle (only shown when saved)
+    !hideHeart && inLibrary
       ? h(
           native.Pressable as never,
           {
             accessibilityRole: 'button',
-            accessibilityLabel: inLibrary
-              ? t('album:index.removeFromFavorites')
-              : t('album:index.addToFavorites2'),
-            onPress: () => onAddToFavorites(track),
+            accessibilityLabel: t('album:index.removeFromFavorites'),
+            onPress: (event: { stopPropagation?: () => void }) => {
+              event?.stopPropagation?.()
+              if (onHeartPress) {
+                onHeartPress(track)
+              } else if (onAddToFavorites) {
+                onAddToFavorites(track)
+              }
+            },
             style: {
               width: 32,
               height: 32,
@@ -185,9 +167,9 @@ export function AlbumTrackRow({
               justifyContent: 'center',
             },
           },
-          tablerIcon(inLibrary ? 'heart-filled' : 'heart', {
+          tablerIcon('heart-filled', {
             size: 18,
-            color: inLibrary ? 'var(--bb-state-loved, #FF4D6D)' : 'var(--text-muted, #7C8BA1)',
+            color: c().accent.base,
           }),
         )
       : null,

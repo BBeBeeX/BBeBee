@@ -345,7 +345,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
           overflow: 'hidden',
         },
       },
-      h(HeaderGradient, { tint: FAVORITES_TINT, height: 260 }),
+      h(HeaderGradient, { tint: FAVORITES_TINT }),
       // Eyebrow
       h(
         Text,
@@ -500,6 +500,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
             showSource: true,
             sourceName: resolveTrackSourceName(ctx, trk.urn),
             inLibrary: isTrackInLibrary(trk),
+            hideHeart: true,
             compact: viewMode === 'compact',
             onPress: () =>
               player?.playFromContext(trk.urn, sortedUrns, {

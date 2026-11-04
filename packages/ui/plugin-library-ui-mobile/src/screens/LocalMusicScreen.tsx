@@ -81,6 +81,7 @@ export function LocalMusicScreen({
   const {
     isTrackInLibrary,
     handleToggleFavorite,
+    openAddToPlaylistMenu,
     openBatchAddToPlaylistMenu,
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
@@ -650,7 +651,7 @@ export function LocalMusicScreen({
           gap: tokens.space[2],
         },
       },
-      h(HeaderGradient, { height: 280 }),
+      h(HeaderGradient, {}),
       // Eyebrow
       h(
         Text,
@@ -706,7 +707,7 @@ export function LocalMusicScreen({
               paddingVertical: 6,
               paddingHorizontal: 16,
               borderRadius: 20,
-              backgroundColor: viewMode === 'tracks' ? 'var(--bb-text-primary, #FFFFFF)' : 'rgba(255, 255, 255, 0.08)',
+              backgroundColor: viewMode === 'tracks' ? '#FFFFFF' : 'transparent',
             },
           },
           h(
@@ -715,7 +716,7 @@ export function LocalMusicScreen({
               variant: 'sm',
               style: {
                 fontWeight: tokens.font.weight.bold,
-                color: viewMode === 'tracks' ? '#000000' : 'var(--bb-text-secondary, #b3b3b3)',
+                color: viewMode === 'tracks' ? '#000000' : c().text.muted,
               },
             },
             t('library:localMusic.songs'),
@@ -735,7 +736,7 @@ export function LocalMusicScreen({
               paddingVertical: 6,
               paddingHorizontal: 16,
               borderRadius: 20,
-              backgroundColor: viewMode === 'albums' ? 'var(--bb-text-primary, #FFFFFF)' : 'rgba(255, 255, 255, 0.08)',
+              backgroundColor: viewMode === 'albums' ? '#FFFFFF' : 'transparent',
             },
           },
           h(
@@ -744,7 +745,7 @@ export function LocalMusicScreen({
               variant: 'sm',
               style: {
                 fontWeight: tokens.font.weight.bold,
-                color: viewMode === 'albums' ? '#000000' : 'var(--bb-text-secondary, #b3b3b3)',
+                color: viewMode === 'albums' ? '#000000' : c().text.muted,
               },
             },
             t('library:libraryToolbar.albums'),
@@ -761,7 +762,7 @@ export function LocalMusicScreen({
               paddingVertical: 6,
               paddingHorizontal: 16,
               borderRadius: 20,
-              backgroundColor: viewMode === 'artists' ? 'var(--bb-text-primary, #FFFFFF)' : 'rgba(255, 255, 255, 0.08)',
+              backgroundColor: viewMode === 'artists' ? '#FFFFFF' : 'transparent',
             },
           },
           h(
@@ -770,7 +771,7 @@ export function LocalMusicScreen({
               variant: 'sm',
               style: {
                 fontWeight: tokens.font.weight.bold,
-                color: viewMode === 'artists' ? '#000000' : 'var(--bb-text-secondary, #b3b3b3)',
+                color: viewMode === 'artists' ? '#000000' : c().text.muted,
               },
             },
             t('library:localMusic.artists'),
@@ -951,6 +952,7 @@ export function LocalMusicScreen({
                   }),
                 onMore: (anchor) => menu.open({ track: trk }, anchor),
                 onAddToFavorites: () => handleToggleFavorite(trk),
+                onHeartPress: (t) => openAddToPlaylistMenu(t, { x: 0, y: 0 }),
                 onOpenAlbum: handleOpenAlbum,
               }),
           })
@@ -1054,6 +1056,7 @@ export function LocalMusicScreen({
                         }),
                       onMore: (anchor) => menu.open({ track: trk }, anchor),
                       onAddToFavorites: () => handleToggleFavorite(trk),
+                      onHeartPress: (t) => openAddToPlaylistMenu(t, { x: 0, y: 0 }),
                       onOpenAlbum: handleOpenAlbum,
                     }),
                 }),

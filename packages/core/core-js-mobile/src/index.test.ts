@@ -274,4 +274,35 @@ describe('where the pure-JS interpreter shows', () => {
     ).resolves.toEqual([{ id: 1, t: 'song for /list' }])
     realm.dispose()
   })
+
+  it('evaluates scripts with top-level return statements (e.g. source rule return)', async () => {
+    const ctx = await harness()
+    const realm = await ctx.js.createRealm()
+    const result = await realm.eval('return 42;')
+    expect(result).toBe(42)
+    realm.dispose()
+  })
+
+  it('short-circuits logical AND and OR expressions safely without evaluating RHS', async () => {
+    const ctx = await harness()
+    const realm = await ctx.js.createRealm()
+    // Test that undefined/null on LHS of && does not evaluate RHS property access
+    const resAnd = await realm.eval(`
+      const root = {};
+      const listAnd = (root.directory && root.directory.child) || [];
+      return listAnd;
+    `)
+    expect(resAnd).toEqual([])
+
+    // Test that truthy LHS of || does not evaluate RHS
+    const resOr = await realm.eval(`
+      const valid = { child: [1, 2] };
+      const listOr = (valid && valid.child) || (null.throwing);
+      return listOr;
+    `)
+    expect(resOr).toEqual([1, 2])
+    realm.dispose()
+  })
 })
+
+

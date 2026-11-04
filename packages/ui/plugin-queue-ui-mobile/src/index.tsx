@@ -7,7 +7,7 @@
  * this package handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, useMemo, useState } from 'react'
+import { createElement as h, useMemo, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
@@ -22,7 +22,7 @@ import {
   useTransport,
   useUpcoming,
 } from '@bbebee/plugin-player/hooks'
-import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { ContextMenu, EmptyState, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { serviceOf } from '@BBeBee/ui-core'
@@ -118,16 +118,107 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
 
   const historyTracks = useTracksByUrn(ctx, uniqueHistoryUrns)
 
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+
+  const handleHeaderTouchStart = (e: {
+    nativeEvent?: { pageX?: number; pageY?: number }
+    touches?: Array<{ pageX?: number; pageY?: number }>
+  }) => {
+    touchStartX.current = e.nativeEvent?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    touchStartY.current = e.nativeEvent?.pageY ?? e.touches?.[0]?.pageY ?? 0
+  }
+
+  const handleHeaderTouchEnd = (e: {
+    nativeEvent?: { pageX?: number; pageY?: number }
+    changedTouches?: Array<{ pageX?: number; pageY?: number }>
+    touches?: Array<{ pageX?: number; pageY?: number }>
+  }) => {
+    const endX = e.nativeEvent?.pageX ?? e.changedTouches?.[0]?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    const endY = e.nativeEvent?.pageY ?? e.changedTouches?.[0]?.pageY ?? e.touches?.[0]?.pageY ?? 0
+    const dx = endX - touchStartX.current
+    const dy = endY - touchStartY.current
+
+    // Downward swipe on drag handle or header: dismiss sheet
+    if (dy > 25 && dy > Math.abs(dx)) {
+      onClose?.()
+    }
+  }
+
+  const handleContentTouchStart = (e: {
+    nativeEvent?: { pageX?: number; pageY?: number }
+    touches?: Array<{ pageX?: number; pageY?: number }>
+  }) => {
+    touchStartX.current = e.nativeEvent?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    touchStartY.current = e.nativeEvent?.pageY ?? e.touches?.[0]?.pageY ?? 0
+  }
+
+  const handleContentTouchEnd = (e: {
+    nativeEvent?: { pageX?: number; pageY?: number }
+    changedTouches?: Array<{ pageX?: number; pageY?: number }>
+    touches?: Array<{ pageX?: number; pageY?: number }>
+  }) => {
+    const endX = e.nativeEvent?.pageX ?? e.changedTouches?.[0]?.pageX ?? e.touches?.[0]?.pageX ?? 0
+    const endY = e.nativeEvent?.pageY ?? e.changedTouches?.[0]?.pageY ?? e.touches?.[0]?.pageY ?? 0
+    const dx = endX - touchStartX.current
+    const dy = endY - touchStartY.current
+
+    // Horizontal swipe: switch tabs
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0 && tab === 'queue') {
+        setTab('history')
+      } else if (dx > 0 && tab === 'history') {
+        setTab('queue')
+      }
+    }
+    // Downward swipe on empty content area: dismiss sheet
+    else if (dy > 40 && dy > Math.abs(dx)) {
+      const isEmpty =
+        (tab === 'queue' && (queue.length === 0 || !currentItem)) ||
+        (tab === 'history' && uniqueHistoryRecords.length === 0)
+      if (isEmpty) {
+        onClose?.()
+      }
+    }
+  }
+
+  const renderDragHandle = () =>
+    h(
+      native.View as never,
+      {
+        testID: 'queue-sheet-drag-handle',
+        onTouchStart: handleHeaderTouchStart,
+        onTouchEnd: handleHeaderTouchEnd,
+        style: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: tokens.space[2],
+          width: '100%',
+        },
+      },
+      h(native.View as never, {
+        style: {
+          width: 36,
+          height: 5,
+          borderRadius: 2.5,
+          backgroundColor: 'rgba(255, 255, 255, 0.35)',
+        },
+      }),
+    )
+
   const renderHeader = () =>
     h(
       native.View as never,
       {
+        testID: 'queue-header',
+        onTouchStart: handleHeaderTouchStart,
+        onTouchEnd: handleHeaderTouchEnd,
         style: {
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           paddingHorizontal: tokens.space[4],
-          paddingTop: tokens.space[2],
+          paddingTop: tokens.space[1],
           paddingBottom: tokens.space[2],
           borderBottomWidth: 1,
           borderBottomColor: 'rgba(255, 255, 255, 0.08)',
@@ -139,7 +230,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           style: {
             flexDirection: 'row',
             alignItems: 'center',
-            gap: tokens.space[4],
+            justifyContent: 'center',
+            gap: tokens.space[6],
           },
         },
         h(
@@ -149,7 +241,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             accessibilityLabel: t('queue:index.queue'),
             onPress: () => setTab('queue'),
             style: {
-              alignItems: 'flex-start',
+              alignItems: 'center',
             },
           },
           h(Text, {
@@ -163,7 +255,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 style: {
                   height: 3,
                   width: '100%',
-                  backgroundColor: '#1DB954',
+                  backgroundColor: c().accent.base,
                   borderRadius: 2,
                   marginTop: 4,
                 },
@@ -177,7 +269,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             accessibilityLabel: t('queue:index.recentlyPlayed'),
             onPress: () => setTab('history'),
             style: {
-              alignItems: 'flex-start',
+              alignItems: 'center',
             },
           },
           h(Text, {
@@ -191,7 +283,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
                 style: {
                   height: 3,
                   width: '100%',
-                  backgroundColor: '#1DB954',
+                  backgroundColor: c().accent.base,
                   borderRadius: 2,
                   marginTop: 4,
                 },
@@ -199,21 +291,6 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
             : h(native.View as never, { style: { height: 3, marginTop: 4 } }),
         ),
       ),
-      onClose
-        ? h(
-            native.Pressable as never,
-            {
-              accessibilityRole: 'button',
-              accessibilityLabel: t('queue:index.close'),
-              onPress: onClose,
-              hitSlop: 8,
-              style: {
-                padding: tokens.space[1],
-              },
-            },
-            tablerIcon('x', { size: 20 }) ?? h(Text, { variant: 'md', tone: 'muted', children: '✕' }),
-          )
-        : null,
     )
 
   const renderQueueContent = () => {
@@ -397,10 +474,14 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   return h(
     native.View as never,
     { style: { flex: 1, minHeight: 0 } },
+    renderDragHandle(),
     renderHeader(),
     h(
       native.View as never,
       {
+        testID: 'queue-content',
+        onTouchStart: handleContentTouchStart,
+        onTouchEnd: handleContentTouchEnd,
         style: {
           flex: 1,
           minHeight: 0,

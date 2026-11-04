@@ -21,6 +21,14 @@ export function Text(props: TextProps): ReactElement {
   const native = nativePrimitives()
   const { variant = 'md' } = props
   const tight = variant === 'display' || variant === 'xl'
+  const baseStyle = {
+    fontSize: tokens.font.size[variant],
+    fontWeight: weightFor(variant),
+    lineHeight:
+      tokens.font.size[variant] *
+      (tight ? tokens.font.lineHeight.tight : tokens.font.lineHeight.normal),
+    color: toneColor(props.tone),
+  }
   return h(
     native.Text as never,
     {
@@ -29,14 +37,7 @@ export function Text(props: TextProps): ReactElement {
       // Relative to the OS text-size setting rather than absolute, so the
       // 200% test in docs/08 8 is a layout question, not a clipping one.
       allowFontScaling: true,
-      style: {
-        fontSize: tokens.font.size[variant],
-        fontWeight: weightFor(variant),
-        lineHeight:
-          tokens.font.size[variant] *
-          (tight ? tokens.font.lineHeight.tight : tokens.font.lineHeight.normal),
-        color: toneColor(props.tone),
-      },
+      style: props.style ? [baseStyle, props.style] : baseStyle,
     },
     props.children as ReactNode,
   )

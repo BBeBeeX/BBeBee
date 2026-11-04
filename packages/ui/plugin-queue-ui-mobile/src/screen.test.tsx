@@ -6,7 +6,7 @@
  * The now-playing surfaces moved to `plugin-now-playing-ui-mobile` with their own tests.
  */
 
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createElement as h, type ReactNode } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context, Service } from 'cordis'
@@ -19,7 +19,7 @@ afterEach(cleanup)
 
 function hostComponent(name: string) {
   return function Host(props: Record<string, unknown> & { children?: ReactNode }) {
-    const { children, accessibilityLabel, accessibilityRole, onPress, testID, role } = props
+    const { children, accessibilityLabel, accessibilityRole, onPress, testID, role, onTouchStart, onTouchEnd } = props
     return h(
       'div',
       {
@@ -32,6 +32,8 @@ function hostComponent(name: string) {
           e.stopPropagation()
           ;(onPress as () => void)()
         } : undefined,
+        onTouchStart: typeof onTouchStart === 'function' ? (onTouchStart as never) : undefined,
+        onTouchEnd: typeof onTouchEnd === 'function' ? (onTouchEnd as never) : undefined,
       },
       children,
     )
@@ -243,5 +245,55 @@ describe('QueueScreen on mobile', () => {
     })
 
     expect(container.textContent).toContain('No play records yet')
+  })
+
+  it('has no close button in the header', async () => {
+    let closed = false
+    const { ctx } = await harness({}, [])
+    const { container } = render(h(QueueScreen, { ctx, onClose: () => { closed = true } }))
+
+    expect(container.querySelector('[data-label="Close"]')).toBeNull()
+    expect(container.textContent).not.toContain('✕')
+    expect(closed).toBe(false)
+  })
+
+  it('calls onClose when swiping down on the drag handle or header', async () => {
+    let closed = false
+    const { ctx } = await harness({}, [])
+    const { container } = render(h(QueueScreen, { ctx, onClose: () => { closed = true } }))
+
+    const dragHandle = container.querySelector('[data-testid="queue-sheet-drag-handle"]') as HTMLElement
+    expect(dragHandle).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.touchStart(dragHandle, { touches: [{ pageX: 100, pageY: 50 }] })
+      fireEvent.touchEnd(dragHandle, { changedTouches: [{ pageX: 100, pageY: 90 }] })
+    })
+    expect(closed).toBe(true)
+  })
+
+  it('switches tabs on horizontal swipe gestures in the content area', async () => {
+    const { ctx } = await harness({}, [{ id: 'q-1', trackUrn: 'BBeBee:local:track:1', addedBy: 'user' }])
+    const { container } = render(h(QueueScreen, { ctx }))
+
+    const content = container.querySelector('[data-testid="queue-content"]') as HTMLElement
+    expect(content).toBeTruthy()
+
+    // Initially in queue tab: does not show 'No play records yet'
+    expect(container.textContent).not.toContain('No play records yet')
+
+    // Swipe left (dx < -35): switches to Recently played
+    await act(async () => {
+      fireEvent.touchStart(content, { touches: [{ pageX: 200, pageY: 100 }] })
+      fireEvent.touchEnd(content, { changedTouches: [{ pageX: 140, pageY: 100 }] })
+    })
+    expect(container.textContent).toContain('No play records yet')
+
+    // Swipe right (dx > 35): switches back to Queue
+    await act(async () => {
+      fireEvent.touchStart(content, { touches: [{ pageX: 140, pageY: 100 }] })
+      fireEvent.touchEnd(content, { changedTouches: [{ pageX: 200, pageY: 100 }] })
+    })
+    expect(container.textContent).not.toContain('No play records yet')
   })
 })

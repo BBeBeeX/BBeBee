@@ -58,6 +58,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   const {
     isTrackInLibrary,
     handleToggleFavorite,
+    openAddToPlaylistMenu,
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
@@ -294,6 +295,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
                 }),
               onMore: (anchor) => menu.open({ track: member.track! }, anchor),
               onAddToFavorites: () => handleToggleFavorite(member.track!),
+              onHeartPress: (t) => openAddToPlaylistMenu(t, { x: 0, y: 0 }),
             })
           }
           return h(MemberRow, {

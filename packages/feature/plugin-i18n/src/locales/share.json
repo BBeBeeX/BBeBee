@@ -125,7 +125,7 @@
       "pasteBase64ShareData": "粘贴 Base64 分享数据…",
       "readingSteganographicData": "正在读取隐写数据…",
       "readOrImportShare": "读取 / 导入分享",
-      "automaticallyDecodesSongOrPlaylist": "自动解码隐藏在 PNG 图片中的歌曲或播放列表",
+      "automaticallyDecodesSongOrPlaylist": "自动解码隐藏在 PNG 图片中的歌曲或歌单",
       "orPasteBase64DataDirectly": "或直接粘贴 Base64 数据：",
       "cannotParseBase64Data": "无法解析 Base64 数据：不是有效的 BBeBee 分享包",
       "failedToReadTheFile": "读取文件失败",
@@ -194,7 +194,7 @@
       "targetTrack": "{title} — {artist}",
       "typeLabel": {
         "song": "歌曲",
-        "playlist": "播放列表",
+        "playlist": "歌单",
         "lyrics": "歌词",
         "album": "专辑"
       },
@@ -213,10 +213,10 @@
       "innerCardOnlySmall": "仅内卡片（小图）"
     },
     "sharePlaylist": {
-      "canTCopyThePlaylist": "无法复制：播放列表缺少有效名称或其他元数据",
-      "playlistSongs": "播放列表 • {trackCount} 首歌",
-      "sharePlaylist": "分享播放列表",
-      "playlistLabel": "播放列表"
+      "canTCopyThePlaylist": "无法复制：歌单缺少有效名称或其他元数据",
+      "playlistSongs": "歌单 • {trackCount} 首歌",
+      "sharePlaylist": "分享歌单",
+      "playlistLabel": "歌单"
     },
     "shareTrack": {
       "canTCopyMissingA": "无法复制：缺少有效标题或其他元数据",

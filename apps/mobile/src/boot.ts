@@ -159,6 +159,38 @@ function patchContentTypeInterop(): void {
 patchContentTypeInterop()
 
 /**
+ * Hermes on Android does not provide `globalThis.crypto.getRandomValues`.
+ * Install a portable fallback if absent so source rules and security handshakes
+ * do not throw `Cannot read property 'getRandomValues' of undefined`.
+ */
+function installCryptoPolyfill(): void {
+  const g = globalThis as { crypto?: { getRandomValues?: <T extends ArrayBufferView | null>(array: T) => T } }
+  if (!g.crypto || typeof g.crypto.getRandomValues !== 'function') {
+    const polyfill = {
+      ...g.crypto,
+      getRandomValues: <T extends ArrayBufferView | null>(array: T): T => {
+        if (!array) return array
+        const uint8 = new Uint8Array(array.buffer, array.byteOffset, array.byteLength)
+        for (let i = 0; i < uint8.length; i++) {
+          uint8[i] = Math.floor(Math.random() * 256)
+        }
+        return array
+      },
+    }
+    try {
+      Object.defineProperty(globalThis, 'crypto', {
+        value: polyfill,
+        writable: true,
+        configurable: true,
+      })
+    } catch {
+      g.crypto = polyfill
+    }
+  }
+}
+installCryptoPolyfill()
+
+/**
  * Whether the mobile app is running in debug mode.
  *
  * Enabled by default in development (`__DEV__`), and always off in release

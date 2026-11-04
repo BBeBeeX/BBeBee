@@ -258,7 +258,7 @@
       "offPlaysBackOriginal": "关闭：按音频源文件的原始增益电平播放",
       "albumModePreservesDynamic": "专辑模式：保留同一专辑曲目间的动态对比，适合完整播放整张专辑",
       "dynamicEbuR128Realtime": "动态 EBU R128：实时测量响度并平滑归一化，适合没有 ReplayGain 标签的音源",
-      "trackModeMatchesEach": "单曲模式：将每首曲目独立匹配到目标响度，适合混合播放列表与随机播放",
+      "trackModeMatchesEach": "单曲模式：将每首曲目独立匹配到目标响度，适合混合歌单与随机播放",
       "referenceTargetMatchesStreaming": "参考目标：{value} LUFS（与流媒体平台及等响曲线一致）",
       "loudnessNormalizationAria": "曲目间响度归一化",
       "automaticallyBalancesVolumeDifferences": "基于 ReplayGain 与 EBU R128 自动平衡曲目间音量差异",

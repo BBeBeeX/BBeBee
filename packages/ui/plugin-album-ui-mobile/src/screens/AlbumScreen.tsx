@@ -454,7 +454,7 @@ export function AlbumScreen({
           overflow: 'hidden',
         },
       },
-      h(HeaderGradient, { tint: dominantTint, height: 280 }),
+      h(HeaderGradient, { tint: dominantTint }),
       // Eyebrow
       h(
         Text,
@@ -743,6 +743,7 @@ export function AlbumScreen({
             }
           },
           onAddToFavorites: (t) => void handleToggleTrackFavorite(t),
+          onHeartPress: (t) => saveToPlaylistMenu.open(t, { x: 0, y: 0 }),
           onMore: (anchor) => menu.open({ track }, anchor),
         }),
     }),

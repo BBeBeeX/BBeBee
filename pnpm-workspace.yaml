@@ -10,4 +10,5 @@ minimumReleaseAgeExclude:
   - expo-background-task@57.0.16
   - expo-task-manager@57.0.16
 patchedDependencies:
+  '@nyariv/sandboxjs@0.9.7': patches/@nyariv__sandboxjs@0.9.7.patch
   content-type: patches/content-type.patch

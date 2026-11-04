@@ -55,7 +55,7 @@
       "noMoreSongsQueued": "队列中没有更多歌曲",
       "contextKindLabels": {
         "album": "专辑",
-        "playlist": "播放列表",
+        "playlist": "歌单",
         "artist": "艺人",
         "search": "搜索",
         "radio": "电台",

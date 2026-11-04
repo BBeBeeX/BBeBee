@@ -2,8 +2,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { formatDuration } from '@BBeBee/toolkit'
-import { Artwork, IconButton, Text, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { Artwork, IconButton, Text, c, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 export interface MobileLibraryTrackRowProps {
@@ -17,6 +16,8 @@ export interface MobileLibraryTrackRowProps {
   onPress: () => void
   onMore: (anchor: { x: number; y: number }) => void
   onAddToFavorites?: (track: Track) => void
+  onHeartPress?: (track: Track) => void
+  hideHeart?: boolean
   onOpenAlbum?: (track: Track) => void
   batchMode?: boolean
   selected?: boolean
@@ -29,7 +30,7 @@ export interface MobileLibraryTrackRowProps {
 export function MobileLibraryTrackRow({
   ctx,
   track,
-  index,
+  index: _index,
   active = false,
   isPlaying = false,
   inLibrary,
@@ -37,6 +38,8 @@ export function MobileLibraryTrackRow({
   onPress,
   onMore,
   onAddToFavorites,
+  onHeartPress,
+  hideHeart = false,
   onOpenAlbum,
   batchMode,
   selected,
@@ -81,7 +84,7 @@ export function MobileLibraryTrackRow({
         borderLeftColor: 'var(--color-primary, #5F87FF)',
       },
     },
-    // Left: Batch Checkbox or Number index / Play indicator
+    // Left: Batch Checkbox or Playing indicator (index number column hidden)
     batchMode
       ? h(
           native.Pressable as never,
@@ -97,23 +100,13 @@ export function MobileLibraryTrackRow({
             selected ? '☑' : '☐',
           ),
         )
-      : h(
-          native.View as never,
-          { style: { width: 28, alignItems: 'center', justifyContent: 'center' } },
-          isPlaying
-            ? tablerIcon('play', { size: 14, color: 'var(--color-primary, #5F87FF)' })
-            : h(
-                Text,
-                {
-                  variant: 'sm',
-                  tone: active ? 'accent' : 'muted',
-                  style: {
-                    fontWeight: active ? tokens.font.weight.bold : tokens.font.weight.regular,
-                  },
-                },
-                String(index + 1),
-              ),
-        ),
+      : isPlaying
+        ? h(
+            native.View as never,
+            { style: { width: 20, alignItems: 'center', justifyContent: 'center' } },
+            tablerIcon('play', { size: 14, color: 'var(--color-primary, #5F87FF)' }),
+          )
+        : null,
     // Artwork (hidden in compact view, matching desktop)
     !compact
       ? h(Artwork, {
@@ -182,26 +175,36 @@ export function MobileLibraryTrackRow({
           : null,
       ),
     ),
-    // Right actions: Duration + Heart + More menu
+    // Right actions: Heart (if favorited and not hidden) + More menu
     h(
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: 4 } },
-      track.durationMs
+      !hideHeart && inLibrary
         ? h(
-            Text,
-            { variant: 'xs', tone: 'muted', style: { marginRight: 2 } },
-            formatDuration(track.durationMs),
+            native.Pressable as never,
+            {
+              accessibilityRole: 'button',
+              accessibilityLabel: t('library:trackLibraryActionButton.addToPlaylist', { title: track.title }),
+              onPress: (event: { stopPropagation?: () => void }) => {
+                event?.stopPropagation?.()
+                if (onHeartPress) {
+                  onHeartPress(track)
+                } else if (onAddToFavorites) {
+                  onAddToFavorites(track)
+                }
+              },
+              style: {
+                width: 32,
+                height: 32,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+            },
+            tablerIcon('heart-filled', {
+              size: 18,
+              color: c().accent.base,
+            }),
           )
-        : null,
-      onAddToFavorites
-        ? h(IconButton, {
-            icon: inLibrary ? 'heart-filled' : 'heart',
-            accessibilityLabel: inLibrary
-              ? t('library:index.removeFromFavorites', { title: track.title })
-              : t('app:track.like'),
-            variant: inLibrary ? 'primary' : 'ghost',
-            onPress: () => onAddToFavorites(track),
-          })
         : null,
       h(IconButton, {
         icon: 'dots',
