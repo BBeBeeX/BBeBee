@@ -16,6 +16,19 @@
 export interface FftFrame {
   frequencyData: number[] | Uint8Array
   timeDomainData: number[] | Uint8Array
+  /**
+   * Channel count the engine reports for this frame. Absent means
+   * the mono pair is all there is. The per-channel arrays below are
+   * only trusted when this is 2.
+   */
+  channels?: number
+  /** Sample rate in Hz the engine reports for this frame, if any. */
+  sampleRateHz?: number
+  /** Per-channel pairs, present only on stereo frames. */
+  leftFrequencyData?: number[] | Uint8Array
+  leftTimeDomainData?: number[] | Uint8Array
+  rightFrequencyData?: number[] | Uint8Array
+  rightTimeDomainData?: number[] | Uint8Array
 }
 
 export interface AudioAnalyser {
@@ -23,12 +36,25 @@ export interface AudioAnalyser {
   readonly frequencyBinCount: number
   smoothingTimeConstant: number
 
+  /** 2 only when the analyser is fed per-channel frames; absent means 1. */
+  readonly channels?: 1 | 2
+  /** Sample rate in Hz of the frame source, when the engine reports one. */
+  readonly sampleRateHz?: number
+
   setFftSize(size: number): void
   getByteFrequencyData(array: Uint8Array): void
   getByteTimeDomainData(array: Uint8Array): void
   pause?(): void
   resume?(): void
   attachConsumer?(): () => void
+  /** Left-channel frequency data; fills silence unless channels === 2. */
+  getLeftByteFrequencyData?(array: Uint8Array): void
+  /** Right-channel frequency data; fills silence unless channels === 2. */
+  getRightByteFrequencyData?(array: Uint8Array): void
+  /** Left-channel time-domain data; fills silence unless channels === 2. */
+  getLeftByteTimeDomainData?(array: Uint8Array): void
+  /** Right-channel time-domain data; fills silence unless channels === 2. */
+  getRightByteTimeDomainData?(array: Uint8Array): void
   dispose(): void
 }
 
@@ -102,6 +128,12 @@ export class NativeMpvImpl implements AudioAnalyser {
 
   private smoothedFreq: Float32Array
   private latestWave: Uint8Array
+  private smoothedLeftFreq: Float32Array
+  private smoothedRightFreq: Float32Array
+  private latestWaveLeft: Uint8Array
+  private latestWaveRight: Uint8Array
+  private _channels: 1 | 2 = 1
+  private _sampleRateHz?: number
   private pollTimer?: ReturnType<typeof setInterval>
   private isDisposed = false
   private isPaused = false
@@ -126,6 +158,10 @@ export class NativeMpvImpl implements AudioAnalyser {
     const binCount = this._fftSize / 2
     this.smoothedFreq = new Float32Array(binCount)
     this.latestWave = new Uint8Array(this._fftSize).fill(128)
+    this.smoothedLeftFreq = new Float32Array(binCount)
+    this.smoothedRightFreq = new Float32Array(binCount)
+    this.latestWaveLeft = new Uint8Array(this._fftSize).fill(128)
+    this.latestWaveRight = new Uint8Array(this._fftSize).fill(128)
 
     if (typeof document !== 'undefined') {
       this.onVisibilityChange = () => {
@@ -158,6 +194,14 @@ export class NativeMpvImpl implements AudioAnalyser {
     }
   }
 
+  get channels(): 1 | 2 {
+    return this._channels
+  }
+
+  get sampleRateHz(): number | undefined {
+    return this._sampleRateHz
+  }
+
   get fftSize(): number {
     return this._fftSize
   }
@@ -181,34 +225,66 @@ export class NativeMpvImpl implements AudioAnalyser {
     const binCount = valid / 2
     this.smoothedFreq = new Float32Array(binCount)
     this.latestWave = new Uint8Array(valid).fill(128)
+    this.smoothedLeftFreq = new Float32Array(binCount)
+    this.smoothedRightFreq = new Float32Array(binCount)
+    this.latestWaveLeft = new Uint8Array(valid).fill(128)
+    this.latestWaveRight = new Uint8Array(valid).fill(128)
+  }
+
+  private smoothInto(target: Float32Array, input: number[] | Uint8Array): void {
+    const inLen = input.length
+    const binCount = this.frequencyBinCount
+    if (inLen === 0) return
+    for (let i = 0; i < binCount; i++) {
+      // Resample/map to target bin count if sizes differ
+      const srcIdx = inLen === binCount ? i : Math.floor((i / binCount) * inLen)
+      const sample = input[srcIdx] ?? 0
+      target[i] =
+        this._smoothingTimeConstant * target[i]! + (1 - this._smoothingTimeConstant) * sample
+    }
+  }
+
+  private copyWaveInto(target: Uint8Array, input: number[] | Uint8Array): void {
+    const inLen = input.length
+    if (inLen === 0) return
+    for (let i = 0; i < this._fftSize; i++) {
+      const srcIdx = inLen === this._fftSize ? i : Math.floor((i / this._fftSize) * inLen)
+      target[i] = input[srcIdx] ?? 128
+    }
   }
 
   /** Ingests a new spectrum frame from libmpv native audio-engine. */
   feedFrame(frame: FftFrame): void {
     if (this.isDisposed || !frame) return
 
-    const inFreq = frame.frequencyData
-    const inFreqLen = inFreq.length
-    const binCount = this.frequencyBinCount
+    this.smoothInto(this.smoothedFreq, frame.frequencyData)
+    this.copyWaveInto(this.latestWave, frame.timeDomainData)
 
-    if (inFreqLen > 0) {
-      for (let i = 0; i < binCount; i++) {
-        // Resample/map to target bin count if sizes differ
-        const srcIdx = inFreqLen === binCount ? i : Math.floor((i / binCount) * inFreqLen)
-        const sample = inFreq[srcIdx] ?? 0
-        this.smoothedFreq[i] =
-          this._smoothingTimeConstant * this.smoothedFreq[i]! +
-          (1 - this._smoothingTimeConstant) * sample
-      }
-    }
-
-    const inWave = frame.timeDomainData
-    const inWaveLen = inWave.length
-    if (inWaveLen > 0) {
-      for (let i = 0; i < this._fftSize; i++) {
-        const srcIdx = inWaveLen === this._fftSize ? i : Math.floor((i / this._fftSize) * inWaveLen)
-        this.latestWave[i] = inWave[srcIdx] ?? 128
-      }
+    // Stereo is accepted only as a package: channels === 2 and all
+    // four arrays present. Anything less is a mono frame, and the
+    // previous stereo state is cleared to silence rather than left
+    // stale — a mono frame following a stereo one must not keep
+    // serving the old stereo picture.
+    const stereo =
+      frame.channels === 2 &&
+      frame.leftFrequencyData &&
+      frame.leftTimeDomainData &&
+      frame.rightFrequencyData &&
+      frame.rightTimeDomainData
+    if (stereo) {
+      this._channels = 2
+      this._sampleRateHz = frame.sampleRateHz
+      this.smoothInto(this.smoothedLeftFreq, frame.leftFrequencyData!)
+      this.smoothInto(this.smoothedRightFreq, frame.rightFrequencyData!)
+      this.copyWaveInto(this.latestWaveLeft, frame.leftTimeDomainData!)
+      this.copyWaveInto(this.latestWaveRight, frame.rightTimeDomainData!)
+    } else {
+      this._channels = 1
+      this._sampleRateHz = frame.sampleRateHz
+      this.smoothedLeftFreq.fill(0)
+      this.smoothedRightFreq.fill(0)
+      this.latestWaveLeft.fill(128)
+      this.latestWaveRight.fill(128)
     }
   }
 
@@ -267,33 +343,57 @@ export class NativeMpvImpl implements AudioAnalyser {
     }, 16)
   }
 
-  getByteFrequencyData(array: Uint8Array): void {
+  private fillFromSmoothed(array: Uint8Array, source: Float32Array): void {
     const len = array.length
     const binCount = this.frequencyBinCount
     if (len === binCount) {
       for (let i = 0; i < len; i++) {
-        array[i] = Math.round(this.smoothedFreq[i] ?? 0)
+        array[i] = Math.round(source[i] ?? 0)
       }
     } else {
       // Linear resampling across bins
       for (let i = 0; i < len; i++) {
         const srcIdx = Math.floor((i / len) * binCount)
-        array[i] = Math.round(this.smoothedFreq[srcIdx] ?? 0)
+        array[i] = Math.round(source[srcIdx] ?? 0)
       }
     }
   }
 
-  getByteTimeDomainData(array: Uint8Array): void {
+  private fillFromWave(array: Uint8Array, source: Uint8Array): void {
     const len = array.length
-    const waveLen = this.latestWave.length
+    const waveLen = source.length
     if (len === waveLen) {
-      array.set(this.latestWave)
+      array.set(source)
     } else {
       for (let i = 0; i < len; i++) {
         const srcIdx = Math.floor((i / len) * waveLen)
-        array[i] = this.latestWave[srcIdx] ?? 128
+        array[i] = source[srcIdx] ?? 128
       }
     }
+  }
+
+  getByteFrequencyData(array: Uint8Array): void {
+    this.fillFromSmoothed(array, this.smoothedFreq)
+  }
+
+  getByteTimeDomainData(array: Uint8Array): void {
+    this.fillFromWave(array, this.latestWave)
+  }
+
+  getLeftByteFrequencyData(array: Uint8Array): void {
+    this.fillFromSmoothed(array, this.smoothedLeftFreq)
+  }
+
+  getRightByteFrequencyData(array: Uint8Array): void {
+    this.fillFromSmoothed(array, this.smoothedRightFreq)
+  }
+
+  getLeftByteTimeDomainData(array: Uint8Array): void {
+    this.fillFromWave(array, this.latestWaveLeft)
+  }
+
+  getRightByteTimeDomainData(array: Uint8Array): void {
+    this.fillFromWave(array, this.latestWaveRight)
   }
 
   dispose(): void {

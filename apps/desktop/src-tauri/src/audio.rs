@@ -38,11 +38,28 @@ pub struct DspConfig {
 }
 
 /// FFT spectrum frame from the engine's PCM tap.
+///
+/// The mono pair is always present. The stereo fields are `Option`s
+/// with serde defaults so frames from an older engine (mono only)
+/// still parse: they arrive as `None`, and the TS side must check
+/// `channels`, not array presence, before treating a frame as stereo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FftFrame {
     pub frequency_data: Vec<f32>,
     pub time_domain_data: Vec<f32>,
+    #[serde(default)]
+    pub channels: Option<u32>,
+    #[serde(default)]
+    pub sample_rate_hz: Option<u32>,
+    #[serde(default)]
+    pub left_frequency_data: Option<Vec<f32>>,
+    #[serde(default)]
+    pub left_time_domain_data: Option<Vec<f32>>,
+    #[serde(default)]
+    pub right_frequency_data: Option<Vec<f32>>,
+    #[serde(default)]
+    pub right_time_domain_data: Option<Vec<f32>>,
 }
 
 /// Playback state event from the engine.

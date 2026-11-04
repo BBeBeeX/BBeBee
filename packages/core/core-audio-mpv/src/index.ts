@@ -67,6 +67,24 @@ export interface AudioMpvConfig {
 export interface FftSpectrumFrame {
   frequencyData: number[]
   timeDomainData: number[]
+  /**
+   * Channel count the engine reports for this frame. Absent (older
+   * engine) means the mono pair is all there is. Consumers must
+   * check this, not the presence of the arrays below, before
+   * treating a frame as stereo.
+   */
+  channels?: number
+  /** Sample rate in Hz the engine reports for this frame, if any. */
+  sampleRateHz?: number
+  /**
+   * Per-channel pairs, present only on stereo frames (channels >= 2).
+   * A mono frame never carries them, so a missing array is not a
+   * signal to copy the mono pair into both channels.
+   */
+  leftFrequencyData?: number[]
+  leftTimeDomainData?: number[]
+  rightFrequencyData?: number[]
+  rightTimeDomainData?: number[]
 }
 
 export class MpvSourceHandle implements AudioSourceHandle {

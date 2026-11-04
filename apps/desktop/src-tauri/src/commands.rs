@@ -1853,6 +1853,12 @@ mod tests {
         let frame = crate::audio::FftFrame {
             frequency_data: vec![0.2, 0.4, 0.8],
             time_domain_data: vec![127.0, 128.0, 129.0],
+            channels: Some(2),
+            sample_rate_hz: Some(48000),
+            left_frequency_data: Some(vec![0.3, 0.5, 0.9]),
+            left_time_domain_data: Some(vec![128.0, 129.0, 130.0]),
+            right_frequency_data: Some(vec![0.1, 0.2, 0.3]),
+            right_time_domain_data: Some(vec![127.0, 128.0, 129.0]),
         };
         state.set_fft_frame(Some(frame));
 

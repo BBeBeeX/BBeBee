@@ -286,6 +286,76 @@ export class VisualizerPlugin extends Service implements VisualizerService {
     }
   }
 
+  get channels(): 1 | 2 {
+    return this.analyser?.channels ?? 1
+  }
+
+  get sampleRateHz(): number | undefined {
+    return this.analyser?.sampleRateHz
+  }
+
+  getLeftFrequencyData(array: Uint8Array): void {
+    const impl = this.analyser?.getLeftByteFrequencyData
+    if (!impl) {
+      array.fill(0)
+      return
+    }
+    impl.call(this.analyser, array)
+    const mult = this.currentSettings.sensitivity ?? 1.0
+    if (mult !== 1.0) {
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.min(255, Math.round((array[i] ?? 0) * mult))
+      }
+    }
+  }
+
+  getRightFrequencyData(array: Uint8Array): void {
+    const impl = this.analyser?.getRightByteFrequencyData
+    if (!impl) {
+      array.fill(0)
+      return
+    }
+    impl.call(this.analyser, array)
+    const mult = this.currentSettings.sensitivity ?? 1.0
+    if (mult !== 1.0) {
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.min(255, Math.round((array[i] ?? 0) * mult))
+      }
+    }
+  }
+
+  getLeftTimeDomainData(array: Uint8Array): void {
+    const impl = this.analyser?.getLeftByteTimeDomainData
+    if (!impl) {
+      array.fill(128)
+      return
+    }
+    impl.call(this.analyser, array)
+    const mult = this.currentSettings.sensitivity ?? 1.0
+    if (mult !== 1.0) {
+      for (let i = 0; i < array.length; i++) {
+        const val = (array[i] ?? 128) - 128
+        array[i] = Math.min(255, Math.max(0, Math.round(128 + val * mult)))
+      }
+    }
+  }
+
+  getRightTimeDomainData(array: Uint8Array): void {
+    const impl = this.analyser?.getRightByteTimeDomainData
+    if (!impl) {
+      array.fill(128)
+      return
+    }
+    impl.call(this.analyser, array)
+    const mult = this.currentSettings.sensitivity ?? 1.0
+    if (mult !== 1.0) {
+      for (let i = 0; i < array.length; i++) {
+        const val = (array[i] ?? 128) - 128
+        array[i] = Math.min(255, Math.max(0, Math.round(128 + val * mult)))
+      }
+    }
+  }
+
   async updateSettings(patch: Partial<VisualizerSettings>): Promise<void> {
     this.currentSettings = { ...this.currentSettings, ...patch }
     this.updateAnalyserConfig()

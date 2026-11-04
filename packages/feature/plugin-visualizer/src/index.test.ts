@@ -399,3 +399,45 @@ describe('plugin-visualizer', () => {
   })
 })
 
+describe('NativeMpvImpl stereo frames', () => {
+  it('accepts a stereo frame only as a package and clears stereo on a mono frame', () => {
+    const impl = new NativeMpvImpl({ fftSize: 128, smoothingTimeConstant: 0 })
+    const freq = new Uint8Array(64)
+    const wave = new Uint8Array(128)
+
+    // Incomplete stereo (channels 2 but no per-channel arrays) is a mono frame.
+    impl.feedFrame({ frequencyData: [200, 100], timeDomainData: [200, 60], channels: 2 })
+    expect(impl.channels).toBe(1)
+    impl.getLeftByteFrequencyData(freq)
+    expect(freq.every((v) => v === 0)).toBe(true)
+
+    // Full stereo frame.
+    impl.feedFrame({
+      frequencyData: [150, 100],
+      timeDomainData: [200, 60],
+      channels: 2,
+      sampleRateHz: 48000,
+      leftFrequencyData: [200, 50],
+      leftTimeDomainData: [220, 40],
+      rightFrequencyData: [10, 5],
+      rightTimeDomainData: [120, 130],
+    })
+    expect(impl.channels).toBe(2)
+    expect(impl.sampleRateHz).toBe(48000)
+    impl.getLeftByteFrequencyData(freq)
+    impl.getRightByteFrequencyData(wave)
+    expect(freq[0]).toBe(200)
+    expect(wave[0]).toBe(10)
+    impl.getLeftByteTimeDomainData(wave)
+    expect(wave[0]).toBe(220)
+
+    // A mono frame after a stereo one must not keep serving the old stereo picture.
+    impl.feedFrame({ frequencyData: [150], timeDomainData: [200] })
+    expect(impl.channels).toBe(1)
+    impl.getLeftByteFrequencyData(freq)
+    expect(freq.every((v) => v === 0)).toBe(true)
+    impl.getLeftByteTimeDomainData(wave)
+    expect(wave.every((v) => v === 128)).toBe(true)
+    impl.dispose()
+  })
+})
