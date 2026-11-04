@@ -1,5 +1,5 @@
-import { Button, IconButton, Sheet, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import { createElement as h, useEffect, useMemo, useState, type ReactElement } from 'react'
+import { Button, ContextMenu, IconButton, Sheet, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
+import { Fragment, createElement as h, useEffect, useMemo, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { FsService, I18nService, ScannerService, SettingsContribution, SourcesService, Uri } from '@BBeBee/protocol'
 import {
@@ -575,6 +575,8 @@ export function SourcesSection({
   const [isLocalFoldersSheetOpen, setIsLocalFoldersSheetOpen] = useState(false)
   const [isScanModalOpen, setIsScanModalOpen] = useState(false)
   const [confirmingDeleteFolderId, setConfirmingDeleteFolderId] = useState<string | undefined>(undefined)
+  const [activeFolderMenuId, setActiveFolderMenuId] = useState<string | undefined>(undefined)
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | undefined>(undefined)
 
   useEffect(() => {
     if (scan.running) {
@@ -709,7 +711,7 @@ export function SourcesSection({
     const scanner = serviceOf<ScannerService>(ctx, 'scanner')
     if (!scanner) return
     setIsScanModalOpen(true)
-    void scanner.scan({ specifiedDirId: dirId })
+    void scanner.scan({ specifiedDirId: dirId, full: true })
   }
 
   const handleToggleFolder = (dirId: string, enabled: boolean) => {
@@ -877,21 +879,6 @@ export function SourcesSection({
                       flexShrink: 0,
                     },
                   },
-                  h(Button, {
-                    variant: 'ghost',
-                    disabled: scan.running || !dir.enabled,
-                    testID: `local-folder-scan-${dir.id}`,
-                    onPress: () => handleScanFolder(dir.id),
-                    children: t('localScanner:index.scan'),
-                  }),
-                  h(IconButton, {
-                    icon: dir.enabled ? 'ban' : 'check',
-                    accessibilityLabel: dir.enabled
-                      ? t('localScanner:index.disable')
-                      : t('localScanner:index.enable'),
-                    testID: `local-folder-toggle-${dir.id}`,
-                    onPress: () => handleToggleFolder(dir.id, !dir.enabled),
-                  }),
                   isConfirming
                     ? h(
                         'div',
@@ -908,12 +895,67 @@ export function SourcesSection({
                           children: t('app:common.cancel'),
                         }),
                       )
-                    : h(IconButton, {
-                        icon: 'trash',
-                        accessibilityLabel: t('localScanner:index.removeUri', { uri: dir.uri }),
-                        testID: `local-folder-delete-${dir.id}`,
-                        onPress: () => setConfirmingDeleteFolderId(dir.id),
-                      }),
+                    : h(
+                        Fragment,
+                        null,
+                        h(IconButton, {
+                          icon: 'dots',
+                          accessibilityLabel: t('app:common.more'),
+                          testID: `local-folder-menu-${dir.id}`,
+                          onPress: (e?: React.MouseEvent) => {
+                            setActiveFolderMenuId(dir.id)
+                            setFolderMenuAnchor(
+                              e && 'clientX' in e ? { x: e.clientX, y: e.clientY } : { x: 200, y: 200 },
+                            )
+                          },
+                        }),
+                        activeFolderMenuId === dir.id
+                          ? h(ContextMenu, {
+                              open: true,
+                              portal: true,
+                              ctx,
+                              x: folderMenuAnchor?.x ?? 200,
+                              y: folderMenuAnchor?.y ?? 200,
+                              onClose: () => setActiveFolderMenuId(undefined),
+                              items: [
+                                {
+                                  id: `local-folder-scan-${dir.id}`,
+                                  testID: `local-folder-scan-${dir.id}`,
+                                  label: t('localScanner:index.scan'),
+                                  icon: 'refresh',
+                                  disabled: scan.running || !dir.enabled,
+                                  onSelect: () => {
+                                    setActiveFolderMenuId(undefined)
+                                    handleScanFolder(dir.id)
+                                  },
+                                },
+                                {
+                                  id: `local-folder-toggle-${dir.id}`,
+                                  testID: `local-folder-toggle-${dir.id}`,
+                                  label: dir.enabled
+                                    ? t('localScanner:index.disable')
+                                    : t('localScanner:index.enable'),
+                                  icon: dir.enabled ? 'ban' : 'check',
+                                  onSelect: () => {
+                                    setActiveFolderMenuId(undefined)
+                                    handleToggleFolder(dir.id, !dir.enabled)
+                                  },
+                                },
+                                {
+                                  id: `local-folder-delete-${dir.id}`,
+                                  testID: `local-folder-delete-${dir.id}`,
+                                  label: t('app:common.delete'),
+                                  icon: 'trash',
+                                  tone: 'danger',
+                                  onSelect: () => {
+                                    setActiveFolderMenuId(undefined)
+                                    setConfirmingDeleteFolderId(dir.id)
+                                  },
+                                },
+                              ],
+                            })
+                          : null,
+                      ),
                 ),
               )
             }),

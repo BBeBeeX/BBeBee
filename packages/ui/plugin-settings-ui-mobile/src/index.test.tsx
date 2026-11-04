@@ -433,19 +433,28 @@ class SettingsStub extends Service implements Partial<SettingsService> {
       expect(container.textContent).toContain('/music/rock')
       expect(container.textContent).toContain('Permission denied')
 
-      // 5. Toggle folder
+      // 5. Scan single folder via context menu
       await act(async () => {
-        getByTestId('local-folder-toggle-dir-1').click()
+        getByTestId('local-folder-menu-dir-1').click()
       })
-      expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
-
-      // 6. Scan single folder
       await act(async () => {
         getByTestId('local-folder-scan-dir-1').click()
       })
       expect(calls.includes('scanner:scan:dir-1')).toBe(true)
 
-      // 7. Delete folder flow with confirmation
+      // 6. Toggle folder via context menu
+      await act(async () => {
+        getByTestId('local-folder-menu-dir-1').click()
+      })
+      await act(async () => {
+        getByTestId('local-folder-toggle-dir-1').click()
+      })
+      expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
+
+      // 7. Delete folder flow with confirmation via context menu
+      await act(async () => {
+        getByTestId('local-folder-menu-dir-1').click()
+      })
       await act(async () => {
         getByTestId('local-folder-delete-dir-1').click()
       })

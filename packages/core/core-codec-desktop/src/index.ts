@@ -211,6 +211,7 @@ export const DEFAULT_FORMATS = [
   'flac',
   'm4a',
   'm4b',
+  'm4s',
   'aac',
   'wav',
   'ogg',
@@ -222,6 +223,14 @@ export const DEFAULT_FORMATS = [
   'wv',
   'dsf',
   'dff',
+  'mka',
+  'webm',
+  'mpc',
+  'spx',
+  'caf',
+  'ac3',
+  'eac3',
+  'mp2',
 ]
 
 /** The default local probe: `ffmpeg -encoders` stdout, or empty when nothing answers. */
@@ -922,17 +931,22 @@ function mimeFor(uri: string): string | undefined {
   const ext = uri.split('.').pop()?.toLowerCase()
   switch (ext) {
     case 'mp3':
+    case 'mp2':
       return 'audio/mpeg'
     case 'flac':
       return 'audio/flac'
     case 'm4a':
     case 'm4b':
+    case 'm4s':
+    case 'mp4':
     case 'alac':
     case 'aac':
       return 'audio/mp4'
     case 'ogg':
     case 'oga':
       return 'audio/ogg'
+    case 'spx':
+      return 'audio/speex'
     case 'opus':
       return 'audio/opus'
     case 'wav':
@@ -953,6 +967,18 @@ function mimeFor(uri: string): string | undefined {
       // 'audio/dff' matches nothing, so the loader was never selected and
       // DFF fell through to content sniffing (which cannot see FRM8).
       return 'audio/dsd'
+    case 'mka':
+      return 'audio/x-matroska'
+    case 'webm':
+      return 'audio/webm'
+    case 'mpc':
+      return 'audio/x-musepack'
+    case 'caf':
+      return 'audio/x-caf'
+    case 'ac3':
+      return 'audio/ac3'
+    case 'eac3':
+      return 'audio/eac3'
     default:
       return undefined
   }

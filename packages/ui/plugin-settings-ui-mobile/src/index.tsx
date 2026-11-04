@@ -16,13 +16,13 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { DownloadRegion, FsService, ProxySettings, ScannerService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
-import { serviceOf } from '@BBeBee/ui-core'
+import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
 import { useAppSettings, useAvailableSettings, useCacheStats } from '@bbebee/plugin-settings/hooks'
 import { isLocalSource, useAudioSourcesStatus, useSources } from '@bbebee/plugin-sources/hooks'
 import { summarise, useScanSpecifiedDirs, useScanState } from '@bbebee/plugin-local-scanner/hooks'
 import { SourceConfigureModal } from '@bbebee/plugin-sources-ui-mobile'
-import { c, Button, IconButton, Select, Text, TextField, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
+import { c, Button, ContextMenu, Select, Text, TextField, nativePrimitives, tablerIcon, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 import { ContributionBlock, groupBySection } from './ContributionBlock.js'
 import { SwitchRow } from './SchemaForm.js'
@@ -226,6 +226,8 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const scan = useScanState(ctx)
   const [isLocalExpanded, setIsLocalExpanded] = useState(false)
   const [confirmingDeleteFolderId, setConfirmingDeleteFolderId] = useState<string | undefined>(undefined)
+  const [activeFolderMenuId, setActiveFolderMenuId] = useState<string | undefined>(undefined)
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | undefined>(undefined)
 
   const handleAddFolder = async () => {
     const fs = serviceOf<FsService>(ctx, 'fs')
@@ -235,7 +237,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
       const picked = await fs.pickDirectory()
       if (!picked) return
       const dir = await scanner.addSpecifiedDir(picked as Uri)
-      await scanner.scan?.({ specifiedDirId: dir.id })
+      await scanner.scan?.({ specifiedDirId: dir.id, full: true })
       setIsLocalExpanded(true)
     } catch (err) {
       ctx.logger?.error('Failed to add directory:', err)
@@ -246,7 +248,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
     const scanner = serviceOf<ScannerService>(ctx, 'scanner')
     if (!scanner?.scan) return
     try {
-      await scanner.scan()
+      await scanner.scan({ full: true })
     } catch (err) {
       ctx.logger?.error('Scan failed:', err)
     }
@@ -256,7 +258,7 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
     const scanner = serviceOf<ScannerService>(ctx, 'scanner')
     if (!scanner?.scan) return
     try {
-      await scanner.scan({ specifiedDirId: id })
+      await scanner.scan({ specifiedDirId: id, full: true })
     } catch (err) {
       ctx.logger?.error('Scan folder failed:', err)
     }
@@ -282,6 +284,37 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
       ctx.logger?.error('Remove folder failed:', err)
     }
   }
+
+  const activeFolder = specifiedDirs.find((d) => d.id === activeFolderMenuId)
+  const folderMenuItems: MenuItemSpec[] = activeFolder
+    ? [
+        {
+          id: `local-folder-scan-${activeFolder.id}`,
+          testID: `local-folder-scan-${activeFolder.id}`,
+          label: t('localScanner:index.scan'),
+          icon: 'refresh',
+          disabled: scan.running || !activeFolder.enabled,
+          onSelect: () => handleScanFolder(activeFolder.id),
+        },
+        {
+          id: `local-folder-toggle-${activeFolder.id}`,
+          testID: `local-folder-toggle-${activeFolder.id}`,
+          label: activeFolder.enabled
+            ? t('localScanner:index.disable')
+            : t('localScanner:index.enable'),
+          icon: activeFolder.enabled ? 'eye-off' : 'eye',
+          onSelect: () => handleToggleFolder(activeFolder.id, activeFolder.enabled),
+        },
+        {
+          id: `local-folder-delete-${activeFolder.id}`,
+          testID: `local-folder-delete-${activeFolder.id}`,
+          label: t('app:common.delete'),
+          icon: 'trash',
+          tone: 'danger',
+          onSelect: () => setConfirmingDeleteFolderId(activeFolder.id),
+        },
+      ]
+    : []
 
   const handleTestProxy = async () => {
     setProxyTesting(true)
@@ -1099,24 +1132,6 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                                 flexShrink: 0,
                                               },
                                             },
-                                            h(Button, {
-                                              variant: 'ghost',
-                                              disabled: scan.running || !dir.enabled,
-                                              testID: `local-folder-scan-${dir.id}`,
-                                              onPress: () => handleScanFolder(dir.id),
-                                              children: t('localScanner:index.scan'),
-                                            }),
-                                            h(Button, {
-                                              variant: 'ghost',
-                                              testID: `local-folder-toggle-${dir.id}`,
-                                              accessibilityLabel: dir.enabled
-                                                ? t('localScanner:index.disable')
-                                                : t('localScanner:index.enable'),
-                                              onPress: () => handleToggleFolder(dir.id, dir.enabled),
-                                              children: dir.enabled
-                                                ? t('localScanner:index.disable')
-                                                : t('localScanner:index.enable'),
-                                            }),
                                             isConfirmingFolder
                                               ? h(
                                                   native.View as never,
@@ -1139,14 +1154,29 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                                                     children: t('app:common.cancel'),
                                                   }),
                                                 )
-                                              : h(IconButton, {
-                                                  icon: '🗑',
-                                                  accessibilityLabel: t('localScanner:index.removeUri', {
-                                                    uri: dir.uri,
-                                                  }),
-                                                  testID: `local-folder-delete-${dir.id}`,
-                                                  onPress: () => setConfirmingDeleteFolderId(dir.id),
-                                                }),
+                                              : h(
+                                                  native.Pressable as never,
+                                                  {
+                                                    testID: `local-folder-menu-${dir.id}`,
+                                                    accessibilityLabel: t('app:common.more'),
+                                                    onPress: (e?: { nativeEvent?: { pageX?: number; pageY?: number } }) => {
+                                                      const x = e?.nativeEvent?.pageX ?? 0
+                                                      const y = e?.nativeEvent?.pageY ?? 0
+                                                      setFolderMenuAnchor({ x, y })
+                                                      setActiveFolderMenuId(dir.id)
+                                                    },
+                                                    style: {
+                                                      padding: tokens.space[1],
+                                                      borderRadius: tokens.radius.sm,
+                                                      minWidth: tokens.size.touchTarget,
+                                                      minHeight: tokens.size.touchTarget,
+                                                      alignItems: 'center',
+                                                      justifyContent: 'center',
+                                                    },
+                                                  },
+                                                  tablerIcon('dots', { size: 18, color: '#A0A0A0' }) ??
+                                                    h(Text, { variant: 'md', style: { color: '#A0A0A0' } }, '⋮'),
+                                                ),
                                           ),
                                         )
                                       }),
@@ -1271,6 +1301,15 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
           onClose: () => setConfiguringSourceId(undefined),
         })
       : null,
+    h(ContextMenu, {
+      open: Boolean(activeFolderMenuId && activeFolder),
+      onClose: () => setActiveFolderMenuId(undefined),
+      placement: 'dropdown',
+      x: folderMenuAnchor?.x ?? 0,
+      y: folderMenuAnchor?.y ?? 0,
+      items: folderMenuItems,
+      ctx,
+    }),
   )
 }
 

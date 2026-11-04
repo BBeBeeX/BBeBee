@@ -30,8 +30,9 @@ export interface DropImportResult {
 
 /** Pre-filter mirroring the scanner's list (the scanner re-checks anyway). */
 const AUDIO_EXTENSIONS = new Set([
-  'mp3', 'flac', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wav',
-  'aiff', 'aif', 'wma', 'alac', 'ape', 'wv', 'dsf', 'dff', 'm4b',
+  'mp3', 'flac', 'm4a', 'm4b', 'm4s', 'aac', 'ogg', 'oga', 'opus', 'wav',
+  'aiff', 'aif', 'wma', 'alac', 'ape', 'wv', 'dsf', 'dff', 'mka', 'mpc',
+  'spx', 'caf', 'webm', 'ac3', 'eac3', 'mp2',
 ])
 
 function extensionOf(path: string): string {

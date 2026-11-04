@@ -74,7 +74,7 @@ function MenuRow({
   return h(
     native.Pressable as never,
     {
-      testID: item.id,
+      testID: item.testID ?? item.id,
       accessibilityRole: 'menuitem',
       accessibilityLabel: item.label,
       accessibilityState: { disabled: item.disabled === true },
@@ -430,7 +430,7 @@ export function ContextMenu(
             onPress: (e: { stopPropagation?: () => void }) => e?.stopPropagation?.(),
             style: {
               position: 'absolute',
-              top: 76,
+              top: props.placement === 'dropdown' && props.y ? Math.max(16, props.y) : 76,
               right: 16,
             },
           },

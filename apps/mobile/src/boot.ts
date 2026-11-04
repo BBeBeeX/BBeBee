@@ -138,6 +138,26 @@ function installFullTextDecoding(): void {
 }
 installFullTextDecoding()
 
+/*
+ * `content-type` v2.1.0 (used by `music-metadata`) is a CommonJS module with
+ * `Object.defineProperty(exports, "__esModule", { value: true })` but without
+ * `exports.default`. Babel's `_interopRequireDefault` in Metro therefore leaves
+ * `default` as undefined, causing `music-metadata`'s
+ * `import ContentType from 'content-type'; ContentType.parse(...)` to throw
+ * and fail audio format detection. Ensure `content-type.default` points to itself.
+ */
+function patchContentTypeInterop(): void {
+  try {
+    const ct = require('content-type') as Record<string, unknown>
+    if (ct && typeof ct === 'object' && !ct['default']) {
+      ct['default'] = ct
+    }
+  } catch {
+    // Ignore if content-type is absent
+  }
+}
+patchContentTypeInterop()
+
 /**
  * Whether the mobile app is running in debug mode.
  *

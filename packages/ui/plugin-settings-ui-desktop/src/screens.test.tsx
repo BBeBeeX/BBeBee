@@ -1720,19 +1720,28 @@ describe('SettingsScreen', () => {
     expect(getByTestId('local-folder-row-dir-1')).toBeTruthy()
     expect(getByTestId('local-folder-row-dir-2')).toBeTruthy()
 
-    // In local folders sheet: toggle folder dir-1
+    // In local folders sheet: scan specific folder dir-1 via 3-dots menu
     await act(async () => {
-      fireEvent.click(getByTestId('local-folder-toggle-dir-1'))
+      fireEvent.click(getByTestId('local-folder-menu-dir-1'))
     })
-    expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
-
-    // In local folders sheet: scan specific folder dir-1
     await act(async () => {
       fireEvent.click(getByTestId('local-folder-scan-dir-1'))
     })
     expect(calls.includes('scanner:scan:dir-1')).toBe(true)
 
-    // In local folders sheet: delete folder dir-1
+    // In local folders sheet: toggle folder dir-1 via 3-dots menu
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-menu-dir-1'))
+    })
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-toggle-dir-1'))
+    })
+    expect(calls.includes('scanner:setEnabled:dir-1:false')).toBe(true)
+
+    // In local folders sheet: delete folder dir-1 via 3-dots menu
+    await act(async () => {
+      fireEvent.click(getByTestId('local-folder-menu-dir-1'))
+    })
     await act(async () => {
       fireEvent.click(getByTestId('local-folder-delete-dir-1'))
     })

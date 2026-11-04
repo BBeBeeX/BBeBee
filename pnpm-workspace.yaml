@@ -9,3 +9,5 @@ minimumReleaseAgeExclude:
   - cordis@4.0.0-rc.9
   - expo-background-task@57.0.16
   - expo-task-manager@57.0.16
+patchedDependencies:
+  content-type: patches/content-type.patch

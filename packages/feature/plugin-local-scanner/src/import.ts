@@ -320,10 +320,17 @@ export async function forgetFile(
   return { removedTrackUrn: binding.track_urn }
 }
 
-function fileNameOf(uri: string): string {
-  const normalized = uri.replace(/\\/g, '/')
-  const last = normalized.split('/').pop() ?? normalized
-  return decodeURIComponent(last.replace(/\.[^.]+$/, ''))
+export function fileNameOf(uri: string): string {
+  let decoded = uri
+  try {
+    decoded = decodeURIComponent(uri)
+  } catch {
+    // Malformed URI escape sequence fallback
+  }
+  const normalized = decoded.replace(/\\/g, '/')
+  const last = normalized.split('/').filter(Boolean).pop() ?? normalized
+  const dot = last.lastIndexOf('.')
+  return dot > 0 ? last.slice(0, dot) : last
 }
 
 export type { SqlValue }

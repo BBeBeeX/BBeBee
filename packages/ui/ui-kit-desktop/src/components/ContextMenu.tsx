@@ -577,6 +577,7 @@ function MenuRow({
     {
       type: 'button',
       role: heading ? 'presentation' : 'menuitem',
+      'data-testid': item.testID ?? item.id,
       disabled: item.disabled,
       'aria-haspopup': item.submenu ? 'menu' : undefined,
       onClick: (event: React.MouseEvent<HTMLButtonElement>) => {

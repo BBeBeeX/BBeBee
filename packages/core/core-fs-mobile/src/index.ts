@@ -154,10 +154,20 @@ export class FsExpo extends Service implements FsService {
   }
 
   basename(uri: Uri): string {
+    if (uri.startsWith('content://')) {
+      const decoded = decodeURIComponent(uri)
+      const lastSlash = decoded.lastIndexOf('/')
+      if (lastSlash >= 0) return decoded.slice(lastSlash + 1)
+    }
     return Paths.basename(uri)
   }
 
   extname(uri: Uri): string {
+    if (uri.startsWith('content://')) {
+      const base = this.basename(uri).split('?')[0] ?? ''
+      const dot = base.lastIndexOf('.')
+      if (dot !== -1) return base.slice(dot)
+    }
     return Paths.extname(uri)
   }
 
@@ -165,11 +175,45 @@ export class FsExpo extends Service implements FsService {
 
   async exists(uri: Uri): Promise<boolean> {
     this.check(uri, 'read')
+    if (uri.startsWith('content://')) {
+      try {
+        return Boolean(new File(uri).exists || new Directory(uri).exists)
+      } catch {
+        return false
+      }
+    }
     return Paths.info(uri).exists
   }
 
   async stat(uri: Uri): Promise<FileStat> {
     this.check(uri, 'read')
+    if (uri.startsWith('content://')) {
+      try {
+        const file = new File(uri)
+        if (file.exists) {
+          return {
+            uri: trim(file.uri),
+            name: this.basename(uri),
+            isDirectory: false,
+            size: file.size ?? 0,
+            mtime: file.lastModified ?? 0,
+          }
+        }
+        const directory = new Directory(uri)
+        if (directory.exists) {
+          return {
+            uri: trim(directory.uri),
+            name: this.basename(uri),
+            isDirectory: true,
+            size: 0,
+            mtime: 0,
+          }
+        }
+      } catch {
+        // Fall through to ENOENT error below
+      }
+      throw new Error(`ENOENT: no such file or directory: ${uri}`)
+    }
     const info = Paths.info(uri)
     if (!info.exists) {
       // The contract requires a rejection, and the conformance suite matches
@@ -208,7 +252,7 @@ export class FsExpo extends Service implements FsService {
       const isDirectory = entry instanceof Directory
       return {
         uri: trim(entry.uri),
-        name: Paths.basename(entry.uri),
+        name: this.basename(entry.uri),
         isDirectory,
         size: (isDirectory ? (entry as Directory).size : (entry as File).size) ?? 0,
         mtime: isDirectory ? 0 : ((entry as File).lastModified ?? 0),
@@ -230,6 +274,22 @@ export class FsExpo extends Service implements FsService {
 
   async remove(uri: Uri, opts?: { recursive?: boolean }): Promise<void> {
     this.check(uri, 'write')
+    if (uri.startsWith('content://')) {
+      const file = new File(uri)
+      if (file.exists) {
+        file.delete()
+        return
+      }
+      const directory = new Directory(uri)
+      if (directory.exists) {
+        if (!opts?.recursive && directory.list().length > 0) {
+          throw new Error(`ENOTEMPTY: directory not empty: ${uri}`)
+        }
+        directory.delete()
+        return
+      }
+      throw new Error(`ENOENT: no such file or directory: ${uri}`)
+    }
     const info = Paths.info(uri)
     if (!info.exists) throw new Error(`ENOENT: no such file or directory: ${uri}`)
 
@@ -515,7 +575,8 @@ export class FsExpo extends Service implements FsService {
     const stamp = `${uri}\x00${source.size}\x00${source.lastModified ?? 0}`
 
     const dir = this.join(this.ctx.paths.cache, 'saf')
-    const base = `${hashUri(uri)}${Paths.extname(uri) || '.bin'}`
+    const ext = this.extname(uri) || Paths.extname(uri) || '.bin'
+    const base = `${hashUri(uri)}${ext}`
     const cached = this.join(dir, base)
     const sidecar = `${cached}.src`
 
@@ -527,7 +588,10 @@ export class FsExpo extends Service implements FsService {
       }
     }
 
-    await this.mkdir(dir, { recursive: true })
+    const cacheDir = new Directory(dir)
+    if (!cacheDir.exists) {
+      cacheDir.create({ intermediates: true, idempotent: true })
+    }
     throwIfAborted(opts?.signal)
     // Copy via a temp name and move into place, so a concurrent caller either
     // sees the old complete file or the new one — never a half-written copy.

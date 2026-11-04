@@ -43,6 +43,8 @@ const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set([
   'flac',
   'aac',
   'm4a',
+  'm4b',
+  'm4s',
   'ogg',
   'opus',
   'wma',
@@ -50,6 +52,17 @@ const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set([
   'alac',
   'webm',
   'pcm',
+  'ape',
+  'wv',
+  'dsf',
+  'dff',
+  'mka',
+  'mpc',
+  'spx',
+  'caf',
+  'ac3',
+  'eac3',
+  'mp2',
 ])
 
 /** Keep the picker's filter honest and let the staging layer double-check. */

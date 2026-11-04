@@ -18,7 +18,7 @@ import { DbNode } from '@BBeBee/core-db-desktop'
 import { diffSnapshots, snapshotContext, tempDir, tick } from '@BBeBee/kernel/testing'
 import type { AudioMetadata, DbService, Uri } from '@BBeBee/protocol'
 import plugin, { type Scanner } from './index.js'
-import { sortKey } from './import.js'
+import { sortKey, fileNameOf } from './import.js'
 import { artworkId, splitArtists } from '@BBeBee/toolkit'
 
 /** Counts what the scanner asks of the codec — the exit criterion is a count. */
@@ -938,5 +938,42 @@ describe('lifecycle', () => {
 
     const problems = diffSnapshots(before, snapshotContext(ctx))
     expect(problems, problems?.join('; ')).toBeUndefined()
+  })
+})
+
+describe('fileNameOf', () => {
+  it('extracts clean basename without extension for simple file paths', () => {
+    expect(fileNameOf('file:///Music/audio.flac')).toBe('audio')
+    expect(fileNameOf('file:///Music/neon-bee-test.mp3')).toBe('neon-bee-test')
+  })
+
+  it('handles spaces and URL-encoded characters in paths', () => {
+    expect(fileNameOf('file:///home/user/Music/My%20Awesome%20Track.mp3')).toBe('My Awesome Track')
+    expect(fileNameOf('file:///Music/C418%20-%20Sweden.ogg')).toBe('C418 - Sweden')
+  })
+
+  it('handles Android SAF URIs with percent-encoded path separators (%2F)', () => {
+    const safUri =
+      'content://com.android.externalstorage.documents/tree/primary%3AMusic/document/primary%3AMusic%2Faudio.flac'
+    expect(fileNameOf(safUri)).toBe('audio')
+
+    const safSubfolderUri =
+      'content://com.android.externalstorage.documents/tree/primary%3AMusic/document/primary%3AMusic%2FSub%20Folder%2Ftrack_1.m4s'
+    expect(fileNameOf(safSubfolderUri)).toBe('track_1')
+  })
+
+  it('handles Windows backslash separators', () => {
+    expect(fileNameOf('C:\\Users\\Name\\Music\\song.wav')).toBe('song')
+    expect(fileNameOf('file:///C:/Users/Name/Music/track.aiff')).toBe('track')
+  })
+
+  it('preserves multi-dot file names correctly', () => {
+    expect(fileNameOf('file:///Music/Artist%20-%20Song.remix.wav')).toBe('Artist - Song.remix')
+    expect(fileNameOf('file:///Music/v1.0.final.m4a')).toBe('v1.0.final')
+  })
+
+  it('handles files without extensions or dotfiles', () => {
+    expect(fileNameOf('file:///Music/raw_audio')).toBe('raw_audio')
+    expect(fileNameOf('file:///Music/.hidden_track')).toBe('.hidden_track')
   })
 })

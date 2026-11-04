@@ -89,6 +89,8 @@ export interface MenuItemSpec {
   submenu?: SubmenuSpec
   /** Optional divider line after this item. */
   divider?: boolean
+  /** Test identifier for E2E and unit test automation. */
+  testID?: string
 }
 
 export interface SubmenuSpec {

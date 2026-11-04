@@ -75,6 +75,8 @@ const DEFAULT_EXTENSIONS = [
   'mp3',
   'flac',
   'm4a',
+  'm4b',
+  'm4s',
   'aac',
   'ogg',
   'oga',
@@ -88,7 +90,14 @@ const DEFAULT_EXTENSIONS = [
   'wv',
   'dsf',
   'dff',
-  'm4b',
+  'mka',
+  'mpc',
+  'spx',
+  'caf',
+  'webm',
+  'ac3',
+  'eac3',
+  'mp2',
 ]
 
 /** One file, read but not yet written. */
@@ -1428,5 +1437,5 @@ export async function apply(ctx: Context, config: ScannerConfig = {}) {
 }
 
 export default { name, apply }
-export { importTrack, forgetFile, sortKey } from './import.js'
+export { importTrack, forgetFile, sortKey, fileNameOf } from './import.js'
 export { splitArtists, trackId, albumId, artistId, artworkId } from '@BBeBee/toolkit'

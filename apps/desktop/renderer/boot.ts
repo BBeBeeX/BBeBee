@@ -110,7 +110,10 @@ function decodableFormats(): string[] {
     .filter(([, mime]) => probe.canPlayType(mime) !== '')
     .map(([name]) => name)
   // The native engine handles these even when Chromium cannot
-  for (const extra of ['alac', 'wma', 'ape', 'wv', 'dsf', 'dff', 'm4b']) {
+  for (const extra of [
+    'alac', 'wma', 'ape', 'wv', 'dsf', 'dff', 'm4b', 'm4s',
+    'mka', 'webm', 'mpc', 'spx', 'caf', 'ac3', 'eac3', 'mp2',
+  ]) {
     if (!supported.includes(extra)) supported.push(extra)
   }
   return supported

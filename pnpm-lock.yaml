@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  content-type: b3b46346d671abcda59bd9b8e17fb720437c6e210775d353b213ca472392ec8d
+
 importers:
 
   .:
@@ -9696,7 +9699,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  content-type@2.1.0: {}
+  content-type@2.1.0(patch_hash=b3b46346d671abcda59bd9b8e17fb720437c6e210775d353b213ca472392ec8d): {}
 
   convert-source-map@2.0.0: {}
 
@@ -10939,7 +10942,7 @@ snapshots:
     dependencies:
       '@borewit/text-codec': 0.2.2
       '@tokenizer/token': 0.3.0
-      content-type: 2.1.0
+      content-type: 2.1.0(patch_hash=b3b46346d671abcda59bd9b8e17fb720437c6e210775d353b213ca472392ec8d)
       debug: 4.4.3(supports-color@8.1.1)
       file-type: 21.3.4(supports-color@8.1.1)
       media-typer: 2.0.0
@@ -10960,7 +10963,7 @@ snapshots:
 
   negotiator@1.1.0:
     dependencies:
-      content-type: 2.1.0
+      content-type: 2.1.0(patch_hash=b3b46346d671abcda59bd9b8e17fb720437c6e210775d353b213ca472392ec8d)
 
   node-forge@1.4.0: {}
 
