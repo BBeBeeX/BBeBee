@@ -210,18 +210,39 @@ export class VisualizerPlugin extends Service implements VisualizerService {
       // Default: Web Audio AnalyserNode
       const audioCtx = this.ownCtx.audio?.context
       if (audioCtx && typeof audioCtx.createAnalyser === 'function') {
-        const node = audioCtx.createAnalyser()
         const source = this.ownCtx.audio.chainOutput ?? this.ownCtx.audio.chainInput
-        if (source && typeof source.connect === 'function') {
-          source.connect(node)
+        const stereoCtx = audioCtx as unknown as {
+          createChannelSplitter?: (outputs?: number) => ChannelSplitterNode
         }
-        const webAudioImpl = new WebAudioImpl(node, source)
-        for (const record of this.activeConsumers) {
-          record.detach = webAudioImpl.attachConsumer()
+        if (typeof stereoCtx.createChannelSplitter === 'function') {
+          // Splitter pair: per-channel data, plus the mix analyser for
+          // the unchanged mono methods. Falls back to the single node
+          // below on graphs without a splitter.
+          this.analyser = WebAudioImpl.createStereo(
+            audioCtx as unknown as BaseAudioContext,
+            source,
+          )
+          this.ownCtx.logger.info('visualizer: attached WebAudioImpl stereo analysers')
+        } else {
+          const node = audioCtx.createAnalyser()
+          if (source && typeof source.connect === 'function') {
+            source.connect(node)
+          }
+          this.analyser = new WebAudioImpl(node, source)
+          this.ownCtx.logger.info('visualizer: attached WebAudioImpl AnalyserNode')
         }
-        this.analyser = webAudioImpl
+        // Consumer-driven polling (OOM fix): wire the analyser that was
+        // actually attached — stereo or mono — to the active consumers,
+        // mirroring the NativeMpvImpl branch above. WebAudioImpl's
+        // attachConsumer is a no-op detach; the wiring still matters so
+        // a later analyser swap detaches cleanly.
+        const analyser = this.analyser
+        if (analyser) {
+          for (const record of this.activeConsumers) {
+            record.detach = analyser.attachConsumer?.()
+          }
+        }
         this.updateAnalyserConfig()
-        this.ownCtx.logger.info('visualizer: attached WebAudioImpl AnalyserNode')
       } else {
         this.ownCtx.logger.debug('visualizer: AudioContext does not support createAnalyser')
       }

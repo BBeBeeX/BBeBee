@@ -60,12 +60,70 @@ export interface AudioAnalyser {
 
 /**
  * Web Audio implementation: delegates directly to AnalyserNode.
+ *
+ * Stereo: a single AnalyserNode only ever sees the mono downmix, so a
+ * stereo instance is built by {@link WebAudioImpl.createStereo} as three
+ * analysers on one graph — the mix analyser on the source itself, plus a
+ * left/right pair behind a ChannelSplitterNode. The mono methods keep
+ * reading the mix analyser (unchanged semantics); the left/right methods
+ * read the split pair. There is no way to ask the graph whether the
+ * content is "really" stereo — a node's channelCount defaults to 2
+ * regardless of what flows through it — so a mono source in this graph
+ * yields a silent right channel by the splitter's own spec, never a
+ * copy of the left channel.
  */
 export class WebAudioImpl implements AudioAnalyser {
+  private readonly stereo?: {
+    left: AnalyserNode
+    right: AnalyserNode
+    splitter?: ChannelSplitterNode | null
+  }
+
   constructor(
     private readonly node: AnalyserNode,
     private readonly sourceNode?: AudioNode | null,
-  ) {}
+    stereo?: {
+      left: AnalyserNode
+      right: AnalyserNode
+      splitter?: ChannelSplitterNode | null
+    } | null,
+  ) {
+    this.stereo = stereo ?? undefined
+  }
+
+  /**
+   * Builds a stereo instance: source → mix analyser, source → splitter
+   * → left (output 0) / right (output 1) analysers. All three share
+   * fftSize/smoothing through the setters below, so the mix and the
+   * split pair always describe the same window.
+   */
+  static createStereo(
+    audioCtx: BaseAudioContext,
+    source?: AudioNode | null,
+  ): WebAudioImpl {
+    const mix = audioCtx.createAnalyser()
+    const splitter = audioCtx.createChannelSplitter(2)
+    const left = audioCtx.createAnalyser()
+    const right = audioCtx.createAnalyser()
+    if (source && typeof source.connect === 'function') {
+      source.connect(mix)
+      source.connect(splitter)
+    }
+    splitter.connect(left, 0)
+    splitter.connect(right, 1)
+    return new WebAudioImpl(mix, source, { left, right, splitter })
+  }
+
+  get channels(): 1 | 2 {
+    return this.stereo ? 2 : 1
+  }
+
+  /** The graph's own sample rate — known, not assumed. */
+  get sampleRateHz(): number | undefined {
+    const rate = (this.node as AnalyserNode & { context?: { sampleRate?: number } })
+      .context?.sampleRate
+    return typeof rate === 'number' ? rate : undefined
+  }
 
   get fftSize(): number {
     return this.node.fftSize
@@ -80,14 +138,24 @@ export class WebAudioImpl implements AudioAnalyser {
   }
 
   set smoothingTimeConstant(val: number) {
-    this.node.smoothingTimeConstant = Math.max(0, Math.min(1, val))
+    const clamped = Math.max(0, Math.min(1, val))
+    this.node.smoothingTimeConstant = clamped
+    if (this.stereo) {
+      this.stereo.left.smoothingTimeConstant = clamped
+      this.stereo.right.smoothingTimeConstant = clamped
+    }
   }
 
   setFftSize(size: number): void {
-    try {
-      this.node.fftSize = size
-    } catch {
-      // ignore invalid size
+    for (const target of [
+      this.node,
+      ...(this.stereo ? [this.stereo.left, this.stereo.right] : []),
+    ]) {
+      try {
+        target.fftSize = size
+      } catch {
+        // ignore invalid size
+      }
     }
   }
 
@@ -97,6 +165,38 @@ export class WebAudioImpl implements AudioAnalyser {
 
   getByteTimeDomainData(array: Uint8Array): void {
     this.node.getByteTimeDomainData(array as unknown as Uint8Array<ArrayBuffer>)
+  }
+
+  getLeftByteFrequencyData(array: Uint8Array): void {
+    if (!this.stereo) {
+      array.fill(0)
+      return
+    }
+    this.stereo.left.getByteFrequencyData(array as unknown as Uint8Array<ArrayBuffer>)
+  }
+
+  getRightByteFrequencyData(array: Uint8Array): void {
+    if (!this.stereo) {
+      array.fill(0)
+      return
+    }
+    this.stereo.right.getByteFrequencyData(array as unknown as Uint8Array<ArrayBuffer>)
+  }
+
+  getLeftByteTimeDomainData(array: Uint8Array): void {
+    if (!this.stereo) {
+      array.fill(128)
+      return
+    }
+    this.stereo.left.getByteTimeDomainData(array as unknown as Uint8Array<ArrayBuffer>)
+  }
+
+  getRightByteTimeDomainData(array: Uint8Array): void {
+    if (!this.stereo) {
+      array.fill(128)
+      return
+    }
+    this.stereo.right.getByteTimeDomainData(array as unknown as Uint8Array<ArrayBuffer>)
   }
 
   get rawNode(): AnalyserNode {
@@ -111,8 +211,16 @@ export class WebAudioImpl implements AudioAnalyser {
     try {
       if (this.sourceNode) {
         this.sourceNode.disconnect(this.node)
+        if (this.stereo?.splitter) {
+          this.sourceNode.disconnect(this.stereo.splitter)
+        }
       }
       this.node.disconnect()
+      if (this.stereo) {
+        this.stereo.left.disconnect()
+        this.stereo.right.disconnect()
+        this.stereo.splitter?.disconnect()
+      }
     } catch {
       // ignore disconnect errors
     }

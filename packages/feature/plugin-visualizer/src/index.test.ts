@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Context } from 'cordis'
 import { Context as CordisContext } from 'cordis'
 import { VisualizerPlugin, apply, name, inject, NativeMpvImpl } from './index.js'
+import { WebAudioImpl } from './analyser.js'
 import { DEFAULT_VISUALIZER_SETTINGS } from '@BBeBee/protocol'
 
 describe('plugin-visualizer', () => {
@@ -500,5 +501,150 @@ describe('NativeMpvImpl stereo frames', () => {
     impl.getLeftByteTimeDomainData(wave)
     expect(wave.every((v) => v === 128)).toBe(true)
     impl.dispose()
+  })
+})
+
+describe('WebAudioImpl stereo', () => {
+  const mockAnalyser = (freqFill: number, waveFill: number, sampleRate?: number) => ({
+    fftSize: 128,
+    frequencyBinCount: 64,
+    smoothingTimeConstant: 0.8,
+    getByteFrequencyData: vi.fn((arr: Uint8Array) => {
+      arr.fill(freqFill)
+    }),
+    getByteTimeDomainData: vi.fn((arr: Uint8Array) => {
+      arr.fill(waveFill)
+    }),
+    disconnect: vi.fn(),
+    ...(sampleRate ? { context: { sampleRate } } : {}),
+  })
+
+  it('splits one source into mix + left/right analysers', () => {
+    const mix = mockAnalyser(150, 200, 48000)
+    const left = mockAnalyser(200, 220)
+    const right = mockAnalyser(10, 120)
+    const splitter = { connect: vi.fn(), disconnect: vi.fn() }
+    const source = { connect: vi.fn(), disconnect: vi.fn() }
+    // createStereo calls createAnalyser three times: mix, left, right.
+    const analysers = [mix, left, right]
+    let next = 0
+    const audioCtx = {
+      createAnalyser: vi.fn(() => analysers[next++]!),
+      createChannelSplitter: vi.fn(() => splitter),
+    }
+
+    const impl = WebAudioImpl.createStereo(
+      audioCtx as unknown as BaseAudioContext,
+      source as unknown as AudioNode,
+    )
+
+    expect(source.connect).toHaveBeenCalledWith(mix)
+    expect(source.connect).toHaveBeenCalledWith(splitter)
+    expect(splitter.connect).toHaveBeenCalledWith(left, 0)
+    expect(splitter.connect).toHaveBeenCalledWith(right, 1)
+    expect(impl.channels).toBe(2)
+    expect(impl.sampleRateHz).toBe(48000)
+
+    // Mono methods keep reading the mix analyser, not the left channel.
+    const freq = new Uint8Array(4)
+    impl.getByteFrequencyData(freq)
+    expect(freq[0]).toBe(150)
+    impl.getLeftByteFrequencyData(freq)
+    expect(freq[0]).toBe(200)
+    impl.getRightByteFrequencyData(freq)
+    expect(freq[0]).toBe(10)
+    const wave = new Uint8Array(4)
+    impl.getLeftByteTimeDomainData(wave)
+    expect(wave[0]).toBe(220)
+    impl.getRightByteTimeDomainData(wave)
+    expect(wave[0]).toBe(120)
+
+    // Config sync reaches all three analysers.
+    impl.setFftSize(256)
+    expect(mix.fftSize).toBe(256)
+    expect(left.fftSize).toBe(256)
+    expect(right.fftSize).toBe(256)
+    impl.smoothingTimeConstant = 0.5
+    expect(mix.smoothingTimeConstant).toBe(0.5)
+    expect(left.smoothingTimeConstant).toBe(0.5)
+    expect(right.smoothingTimeConstant).toBe(0.5)
+
+    impl.dispose()
+    expect(source.disconnect).toHaveBeenCalledWith(mix)
+    expect(source.disconnect).toHaveBeenCalledWith(splitter)
+    expect(mix.disconnect).toHaveBeenCalled()
+    expect(left.disconnect).toHaveBeenCalled()
+    expect(right.disconnect).toHaveBeenCalled()
+  })
+
+  it('a single node stays mono and its stereo methods fill silence', () => {
+    const node = mockAnalyser(150, 200)
+    const source = { connect: vi.fn(), disconnect: vi.fn() }
+    const impl = new WebAudioImpl(
+      node as unknown as AnalyserNode,
+      source as unknown as AudioNode,
+    )
+
+    expect(impl.channels).toBe(1)
+    expect(impl.sampleRateHz).toBeUndefined()
+    const freq = new Uint8Array(4)
+    impl.getLeftByteFrequencyData(freq)
+    expect(freq.every((v) => v === 0)).toBe(true)
+    impl.getRightByteFrequencyData(freq)
+    expect(freq.every((v) => v === 0)).toBe(true)
+    const wave = new Uint8Array(4)
+    impl.getLeftByteTimeDomainData(wave)
+    expect(wave.every((v) => v === 128)).toBe(true)
+    impl.getRightByteTimeDomainData(wave)
+    expect(wave.every((v) => v === 128)).toBe(true)
+    impl.dispose()
+  })
+
+  it('plugin fallback attaches the stereo pair and serves it', async () => {
+    const mix = mockAnalyser(150, 200, 44100)
+    const left = mockAnalyser(200, 220)
+    const right = mockAnalyser(10, 120)
+    const splitter = { connect: vi.fn(), disconnect: vi.fn() }
+    const analysers = [mix, left, right]
+    let next = 0
+    const mockAudioContext = {
+      createAnalyser: vi.fn(() => analysers[next++]!),
+      createChannelSplitter: vi.fn(() => splitter),
+    }
+    const mockChainOutput = { connect: vi.fn(), disconnect: vi.fn() }
+
+    const mockCtx = new CordisContext() as unknown as Context
+    const untyped = mockCtx as unknown as Record<string, unknown>
+    untyped['audio'] = {
+      activeEngineName: 'mpv',
+      getFftSpectrum: vi.fn(async () => ({ frequencyData: [], timeDomainData: [] })),
+      getEngineStatus: vi.fn(async () => ({
+        running: true,
+        mpvAvailable: true,
+        pcmTapAvailable: false,
+      })),
+      context: mockAudioContext,
+      chainOutput: mockChainOutput,
+    }
+    untyped['settings'] = {
+      getSync: vi.fn(() => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      get: vi.fn(async () => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      update: vi.fn(),
+    }
+
+    const plugin = new VisualizerPlugin(mockCtx)
+    await plugin[VisualizerPlugin.init]()
+
+    expect(plugin.currentAnalyser).toBeInstanceOf(WebAudioImpl)
+    expect(plugin.channels).toBe(2)
+    expect(plugin.sampleRateHz).toBe(44100)
+    const freq = new Uint8Array(4)
+    plugin.getLeftFrequencyData(freq)
+    expect(freq[0]).toBe(200)
+    plugin.getRightFrequencyData(freq)
+    expect(freq[0]).toBe(10)
+    // The raw node stays the mix analyser.
+    expect(plugin.analyserNode).toBe(mix)
+    ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
   })
 })
