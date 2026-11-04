@@ -399,6 +399,67 @@ describe('plugin-visualizer', () => {
   })
 })
 
+describe('plugin-visualizer stereo integration', () => {
+  it('serves a stereo mpv frame through the plugin service methods', async () => {
+    const stereoFrame = {
+      frequencyData: [150, 100],
+      timeDomainData: [200, 60],
+      channels: 2,
+      sampleRateHz: 48000,
+      leftFrequencyData: [200, 50],
+      leftTimeDomainData: [220, 40],
+      rightFrequencyData: [10, 5],
+      rightTimeDomainData: [120, 130],
+    }
+    const mockCtx = new CordisContext() as unknown as Context
+    const untyped = mockCtx as unknown as Record<string, unknown>
+    untyped['audio'] = {
+      activeEngineName: 'mpv',
+      getFftSpectrum: vi.fn(async () => stereoFrame),
+      getEngineStatus: vi.fn(async () => ({
+        running: true,
+        mpvAvailable: true,
+        pcmTapAvailable: true,
+      })),
+      setVisualizer: vi.fn(async () => {}),
+    }
+    untyped['settings'] = {
+      getSync: vi.fn(() => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      get: vi.fn(async () => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+      update: vi.fn(async (patch) => patch),
+    }
+
+    const plugin = new VisualizerPlugin(mockCtx)
+    await plugin[VisualizerPlugin.init]()
+    // attachAnalyserAsync is fire-and-forget, and the NativeMpvImpl
+    // poller runs every 16 ms: wait for the analyser, then for a poll.
+    for (let i = 0; i < 100 && !(plugin.currentAnalyser instanceof NativeMpvImpl); i++) {
+      await new Promise((r) => setTimeout(r, 10))
+    }
+    expect(plugin.currentAnalyser).toBeInstanceOf(NativeMpvImpl)
+    await new Promise((r) => setTimeout(r, 60))
+
+    expect(plugin.channels).toBe(2)
+    expect(plugin.sampleRateHz).toBe(48000)
+    // Time data is copied, not smoothed: exact values.
+    const leftTime = new Uint8Array(128)
+    plugin.getLeftTimeDomainData(leftTime)
+    expect(leftTime[0]).toBe(220)
+    const rightTime = new Uint8Array(128)
+    plugin.getRightTimeDomainData(rightTime)
+    expect(rightTime[0]).toBe(120)
+    // Frequency data is smoothed (0.82), so only the ordering is
+    // timing-independent: left's 200 stays above right's 10.
+    const leftFreq = new Uint8Array(64)
+    const rightFreq = new Uint8Array(64)
+    plugin.getLeftFrequencyData(leftFreq)
+    plugin.getRightFrequencyData(rightFreq)
+    expect(leftFreq[0]).toBeGreaterThan(0)
+    expect(leftFreq[0]).toBeGreaterThan(rightFreq[0]!)
+    ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
+  })
+})
+
 describe('NativeMpvImpl stereo frames', () => {
   it('accepts a stereo frame only as a package and clears stereo on a mono frame', () => {
     const impl = new NativeMpvImpl({ fftSize: 128, smoothingTimeConstant: 0 })
