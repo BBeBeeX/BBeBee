@@ -182,6 +182,10 @@ class FftProcessor {
     }
     mono_.assign(fftSize, 0.0f);
     prev_.assign(half_, 0);
+    left_.assign(fftSize, 0.0f);
+    right_.assign(fftSize, 0.0f);
+    prevLeft_.assign(half_, 0);
+    prevRight_.assign(half_, 0);
   }
 
   size_t size() const { return size_; }
@@ -189,14 +193,26 @@ class FftProcessor {
 
   /** Append freshly drained mono samples, keeping the last `size_` of them. */
   void appendMono(const float *src, size_t n) {
-    if (src == nullptr || n == 0 || mono_.empty()) return;
-    if (n >= mono_.size()) {
-      std::memcpy(mono_.data(), src + (n - mono_.size()), mono_.size() * sizeof(float));
-      return;
+    appendWindow(mono_, src, n);
+  }
+
+  /**
+   * Append freshly drained stereo samples, keeping the last `size_` of
+   * each channel, and maintain the mono window as their average — so
+   * the mono frame from a stereo drain is exactly the frame the old
+   * downmix path produced, not a second definition of it.
+   */
+  void appendStereo(const float *left, const float *right, size_t n) {
+    if (left == nullptr || right == nullptr || n == 0) return;
+    appendWindow(left_, left, n);
+    appendWindow(right_, right, n);
+    if (mono_.size() != left_.size()) return;
+    // Average into the mono window through the same sliding rule:
+    // recompute from the channel windows, which already hold the last
+    // `size_` samples each.
+    for (size_t i = 0; i < mono_.size(); i++) {
+      mono_[i] = 0.5f * (left_[i] + right_[i]);
     }
-    const size_t keep = mono_.size() - n;
-    std::memmove(mono_.data(), mono_.data() + n, keep * sizeof(float));
-    std::memcpy(mono_.data() + keep, src, n * sizeof(float));
   }
 
   /**
@@ -205,11 +221,68 @@ class FftProcessor {
    * — fast rise, slow fall, the analyser convention.
    */
   bool compute(uint8_t *outFreq, uint8_t *outTime, size_t count, float smoothing) {
-    if (size_ == 0 || half_ == 0 || mono_.empty()) return false;
+    return computeChannel(mono_, prev_, outFreq, outTime, count, smoothing);
+  }
+
+  /** Stereo twin of `compute`: one frame per channel, same aggregation. */
+  bool computeStereo(uint8_t *outFreqLeft, uint8_t *outTimeLeft,
+                     uint8_t *outFreqRight, uint8_t *outTimeRight,
+                     size_t count, float smoothing) {
+    const bool leftOk = computeChannel(left_, prevLeft_, outFreqLeft, outTimeLeft, count, smoothing);
+    const bool rightOk = computeChannel(right_, prevRight_, outFreqRight, outTimeRight, count, smoothing);
+    return leftOk && rightOk;
+  }
+
+  /** Decay-only frame (no PCM arrived): keeps the loop flowing toward
+   * silence and answers NO once it has fully decayed. */
+  bool decay(uint8_t *outFreq, uint8_t *outTime, size_t count, float smoothing) {
+    return decayChannel(prev_, outFreq, outTime, count, smoothing);
+  }
+
+  /** Stereo twin of `decay`: decays both channels' peak holds. */
+  bool decayStereo(uint8_t *outFreqLeft, uint8_t *outTimeLeft,
+                   uint8_t *outFreqRight, uint8_t *outTimeRight,
+                   size_t count, float smoothing) {
+    const bool leftAlive = decayChannel(prevLeft_, outFreqLeft, outTimeLeft, count, smoothing);
+    const bool rightAlive = decayChannel(prevRight_, outFreqRight, outTimeRight, count, smoothing);
+    return leftAlive || rightAlive;
+  }
+
+  void reset() {
+    std::fill(prev_.begin(), prev_.end(), static_cast<uint8_t>(0));
+    std::fill(mono_.begin(), mono_.end(), 0.0f);
+    std::fill(prevLeft_.begin(), prevLeft_.end(), static_cast<uint8_t>(0));
+    std::fill(prevRight_.begin(), prevRight_.end(), static_cast<uint8_t>(0));
+    std::fill(left_.begin(), left_.end(), 0.0f);
+    std::fill(right_.begin(), right_.end(), 0.0f);
+  }
+
+ private:
+  /** Sliding append shared by the mono and stereo windows. */
+  void appendWindow(std::vector<float> &window, const float *src, size_t n) {
+    if (src == nullptr || n == 0 || window.empty()) return;
+    if (n >= window.size()) {
+      std::memcpy(window.data(), src + (n - window.size()), window.size() * sizeof(float));
+      return;
+    }
+    const size_t keep = window.size() - n;
+    std::memmove(window.data(), window.data() + n, keep * sizeof(float));
+    std::memcpy(window.data() + keep, src, n * sizeof(float));
+  }
+
+  /**
+   * One channel's frame: the mono `compute` body, generalized over the
+   * sample window and its peak hold. Extracting it (rather than a
+   * second copy for stereo) is what keeps the mono and stereo frames
+   * from drifting apart.
+   */
+  bool computeChannel(const std::vector<float> &samples, std::vector<uint8_t> &prev,
+                      uint8_t *outFreq, uint8_t *outTime, size_t count, float smoothing) {
+    if (size_ == 0 || half_ == 0 || samples.empty()) return false;
     if (count == 0 || outFreq == nullptr) return false;
 
     for (size_t i = 0; i < size_; i++) {
-      re_[i] = mono_[i] * window_[i];
+      re_[i] = samples[i] * window_[i];
       im_[i] = 0.0f;
     }
     transform();
@@ -230,16 +303,16 @@ class FftProcessor {
       if (db < dbFloor) db = dbFloor;
       if (db > 0.0f) db = 0.0f;
       const auto value = static_cast<uint8_t>(std::lround((db - dbFloor) / -dbFloor * 255.0f));
-      const uint8_t previous = prev_[bin];
+      const uint8_t previous = prev[bin];
       outFreq[bin] = std::max(value, static_cast<uint8_t>(previous * smoothing));
-      prev_[bin] = outFreq[bin];
+      prev[bin] = outFreq[bin];
     }
 
     if (outTime != nullptr) {
-      const size_t n = std::min(count, mono_.size());
-      const size_t offset = mono_.size() - n;
+      const size_t n = std::min(count, samples.size());
+      const size_t offset = samples.size() - n;
       for (size_t i = 0; i < n; i++) {
-        const float s = std::max(-1.0f, std::min(1.0f, mono_[offset + i]));
+        const float s = std::max(-1.0f, std::min(1.0f, samples[offset + i]));
         outTime[i] = static_cast<uint8_t>(std::lround((s * 0.5f + 0.5f) * 255.0f));
       }
       for (size_t i = n; i < count; i++) outTime[i] = 128;
@@ -247,16 +320,16 @@ class FftProcessor {
     return true;
   }
 
-  /** Decay-only frame (no PCM arrived): keeps the loop flowing toward
-   * silence and answers NO once it has fully decayed. */
-  bool decay(uint8_t *outFreq, uint8_t *outTime, size_t count, float smoothing) {
+  /** One channel's decay, generalized the same way as `computeChannel`. */
+  bool decayChannel(std::vector<uint8_t> &prev,
+                    uint8_t *outFreq, uint8_t *outTime, size_t count, float smoothing) {
     if (count == 0 || outFreq == nullptr) return false;
     bool alive = false;
-    const size_t n = std::min(count, prev_.size());
+    const size_t n = std::min(count, prev.size());
     for (size_t bin = 0; bin < n; bin++) {
-      const auto decayed = static_cast<uint8_t>(prev_[bin] * smoothing);
+      const auto decayed = static_cast<uint8_t>(prev[bin] * smoothing);
       outFreq[bin] = decayed;
-      prev_[bin] = decayed;
+      prev[bin] = decayed;
       if (decayed > 0) alive = true;
     }
     for (size_t bin = n; bin < count; bin++) outFreq[bin] = 0;
@@ -266,12 +339,6 @@ class FftProcessor {
     return alive;
   }
 
-  void reset() {
-    std::fill(prev_.begin(), prev_.end(), static_cast<uint8_t>(0));
-    std::fill(mono_.begin(), mono_.end(), 0.0f);
-  }
-
- private:
   void transform() {
     const size_t n = size_;
     for (size_t i = 0; i < n; i++) {
@@ -313,6 +380,13 @@ class FftProcessor {
   std::vector<size_t> rev_;
   std::vector<float> mono_;
   std::vector<uint8_t> prev_;
+  // Per-channel windows and peak holds (channels 0 and 1). The shared
+  // re_/im_ work buffers are reused sequentially by computeChannel,
+  // never held across calls, so one transform serves all channels.
+  std::vector<float> left_;
+  std::vector<float> right_;
+  std::vector<uint8_t> prevLeft_;
+  std::vector<uint8_t> prevRight_;
 };
 
 /** `file://`-scheme-insensitive comparison, per docs/audio/engine.md §"Gapless
@@ -361,6 +435,8 @@ int FormatBitDepth(NSString *format) {
   FftProcessor _fft;
   std::vector<float> _scratch;      // drain buffer (interleaved)
   std::vector<float> _monoScratch;  // downmix buffer
+  std::vector<float> _leftScratch;  // deinterleaved channel 0
+  std::vector<float> _rightScratch; // deinterleaved channel 1
 }
 - (void)handlePcmFrames:(const float *)interleaved
                  frames:(int)frames
@@ -1001,11 +1077,97 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
 
   // No PCM arrived (paused, or a degraded media-element track): keep the
   // loop flowing with a decay-only frame and answer NO once it hit silence —
-  // the visualizer loop's "couple of zero frames, then quiet" branch. A
-  // streamPlaying flag (set by mpvSetStreamPlayback for degraded tracks)
-  // holds the decay nearly still so frames keep flowing.
+  // (stereo method's no-PCM branch lives below, mirroring this one).
   const float smoothing = _streamPlaying.load(std::memory_order_acquire) ? 0.97f : 0.85f;
   return _fft.decay(frequency, timeDomain, count, smoothing);
+#endif
+}
+
+- (BOOL)getStereoSpectrumFrequencyOut:(uint8_t *)frequency
+                      timeDomainOut:(uint8_t *)timeDomain
+                    leftFrequencyOut:(uint8_t *)leftFrequency
+                  leftTimeDomainOut:(uint8_t *)leftTimeDomain
+                   rightFrequencyOut:(uint8_t *)rightFrequency
+                 rightTimeDomainOut:(uint8_t *)rightTimeDomain
+                              count:(NSUInteger)count
+                           channels:(int *)outChannels
+                       sampleRateHz:(int *)outSampleRateHz {
+  if (!_visualizerEnabled.load(std::memory_order_acquire) || count == 0) return NO;
+#if !BBE_BEE_HAVE_MPV
+  (void)frequency;
+  (void)timeDomain;
+  (void)leftFrequency;
+  (void)leftTimeDomain;
+  (void)rightFrequency;
+  (void)rightTimeDomain;
+  return NO;
+#else
+  if (!self.isBooted) return NO;
+
+  // One drain, one frame: the mono pair and both channels are computed
+  // from the same drained window, exactly like the JNI stereo read —
+  // a second drain here would belong to the next window.
+  const int channels = _ring.channels();
+  const int sampleRate = _ring.sampleRate();
+  if (outChannels) *outChannels = channels > 0 ? channels : 1;
+  if (outSampleRateHz) *outSampleRateHz = sampleRate > 0 ? sampleRate : 0;
+  if (channels > 0 && sampleRate > 0) {
+    const size_t backlogLimit =
+        static_cast<size_t>(sampleRate) * static_cast<size_t>(channels) * 60 / 1000;
+    const size_t available = _ring.availableSamples();
+    if (available > backlogLimit) _ring.discardOldest(available - backlogLimit);
+  }
+
+  const size_t fftSize = _fft.size();
+  const size_t total = _ring.availableSamples();
+  if (total > 0 && fftSize > 0 && channels > 0) {
+    const size_t frames = total / static_cast<size_t>(channels);
+    const size_t takeFrames = std::min(frames, fftSize);
+    const size_t takeSamples = takeFrames * static_cast<size_t>(channels);
+    _scratch.resize(takeSamples);
+    _ring.read(_scratch.data(), takeSamples);
+
+    if (channels >= 2) {
+      _leftScratch.resize(takeFrames);
+      _rightScratch.resize(takeFrames);
+      for (size_t frame = 0; frame < takeFrames; frame++) {
+        _leftScratch[frame] = _scratch[frame * static_cast<size_t>(channels) + 0];
+        _rightScratch[frame] = _scratch[frame * static_cast<size_t>(channels) + 1];
+      }
+      _fft.appendStereo(_leftScratch.data(), _rightScratch.data(), takeFrames);
+      _fft.compute(frequency, timeDomain, count, 0.85f);
+      _fft.computeStereo(leftFrequency, leftTimeDomain, rightFrequency, rightTimeDomain, count, 0.85f);
+      return YES;
+    }
+
+    // Mono stream: the mono frame is real; the stereo arrays are
+    // silence and `channels` says 1, so callers must not read them.
+    _monoScratch.resize(takeFrames);
+    for (size_t frame = 0; frame < takeFrames; frame++) {
+      _monoScratch[frame] = _scratch[frame * static_cast<size_t>(channels)];
+    }
+    _fft.appendMono(_monoScratch.data(), takeFrames);
+    _fft.compute(frequency, timeDomain, count, 0.85f);
+    if (leftFrequency) {
+      for (size_t i = 0; i < count; i++) leftFrequency[i] = 0;
+    }
+    if (rightFrequency) {
+      for (size_t i = 0; i < count; i++) rightFrequency[i] = 0;
+    }
+    if (leftTimeDomain) {
+      for (size_t i = 0; i < count; i++) leftTimeDomain[i] = 128;
+    }
+    if (rightTimeDomain) {
+      for (size_t i = 0; i < count; i++) rightTimeDomain[i] = 128;
+    }
+    return YES;
+  }
+
+  const float smoothing = _streamPlaying.load(std::memory_order_acquire) ? 0.97f : 0.85f;
+  const bool monoAlive = _fft.decay(frequency, timeDomain, count, smoothing);
+  const bool stereoAlive = _fft.decayStereo(leftFrequency, leftTimeDomain,
+                                            rightFrequency, rightTimeDomain, count, smoothing);
+  return monoAlive || stereoAlive;
 #endif
 }
 

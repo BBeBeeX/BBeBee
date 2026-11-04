@@ -114,6 +114,22 @@ NS_ASSUME_NONNULL_BEGIN
                  timeDomainOut:(uint8_t *)timeDomain
                          count:(NSUInteger)count;
 
+/// Stereo twin of `getSpectrumFrequencyOut`: the mono pair plus both
+/// channels, all from one drained window, plus the channel count and
+/// sample rate of that frame. `channels` is the verdict — on a mono
+/// stream it is 1 and the per-channel arrays are silence, so callers
+/// must check it before reading them. The old mono method stays
+/// untouched for callers that only need mono.
+- (BOOL)getStereoSpectrumFrequencyOut:(uint8_t *)frequency
+                      timeDomainOut:(uint8_t *)timeDomain
+                    leftFrequencyOut:(uint8_t *)leftFrequency
+                  leftTimeDomainOut:(uint8_t *)leftTimeDomain
+                   rightFrequencyOut:(uint8_t *)rightFrequency
+                 rightTimeDomainOut:(uint8_t *)rightTimeDomain
+                              count:(NSUInteger)count
+                           channels:(int *)outChannels
+                       sampleRateHz:(int *)outSampleRateHz;
+
 @end
 
 NS_ASSUME_NONNULL_END

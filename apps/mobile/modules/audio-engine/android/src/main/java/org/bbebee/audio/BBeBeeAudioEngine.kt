@@ -39,6 +39,21 @@ object BBeBeeAudioEngine {
     external fun nativeSetStreamPlayback(playing: Boolean)
     external fun nativeSetAudioExclusive(exclusive: Boolean)
     external fun nativeGetSpectrum(outFreq: ByteArray, outTime: ByteArray): Boolean
+    /**
+     * One read, one frame: mono pair + per-channel pairs + channel
+     * count (0 = no frame). The sample rate for that frame comes from
+     * [nativeGetSpectrumSampleRateHz] — a plain getter, never a second
+     * PCM read, so it cannot drain the next window.
+     */
+    external fun nativeGetStereoSpectrum(
+        outFreq: ByteArray,
+        outTime: ByteArray,
+        outLeftFreq: ByteArray,
+        outLeftTime: ByteArray,
+        outRightFreq: ByteArray,
+        outRightTime: ByteArray,
+    ): Int
+    external fun nativeGetSpectrumSampleRateHz(): Int
     external fun nativeGetRingBufferStats(): LongArray
     external fun nativeGetState(): String
     external fun nativeGetFftBinCount(): Int

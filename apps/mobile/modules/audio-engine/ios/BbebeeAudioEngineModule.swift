@@ -263,6 +263,51 @@ public class BbebeeAudioEngineModule: Module {
       }
     }
 
+    // Stereo twin of getSpectrum: one core drain for all six arrays, so
+    // the channels always belong to the same frame as the mono pair.
+    // `channels` is the verdict — callers must check it before reading
+    // the per-channel arrays, which are silence on a mono stream.
+    AsyncFunction("getStereoSpectrum") { (promise: Promise) in
+      engineQueue.async {
+        let core = self.engine()
+        let bins = Int(core.fftBinCount())
+        guard bins > 0 else {
+          promise.resolve(["ok": false, "frequencyData": [] as [Int], "timeDomainData": [] as [Int]])
+          return
+        }
+        var frequency = [UInt8](repeating: 0, count: bins)
+        var timeDomain = [UInt8](repeating: 0, count: bins)
+        var leftFrequency = [UInt8](repeating: 0, count: bins)
+        var leftTimeDomain = [UInt8](repeating: 0, count: bins)
+        var rightFrequency = [UInt8](repeating: 0, count: bins)
+        var rightTimeDomain = [UInt8](repeating: 0, count: bins)
+        var channels: Int32 = 0
+        var sampleRateHz: Int32 = 0
+        let ok = core.getStereoSpectrumFrequencyOut(
+          &frequency,
+          timeDomainOut: &timeDomain,
+          leftFrequencyOut: &leftFrequency,
+          leftTimeDomainOut: &leftTimeDomain,
+          rightFrequencyOut: &rightFrequency,
+          rightTimeDomainOut: &rightTimeDomain,
+          count: UInt(bins),
+          channels: &channels,
+          sampleRateHz: &sampleRateHz
+        )
+        promise.resolve([
+          "ok": ok,
+          "channels": Int(channels),
+          "sampleRateHz": Int(sampleRateHz),
+          "frequencyData": frequency.map(Int.init),
+          "timeDomainData": timeDomain.map(Int.init),
+          "leftFrequencyData": leftFrequency.map(Int.init),
+          "leftTimeDomainData": leftTimeDomain.map(Int.init),
+          "rightFrequencyData": rightFrequency.map(Int.init),
+          "rightTimeDomainData": rightTimeDomain.map(Int.init),
+        ])
+      }
+    }
+
     // ------------------------------------------------------------------
     // Codec seam (`bbebeeNativeCodec`): batch artwork + transcode.
     // ------------------------------------------------------------------

@@ -143,6 +143,63 @@ describe('buildMpvAdapter', () => {
     expect(frame).toEqual({ frequencyData: [0, 255], timeDomainData: [1, 254] })
   })
 
+  it('prefers the stereo spectrum and never also reads mono in the same poll', async () => {
+    let monoCalls = 0
+    const mpv = buildMpvAdapter(
+      fakeNative({
+        getSpectrum: async () => {
+          monoCalls++
+          return { ok: true, frequencyData: [0, 255], timeDomainData: [1, 254] }
+        },
+        getStereoSpectrum: async () => ({
+          ok: true,
+          channels: 2,
+          sampleRateHz: 48000,
+          frequencyData: [9, 9],
+          timeDomainData: [128, 128],
+          leftFrequencyData: [200, 10],
+          leftTimeDomainData: [220, 40],
+          rightFrequencyData: [10, 200],
+          rightTimeDomainData: [120, 130],
+        }),
+      }),
+    )
+    const frame = await mpv.mpvGetFftFrame()
+    expect(monoCalls).toBe(0)
+    expect(frame).toEqual({
+      frequencyData: [9, 9],
+      timeDomainData: [128, 128],
+      channels: 2,
+      sampleRateHz: 48000,
+      leftFrequencyData: [200, 10],
+      leftTimeDomainData: [220, 40],
+      rightFrequencyData: [10, 200],
+      rightTimeDomainData: [120, 130],
+    })
+    // A stereo answer that is not ok is a no-frame, not a fallback cue.
+    const empty = buildMpvAdapter(
+      fakeNative({
+        getSpectrum: async () => {
+          monoCalls++
+          return { ok: true, frequencyData: [0, 255], timeDomainData: [1, 254] }
+        },
+        getStereoSpectrum: async () => ({
+          ok: false,
+          channels: 0,
+          sampleRateHz: 0,
+          frequencyData: [],
+          timeDomainData: [],
+          leftFrequencyData: [],
+          leftTimeDomainData: [],
+          rightFrequencyData: [],
+          rightTimeDomainData: [],
+        }),
+      }),
+    )
+    expect(await empty.mpvGetFftFrame()).toBeNull()
+    expect(monoCalls).toBe(0)
+  })
+
   it('defaults the DSP config fields the JNI side expects', async () => {
     const seen: unknown[][] = []
     const mpv = buildMpvAdapter(fakeNative({ setDspConfig: async (...args) => void seen.push(args) }))

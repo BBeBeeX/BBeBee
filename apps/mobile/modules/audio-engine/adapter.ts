@@ -70,6 +70,24 @@ export interface NativeAudioEngine {
     frequencyData: number[]
     timeDomainData: number[]
   }>
+  /**
+   * Stereo twin of `getSpectrum`, present on native builds that expose
+   * it (Kotlin `getStereoSpectrum` / Swift `getStereoSpectrum`). Absent
+   * on older builds — the adapter then falls back to mono, never to a
+   * second read. `channels` is the verdict: per-channel arrays are
+   * silence unless it is 2.
+   */
+  getStereoSpectrum?(): Promise<{
+    ok: boolean
+    channels: number
+    sampleRateHz: number
+    frequencyData: number[]
+    timeDomainData: number[]
+    leftFrequencyData: number[]
+    leftTimeDomainData: number[]
+    rightFrequencyData: number[]
+    rightTimeDomainData: number[]
+  }>
   // Codec seam: transcode + batch artwork.
   transcode(options: NativeTranscodeParams): Promise<string>
   cancelTranscode(jobId: string): Promise<boolean>
@@ -209,6 +227,27 @@ export function buildMpvAdapter(native: NativeAudioEngine) {
       return JSON.parse(await native.getState()) as MpvStateResult
     },
     async mpvGetFftFrame() {
+      // One native read per poll, never two: the stereo call already
+      // carries the mono pair, so a stereo-capable build is never also
+      // asked for mono (the second read would drain the next window).
+      // A stereo answer that is not ok is a genuine no-frame, not a
+      // signal to fall back — falling back would read a different
+      // window and mix frames.
+      if (typeof native.getStereoSpectrum === 'function') {
+        const stereo = await native.getStereoSpectrum()
+        return stereo.ok
+          ? {
+              frequencyData: stereo.frequencyData,
+              timeDomainData: stereo.timeDomainData,
+              channels: stereo.channels,
+              sampleRateHz: stereo.sampleRateHz,
+              leftFrequencyData: stereo.leftFrequencyData,
+              leftTimeDomainData: stereo.leftTimeDomainData,
+              rightFrequencyData: stereo.rightFrequencyData,
+              rightTimeDomainData: stereo.rightTimeDomainData,
+            }
+          : null
+      }
       const frame = await native.getSpectrum()
       return frame.ok
         ? { frequencyData: frame.frequencyData, timeDomainData: frame.timeDomainData }

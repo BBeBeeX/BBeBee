@@ -117,6 +117,37 @@ class BbebeeAudioEngineModule : Module() {
             )
         }
 
+        // Stereo twin of getSpectrum: one JNI read for all six arrays,
+        // so the channels always belong to the same frame as the mono
+        // pair. `channels` is the verdict — callers must check it
+        // before reading the per-channel arrays, which are silence on
+        // a mono frame. The old getSpectrum stays untouched for
+        // callers that only need mono.
+        AsyncFunction("getStereoSpectrum") {
+            val bins = BBeBeeAudioEngine.nativeGetFftBinCount()
+            val freq = ByteArray(bins)
+            val time = ByteArray(bins)
+            val leftFreq = ByteArray(bins)
+            val leftTime = ByteArray(bins)
+            val rightFreq = ByteArray(bins)
+            val rightTime = ByteArray(bins)
+            val channels = BBeBeeAudioEngine.nativeGetStereoSpectrum(
+                freq, time, leftFreq, leftTime, rightFreq, rightTime,
+            )
+            val sampleRateHz = BBeBeeAudioEngine.nativeGetSpectrumSampleRateHz()
+            mapOf(
+                "ok" to (channels > 0),
+                "channels" to channels,
+                "sampleRateHz" to sampleRateHz,
+                "frequencyData" to freq.map { it.toInt() and 0xFF },
+                "timeDomainData" to time.map { it.toInt() and 0xFF },
+                "leftFrequencyData" to leftFreq.map { it.toInt() and 0xFF },
+                "leftTimeDomainData" to leftTime.map { it.toInt() and 0xFF },
+                "rightFrequencyData" to rightFreq.map { it.toInt() and 0xFF },
+                "rightTimeDomainData" to rightTime.map { it.toInt() and 0xFF },
+            )
+        }
+
         // ------------------------------------------------------------------
         // Codec seam (`bbebeeNativeCodec`): FFmpeg transcode + batch artwork.
         // ------------------------------------------------------------------
