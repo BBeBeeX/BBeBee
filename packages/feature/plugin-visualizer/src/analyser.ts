@@ -28,6 +28,7 @@ export interface AudioAnalyser {
   getByteTimeDomainData(array: Uint8Array): void
   pause?(): void
   resume?(): void
+  attachConsumer?(): () => void
   dispose(): void
 }
 
@@ -76,6 +77,10 @@ export class WebAudioImpl implements AudioAnalyser {
     return this.node
   }
 
+  attachConsumer(): () => void {
+    return () => {}
+  }
+
   dispose(): void {
     try {
       if (this.sourceNode) {
@@ -100,6 +105,8 @@ export class NativeMpvImpl implements AudioAnalyser {
   private pollTimer?: ReturnType<typeof setInterval>
   private isDisposed = false
   private isPaused = false
+  private consumerCount = 0
+  private readonly lazy: boolean
   private readonly fetchSpectrum?: () => Promise<FftFrame | null>
   private onVisibilityChange?: () => void
 
@@ -108,11 +115,13 @@ export class NativeMpvImpl implements AudioAnalyser {
       fftSize?: number
       smoothingTimeConstant?: number
       fetchSpectrum?: () => Promise<FftFrame | null>
+      lazy?: boolean
     } = {},
   ) {
     this._fftSize = options.fftSize ?? 128
     this._smoothingTimeConstant = options.smoothingTimeConstant ?? 0.82
     this.fetchSpectrum = options.fetchSpectrum
+    this.lazy = options.lazy ?? false
 
     const binCount = this._fftSize / 2
     this.smoothedFreq = new Float32Array(binCount)
@@ -129,9 +138,22 @@ export class NativeMpvImpl implements AudioAnalyser {
       document.addEventListener('visibilitychange', this.onVisibilityChange)
     }
 
-    if (this.fetchSpectrum) {
+    if (this.fetchSpectrum && !this.lazy) {
       if (typeof document === 'undefined' || !document.hidden) {
         this.startPolling()
+      }
+    }
+  }
+
+  attachConsumer(): () => void {
+    this.consumerCount++
+    if (this.consumerCount === 1 && !this.isPaused) {
+      this.resumePolling()
+    }
+    return () => {
+      this.consumerCount = Math.max(0, this.consumerCount - 1)
+      if (this.consumerCount === 0 && this.lazy) {
+        this.pausePolling()
       }
     }
   }
@@ -197,6 +219,7 @@ export class NativeMpvImpl implements AudioAnalyser {
 
   resume(): void {
     this.isPaused = false
+    if (this.lazy && this.consumerCount <= 0) return
     if (typeof document === 'undefined' || !document.hidden) {
       this.resumePolling()
     }
@@ -211,15 +234,21 @@ export class NativeMpvImpl implements AudioAnalyser {
 
   private resumePolling(): void {
     if (this.isDisposed || this.isPaused || this.pollTimer || !this.fetchSpectrum) return
+    if (this.lazy && this.consumerCount <= 0) return
     this.startPolling()
   }
 
   private startPolling(): void {
     if (this.pollTimer || !this.fetchSpectrum || this.isDisposed || this.isPaused) return
+    if (this.lazy && this.consumerCount <= 0) return
     let inFlight = false
     // Poll at ~60fps
     this.pollTimer = setInterval(async () => {
       if (this.isDisposed || this.isPaused || inFlight) return
+      if (this.lazy && this.consumerCount <= 0) {
+        this.pausePolling()
+        return
+      }
       if (typeof document !== 'undefined' && document.hidden) {
         this.pausePolling()
         return

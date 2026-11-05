@@ -1716,4 +1716,55 @@ The Dynamic Island / lock-screen Live Activity. `supported` is true only on iOS 
 
 Driving-optimized mode as a small state machine: an `enabled` gate, `activate(trigger)` / `deactivate(trigger)` with trigger matching (charging ending must not kill a manual session), and `autoOnCharging` — charging state is polled via `ctx.device.battery()` on each return to the foreground, the proxy RN has for "docked in the car". Transitions emit `car-mode/changed(active, trigger)`, persist `{enabled, autoOnCharging}` through `ctx.store`, and fire a haptic via the optional `haptics` inject. The mobile UI twin (`plugin-car-mode-ui-mobile`) owns the ≥64dp driving screen and the settings entry; CarPlay/Android Auto proper need native media-browser/CarScene delegates — this service is the seam they plug into.
 
+---
+
+## 29. `ctx.visualizer` — audio visualization service
+
+**Purpose.** Provides unified real-time audio spectrum and waveform telemetry (`AudioAnalyser`) for UI visualizers. Implemented by `packages/feature/plugin-visualizer` (Layer 4).
+
+```ts
+export interface VisualizerService {
+  /** The current visualizer settings. */
+  readonly settings: Readonly<VisualizerSettings>
+
+  /** The attached AnalyserNode, if available and active (Web Audio fallback). */
+  readonly analyserNode: AnalyserNode | null
+
+  /**
+   * Copies current frequency data into the target byte array.
+   * Target array length should match frequencyBinCount.
+   */
+  getFrequencyData(array: Uint8Array): void
+
+  /**
+   * Copies current time-domain (waveform) data into the target byte array.
+   */
+  getTimeDomainData(array: Uint8Array): void
+
+  /** Updates visualizer settings. */
+  updateSettings(patch: Partial<VisualizerSettings>): Promise<void>
+
+  /**
+   * Registers an active UI consumer (e.g. Spectrum/Waveform canvas).
+   * While at least one consumer is attached, the analyser polls for spectrum frames.
+   * Returns a disposer to unregister when the consumer unmounts or becomes hidden.
+   */
+  attachConsumer?(): () => void
+}
+```
+
+### Key Invariants & Lifecycle Rules
+
+1. **Dual Analyser Implementations**:
+   - `NativeMpvImpl`: Default on desktop when `ctx.audio.activeEngineName` is `mpv`/`wasapi` and `pcmTapAvailable` is true. Fetches in-process FFT frames over the host fast-path bridge.
+   - `WebAudioImpl`: Connects an `AnalyserNode` to `ctx.audio.chainOutput` (or `chainInput`). Used on platforms without native libmpv PCM tap or when the engine explicitly reports `pcmTapAvailable: false`.
+2. **Consumer-Driven Lazy Polling (`attachConsumer`)**:
+   - `NativeMpvImpl` starts with `lazy: true`. The 16 ms (~60 FPS) IPC polling timer is dormant until a UI canvas registers via `visualizer.attachConsumer()` (`consumerCount > 0`).
+   - When the consumer unmounts or becomes hidden, the disposer decrements `consumerCount`. When it reaches 0, the timer is cleared immediately, eliminating idle IPC traffic and preventing Chromium memory exhaustion.
+3. **Player State & Visibility Dormancy**:
+   - Subscribes to `player/state-changed`: If `status !== 'playing'`, polling automatically pauses (`analyser.pause()`). Polling resumes (`analyser.resume()`) once playing resumes and `consumerCount > 0`.
+   - Subscribes to `visibilitychange`: If the document is minimized or hidden, polling pauses.
+   - In-flight mutex (`inFlight`): Drops trailing ticks if an IPC call takes longer than 16 ms, preventing queue buildup.
+
+
 

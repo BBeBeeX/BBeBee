@@ -292,4 +292,110 @@ describe('plugin-visualizer', () => {
       vi.useRealTimers()
     }
   })
+
+  it('only polls NativeMpvImpl when consumers are attached if lazy is true', async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn(async () => ({
+        frequencyData: [10, 20],
+        timeDomainData: [128, 128],
+      }))
+
+      const analyser = new NativeMpvImpl({
+        fftSize: 32,
+        fetchSpectrum: fetchMock,
+        lazy: true,
+      })
+
+      // No consumers attached: should not poll
+      await vi.advanceTimersByTimeAsync(64)
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      // Attach consumer 1
+      const detach1 = analyser.attachConsumer()
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock).toHaveBeenCalled()
+      const callsAfterFirstAttach = fetchMock.mock.calls.length
+
+      // Attach consumer 2
+      const detach2 = analyser.attachConsumer()
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterFirstAttach)
+
+      // Detach consumer 1 (consumer 2 still active)
+      detach1()
+      const callsAfterDetach1 = fetchMock.mock.calls.length
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterDetach1)
+
+      // Detach consumer 2 (0 consumers left)
+      detach2()
+      const callsAfterDetach2 = fetchMock.mock.calls.length
+      await vi.advanceTimersByTimeAsync(64)
+      // Polling has stopped completely
+      expect(fetchMock.mock.calls.length).toBe(callsAfterDetach2)
+
+      analyser.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('manages consumers across plugin and responds to player/state-changed', async () => {
+    vi.useFakeTimers()
+    try {
+      const fetchMock = vi.fn(async () => ({
+        frequencyData: [10, 20],
+        timeDomainData: [128, 128],
+      }))
+
+      const mockCtx = new CordisContext() as unknown as Context
+      const untyped = mockCtx as unknown as Record<string, unknown>
+      untyped['audio'] = {
+        activeEngineName: 'mpv',
+        getFftSpectrum: fetchMock,
+      }
+      untyped['settings'] = {
+        getSync: vi.fn(() => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+        get: vi.fn(async () => ({ visualizer: DEFAULT_VISUALIZER_SETTINGS })),
+        update: vi.fn(),
+      }
+
+      const plugin = new VisualizerPlugin(mockCtx)
+      await plugin[VisualizerPlugin.init]()
+
+      // Initially no UI consumers attached: no polling
+      await vi.advanceTimersByTimeAsync(64)
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      // Attach a UI consumer via plugin
+      const detach = plugin.attachConsumer()
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock).toHaveBeenCalled()
+      const callsWhilePlaying = fetchMock.mock.calls.length
+
+      // Player pauses: player/state-changed status: 'paused'
+      mockCtx.emit('player/state-changed', { status: 'paused' } as never)
+      await vi.advanceTimersByTimeAsync(64)
+      // Polling paused
+      expect(fetchMock.mock.calls.length).toBe(callsWhilePlaying)
+
+      // Player resumes: player/state-changed status: 'playing'
+      mockCtx.emit('player/state-changed', { status: 'playing' } as never)
+      await vi.advanceTimersByTimeAsync(32)
+      // Polling resumed
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsWhilePlaying)
+
+      // Detach consumer
+      detach()
+      const callsAfterDetach = fetchMock.mock.calls.length
+      await vi.advanceTimersByTimeAsync(64)
+      expect(fetchMock.mock.calls.length).toBe(callsAfterDetach)
+
+      ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
+

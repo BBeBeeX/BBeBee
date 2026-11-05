@@ -27,6 +27,13 @@ export interface VisualizerService {
 
   /** Updates visualizer settings. */
   updateSettings(patch: Partial<VisualizerSettings>): Promise<void>
+
+  /**
+   * Registers an active UI consumer (e.g. Spectrum/Waveform canvas).
+   * While at least one consumer is attached, the analyser polls for spectrum frames.
+   * Returns a disposer to unregister when the consumer unmounts or becomes hidden.
+   */
+  attachConsumer?(): () => void
 }
 
 declare module 'cordis' {

@@ -39,6 +39,8 @@ export interface MediaElementLike {
    * element simply ignores the hand-off.
    */
   attachContext?(context: BaseAudioContext): void
+  load?(): void
+  removeAttribute?(qualifiedName: string): void
 }
 const STALL_EVENTS = ['waiting', 'stalled'] as const
 const RECOVER_EVENTS = ['playing', 'canplaythrough'] as const
@@ -227,9 +229,15 @@ export class StreamedHandle implements AudioSourceHandle {
     this.stallListeners.clear()
     this.element.pause()
     try {
+      if (typeof this.element.removeAttribute === 'function') {
+        this.element.removeAttribute('src')
+      }
       this.element.src = ''
+      if (typeof this.element.load === 'function') {
+        this.element.load()
+      }
     } catch {
-      // ignore in environments where setting src throws
+      // ignore in environments where resetting src throws
     }
     this.node.disconnect()
   }

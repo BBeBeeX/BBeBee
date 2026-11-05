@@ -98,6 +98,7 @@ export function useAudioData(
     let animId = 0
     let isRunning = false
     const visualizer = serviceOf<VisualizerService>(ctx, 'visualizer')
+    const detachConsumer = visualizer?.attachConsumer?.()
 
     const loop = () => {
       if (typeof document !== 'undefined' && document.hidden) {
@@ -147,6 +148,7 @@ export function useAudioData(
 
     return () => {
       stop()
+      detachConsumer?.()
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibilityChange)
       }

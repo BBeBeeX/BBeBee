@@ -12,6 +12,7 @@ import type { Context } from 'cordis'
 import type {
   AppSettings,
   SettingsService,
+  TransportState,
   VisualizerService,
   VisualizerSettings,
 } from '@BBeBee/protocol'
@@ -37,10 +38,23 @@ export class VisualizerPlugin extends Service implements VisualizerService {
   private analyser: AudioAnalyser | null = null
   /** Guards the async mpv attach against a detach or newer attach racing it. */
   private attachSeq = 0
+  private activeConsumers = new Set<{ detach?: () => void }>()
 
   constructor(ctx: Context) {
     super(ctx, 'visualizer')
     this.ownCtx = ctx
+  }
+
+  attachConsumer(): () => void {
+    const record: { detach?: () => void } = {
+      detach: this.analyser?.attachConsumer?.(),
+    }
+    this.activeConsumers.add(record)
+    return () => {
+      this.activeConsumers.delete(record)
+      record.detach?.()
+      record.detach = undefined
+    }
   }
 
   get settings(): Readonly<VisualizerSettings> {
@@ -121,11 +135,20 @@ export class VisualizerPlugin extends Service implements VisualizerService {
       this.attachAnalyser()
     })
 
+    const offPlayerState = this.ownCtx.on('player/state-changed', (transport: TransportState) => {
+      if (transport?.status === 'playing') {
+        this.analyser?.resume?.()
+      } else {
+        this.analyser?.pause?.()
+      }
+    })
+
     // Teardown
     return () => {
       this.ownCtx.logger.info('plugin-visualizer: disposing')
       offEngine()
       offContextRebuilt()
+      offPlayerState()
       this.detachAnalyser()
     }
   }
@@ -162,11 +185,20 @@ export class VisualizerPlugin extends Service implements VisualizerService {
         if (status?.pcmTapAvailable !== false) {
           const targetFftSize = this.currentSettings.fftSize || 128
           void audioSvc.setVisualizer?.(true, targetFftSize)
-          this.analyser = new NativeMpvImpl({
+          const mpvImpl = new NativeMpvImpl({
             fftSize: targetFftSize,
             smoothingTimeConstant: 0.82,
             fetchSpectrum: () => audioSvc.getFftSpectrum!(),
+            lazy: true,
           })
+          const playerSvc = (this.ownCtx as unknown as { player?: { transport?: { status?: string } } }).player
+          if (playerSvc?.transport?.status && playerSvc.transport.status !== 'playing') {
+            mpvImpl.pause()
+          }
+          for (const record of this.activeConsumers) {
+            record.detach = mpvImpl.attachConsumer()
+          }
+          this.analyser = mpvImpl
           this.ownCtx.logger.info('visualizer: attached NativeMpvImpl spectrum analyser')
           return
         }
@@ -183,7 +215,11 @@ export class VisualizerPlugin extends Service implements VisualizerService {
         if (source && typeof source.connect === 'function') {
           source.connect(node)
         }
-        this.analyser = new WebAudioImpl(node, source)
+        const webAudioImpl = new WebAudioImpl(node, source)
+        for (const record of this.activeConsumers) {
+          record.detach = webAudioImpl.attachConsumer()
+        }
+        this.analyser = webAudioImpl
         this.updateAnalyserConfig()
         this.ownCtx.logger.info('visualizer: attached WebAudioImpl AnalyserNode')
       } else {
@@ -210,6 +246,9 @@ export class VisualizerPlugin extends Service implements VisualizerService {
     if (this.analyser) {
       this.analyser.dispose()
       this.analyser = null
+    }
+    for (const record of this.activeConsumers) {
+      record.detach = undefined
     }
     const audioSvc = this.ownCtx.audio as unknown as {
       setVisualizer?: (enabled: boolean, fftSize?: number) => Promise<void>
