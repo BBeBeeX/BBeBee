@@ -83,11 +83,28 @@ Each shell resolves the contribution ID against its target view registry via `ct
 - `@BBeBee/toolkit/hooks` provides `useService` and `useServiceState(key, events, select)` backed by `useSyncExternalStore`; `@BBeBee/ui-core` re-exports them, so existing imports keep working.
 - No `useEffect` for domain mutations (call service methods directly).
 - **Headless Domain View Hooks & Batch State Invariant**:
-  - UI screens (`LocalMusicScreen`, `FavoritesScreen`, `AlbumScreen` on desktop and mobile) **must never implement their own duplicate track/album deduplication, multi-field sorting, search filtering, or batch selection logic**.
-  - All such view state machines belong strictly in Layer 4 headless hooks:
-    - `@BBeBee/toolkit/hooks`: `useBatchSelection` exposes the standard batch state machine (`isBatchMode`, `selectedUrns`, `toggleSelect`, `selectAll`, `clearSelection`, `isSelected`, `isAllSelected`, `selectedCount`).
-    - `@bbebee/plugin-library/hooks`: `useLocalMusic` (handles local track/album deduplication, multi-key sorting, artist classification and filtering, search filtering, and batch selection) and `useFavoritesView` (handles favorites hydration, multi-key sorting, search filtering, and batch selection).
-    - `@bbebee/plugin-album/hooks`: `useAlbumView` (handles album track deduplication, track number / title / duration / source sorting, search filtering, and batch selection).
+  - UI screens across all domains on desktop and mobile (`LocalMusicScreen`, `FavoritesScreen`, `AlbumScreen`, `PlaylistDetailScreen`, `CollectionScreen`, `LibraryScreen`, `HistoryScreen`, `DownloadsScreen`, `QueueScreen`) **must never implement their own duplicate track/item deduplication, multi-field sorting, search filtering, event debounce refresh, or batch selection logic**.
+  - All such view state machines belong strictly in Layer 4 headless hooks consumed through public subpaths:
+    - `@BBeBee/toolkit/hooks`:
+      - `useBatchSelection`: standard batch selection state machine (`isBatchMode`, `selectedUrns`, `toggleSelect`, `selectAll`, `clearSelection`, `isSelected`, `isAllSelected`, `selectedCount`).
+      - `useQueueView`: playback queue state machine (upcoming list slicing, current item, queue tracks, drag-and-drop reordering index mapping via `upcomingDropToQueueIndex`, and recent history pagination with hydration and deduplication).
+      - Pure helpers: `upcomingDropToQueueIndex`, `CONTEXT_KIND_LABEL_KEYS`, `formatRelativeTime`.
+    - `@bbebee/plugin-library/hooks`:
+      - `useLocalMusic`: local track/album deduplication, multi-key sorting (track number, title, artist, album, duration), artist grouping/filtering, search filtering, batch selection.
+      - `useFavoritesView`: favorites hydration from `sources.listTracks`, track deduplication, multi-key sorting, search filtering, batch selection.
+      - `usePlaylistView`: local & remote third-party playlist pagination, desktop deduplication, custom & multi-field sorting, search filtering, single & batch track removal, batch playback.
+      - `useCollectionView`: folder & collection members aggregation (tracks, albums, playlists), title/kind sorting, search filtering, rename and delete actions.
+      - `useLibraryView`: unified library hydration (playlists, collections, saved albums/artists/downloads), creator profile loading, debounced event refresh, folder expansion/collapse, filter tabs (`all`, `playlist`, `album`, `artist`, `downloaded`), multi-dimensional sorting.
+    - `@bbebee/plugin-album/hooks`:
+      - `useAlbumView`: album track deduplication, natural track number / title / duration / source sorting, source name resolution, search filtering, batch selection.
+    - `@bbebee/plugin-history/hooks`:
+      - `useHistoryView`: playback history time ordering, consecutive duplicate folding, play count statistics map, date filtering, clear history, completion rate, heatmap data aggregation.
+      - Pure helpers: `formatHistoryTime`, `fallbackTrack`.
+    - `@bbebee/plugin-download/hooks`:
+      - `useDownloadsView`: debounced download event listener (`queued`, `progress`, `completed`, `failed`), task partitioning (`activeTasks`, `completedTasks`, `failedTasks`), task controls (`pauseTask`, `resumeTask`, `cancelTask`, `retryTask`, `clearCompleted`).
+      - Pure helpers: `formatDownloadSummary`.
+  - **Prioritize Desktop Logic Principle**:
+    - When abstracting cross-platform state machines, the desktop implementation's sorting precedence, deduplication rules (such as deduplicating duplicate track URNs in playlist views), and batch selection contracts serve as the canonical reference design. Mobile UI must consume the same shared logic rather than maintaining custom divergence.
   - UI packages remain strictly thin presentation adapters (React Native views in mobile, React DOM table/rows in desktop) that wire up headless hook outputs to gestures and markup.
 - **Optimistic UI Feedback & Instant Actions**:
   - Interactive actions (e.g. toggling favorite on albums, playlists or tracks, batch downloading) must flip local UI state optimistically and emit instant user feedback via `ctx.emit('ui/toast', ...)` before awaiting background persistence.
