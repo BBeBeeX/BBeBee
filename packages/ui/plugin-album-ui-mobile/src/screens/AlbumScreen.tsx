@@ -13,7 +13,7 @@ import type {
   UrnKind,
 } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
-import { useAlbum } from '@bbebee/plugin-album/hooks'
+import { useAlbumView } from '@bbebee/plugin-album/hooks'
 import { useResolvedArtwork, useTransport, resolveTrackSourceName } from '@BBeBee/toolkit/hooks'
 import { formatTotalDuration } from '@BBeBee/toolkit'
 import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
@@ -38,8 +38,6 @@ import { BatchActionBar } from '../components/BatchActionBar.js'
 import { AlbumTrackRow } from '../components/AlbumTrackRow.js'
 import { SaveToPlaylistSheet } from '../components/SaveToPlaylistSheet.js'
 
-type AlbumSortKey = 'default' | 'title' | 'artist' | 'duration'
-type SortOrder = 'asc' | 'desc'
 type ViewMode = 'list' | 'compact'
 
 export function AlbumScreen({
@@ -53,7 +51,6 @@ export function AlbumScreen({
 }): ReactElement {
   const native = nativePrimitives()
   const { t } = useI18n(ctx)
-  const album = useAlbum(ctx, urn)
   const transport = useTransport(ctx)
   const player = serviceOf<PlayerService>(ctx, 'player')
   const library = serviceOf<LibraryService>(ctx, 'library')
@@ -62,19 +59,32 @@ export function AlbumScreen({
   const sources = serviceOf<SourcesService>(ctx, 'sources')
   const menu = useTrackMenu(ctx)
   const saveToPlaylistMenu = useSaveToPlaylistMenu(ctx)
-
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
+  const albumView = useAlbumView(ctx, urn)
+  const {
+    album: albumData,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    filteredTracks: processedTracks,
+    sortedUrns,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    batch,
+  } = albumView
+
+  const isBatchMode = batch.isBatchMode
+  const selectedUrns = batch.selectedUrns
+  const allSelected = batch.isAllSelected(sortedUrns)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [sortKey, setSortKey] = useState<AlbumSortKey>('default')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
   const [isSaved, setIsSaved] = useState(false)
   const [savedTrackUrns, setSavedTrackUrns] = useState<Set<string>>(new Set())
   const [collections, setCollections] = useState<readonly Collection[]>([])
@@ -92,12 +102,12 @@ export function AlbumScreen({
   }, [ctx])
 
   // Resolve artwork
-  const resolvedCover = useResolvedArtwork(ctx, album.data?.artwork)
+  const resolvedCover = useResolvedArtwork(ctx, albumData?.artwork)
   const dominantTint = (resolvedCover as { dominantColor?: string } | undefined)?.dominantColor
 
   // Read saved album and tracks
   const loadSavedState = useCallback(() => {
-    const albumUrn = album.data?.urn
+    const albumUrn = albumData?.urn
     if (!library || !albumUrn) return
 
     library
@@ -122,12 +132,12 @@ export function AlbumScreen({
         .then((cols) => setCollections(cols))
         .catch(() => {})
     }
-  }, [library, album.data?.urn])
+  }, [library, albumData?.urn])
 
   useEffect(() => {
     loadSavedState()
     const off = ctx.on('library/changed', (kind?: UrnKind) => {
-      const albumUrn = album.data?.urn
+      const albumUrn = albumData?.urn
       if (!library || !albumUrn) return
       if (!kind || kind === 'album') {
         library.isSaved(albumUrn).then((saved) => setIsSaved(saved)).catch(() => {})
@@ -146,46 +156,8 @@ export function AlbumScreen({
       }
     })
     return () => void off()
-  }, [ctx, library, album.data?.urn, loadSavedState])
+  }, [ctx, library, albumData?.urn, loadSavedState])
 
-  const albumData = album.data
-  const rawTracks = useMemo(() => albumData?.tracks ?? [], [albumData?.tracks])
-
-  // Filter & Sort tracks
-  const processedTracks = useMemo(() => {
-    let list = [...rawTracks]
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      list = list.filter(
-        (tr) =>
-          tr.title.toLowerCase().includes(q) ||
-          tr.artists?.some((a) => a.name.toLowerCase().includes(q)),
-      )
-    }
-
-    if (sortKey !== 'default') {
-      list.sort((a, b) => {
-        let cmp = 0
-        if (sortKey === 'title') {
-          cmp = a.title.localeCompare(b.title)
-        } else if (sortKey === 'artist') {
-          const aArtist = a.artists?.[0]?.name ?? ''
-          const bArtist = b.artists?.[0]?.name ?? ''
-          cmp = aArtist.localeCompare(bArtist)
-        } else if (sortKey === 'duration') {
-          cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-        }
-        return sortOrder === 'asc' ? cmp : -cmp
-      })
-    } else if (sortOrder === 'desc') {
-      list.reverse()
-    }
-
-    return list
-  }, [rawTracks, searchQuery, sortKey, sortOrder])
-
-  const sortedUrns = useMemo(() => processedTracks.map((t) => t.urn), [processedTracks])
   const activeTrackUrn = transport?.trackUrn
   const isPlaying = transport?.status === 'playing'
 
@@ -238,20 +210,15 @@ export function AlbumScreen({
 
   // Batch operations
   const handleToggleSelectAll = () => {
-    if (selectedUrns.size === sortedUrns.length) {
-      setSelectedUrns(new Set())
+    if (allSelected) {
+      batch.clearSelection()
     } else {
-      setSelectedUrns(new Set(sortedUrns))
+      batch.selectAll(sortedUrns)
     }
   }
 
   const handleToggleSelect = (trackUrn: string) => {
-    setSelectedUrns((prev) => {
-      const copy = new Set(prev)
-      if (copy.has(trackUrn)) copy.delete(trackUrn)
-      else copy.add(trackUrn)
-      return copy
-    })
+    batch.toggleSelect(trackUrn)
   }
 
   const handleBatchPlay = () => {
@@ -272,8 +239,8 @@ export function AlbumScreen({
         tone: 'info',
       })
       void downloads.enqueue(selectedTracks)
-      setIsBatchMode(false)
-      setSelectedUrns(new Set())
+      batch.setBatchMode(false)
+      batch.clearSelection()
     }
   }
 
@@ -287,8 +254,7 @@ export function AlbumScreen({
         label: t('album:index.batchOperations'),
         icon: 'list-check',
         onSelect: () => {
-          setIsBatchMode((prev) => !prev)
-          setSelectedUrns(new Set())
+          batch.setBatchMode(!isBatchMode)
         },
       },
       {
@@ -443,7 +409,7 @@ export function AlbumScreen({
     ctx,
   ])
 
-  if (album.status === 'loading' || album.status === 'idle') {
+  if (loading) {
     return h(EmptyState, { title: t('album:index.loadingAlbum') })
   }
 
@@ -452,16 +418,16 @@ export function AlbumScreen({
     else serviceOf<{ navigate(id: string): void }>(ctx, 'ui')?.navigate(LIBRARY_VIEWS.home)
   }
 
-  if (album.status === 'error' || !album.data) {
+  if (error || !albumData) {
     return h(EmptyState, {
       icon: 'alert',
       title: t('album:index.albumUnavailable'),
-      description: album.error?.message,
+      description: error,
       action: h(Button, { onPress: handleBack, variant: 'secondary', children: t('album:index.backToLibrary') }),
     })
   }
 
-  const detail = album.data
+  const detail = albumData
 
   const artistsText = detail.artists?.map((a) => a.name).join(', ') || t('album:index.unknownArtist')
   const yearText = detail.year || (detail.releaseDate ? detail.releaseDate.slice(0, 4) : '')
@@ -598,7 +564,7 @@ export function AlbumScreen({
               disabled: sortedUrns.length === 0,
               onPress: () => {
                 if (sortedUrns.length > 0 && player) {
-                  void player.playNow(sortedUrns, {
+                  void player.playNow([...sortedUrns], {
                     context: { kind: 'album', urn: detail.urn, label: detail.title },
                   })
                 }
@@ -681,8 +647,7 @@ export function AlbumScreen({
             },
             onBatchDownload: downloads ? handleBatchDownload : undefined,
             onExitBatch: () => {
-              setIsBatchMode(false)
-              setSelectedUrns(new Set())
+              batch.setBatchMode(false)
             },
           }),
         )

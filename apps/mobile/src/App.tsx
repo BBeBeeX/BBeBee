@@ -15,6 +15,7 @@ import {
   Animated,
   BackHandler,
   Image,
+  Linking,
   PanResponder,
   PermissionsAndroid,
   Platform,
@@ -95,6 +96,24 @@ async function requestAndroidPermissions(): Promise<void> {
     }
   } catch {
     // Non-fatal if permission request fails or user dismisses
+  }
+}
+
+/**
+ * Open Android system "All files access" settings for this app package.
+ */
+export async function openAllFilesAccessSettings(): Promise<void> {
+  if (Platform.OS !== 'android') return
+  try {
+    await Linking.sendIntent('android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION', [
+      { key: 'package', value: 'package:org.bbebee.app' },
+    ])
+  } catch {
+    try {
+      await Linking.openSettings()
+    } catch {
+      // Non-fatal fallback
+    }
   }
 }
 
@@ -786,8 +805,15 @@ function Shell({ ctx }: { ctx: Context }) {
         setActiveToast((cur) => (cur?.id === id ? null : cur))
       }, toast.durationMs ?? 3000)
     })
+    const offAllFiles = (ctx as unknown as { on: (event: string, cb: () => void) => () => void }).on(
+      'system/open-all-files-settings',
+      () => {
+        void openAllFilesAccessSettings()
+      },
+    )
     return () => {
       off()
+      offAllFiles?.()
       if (timer) clearTimeout(timer)
     }
   }, [ctx])

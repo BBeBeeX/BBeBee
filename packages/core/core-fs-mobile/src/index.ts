@@ -230,6 +230,14 @@ export class FsExpo extends Service implements FsService {
   async exists(uri: Uri): Promise<boolean> {
     this.check(uri, 'read')
     if (uri.startsWith('content://')) {
+      const native = safToNativeFileUri(uri)
+      if (native.startsWith('file://')) {
+        try {
+          if (Paths.info(native).exists) return true
+        } catch {
+          // Fall through to content URI check
+        }
+      }
       try {
         return Boolean(new File(uri).exists || new Directory(uri).exists)
       } catch {
@@ -242,6 +250,23 @@ export class FsExpo extends Service implements FsService {
   async stat(uri: Uri): Promise<FileStat> {
     this.check(uri, 'read')
     if (uri.startsWith('content://')) {
+      const native = safToNativeFileUri(uri)
+      if (native.startsWith('file://')) {
+        try {
+          const info = Paths.info(native)
+          if (info.exists) {
+            return {
+              uri: trim(uri),
+              name: this.basename(uri),
+              isDirectory: Boolean(info.isDirectory),
+              size: (info.isDirectory ? 0 : new File(native).size) ?? 0,
+              mtime: (info.isDirectory ? 0 : new File(native).lastModified) ?? 0,
+            }
+          }
+        } catch {
+          // Fall through to content URI check
+        }
+      }
       try {
         const file = new File(uri)
         if (file.exists) {
@@ -301,7 +326,23 @@ export class FsExpo extends Service implements FsService {
 
   async list(uri: Uri): Promise<FileStat[]> {
     this.check(uri, 'read')
-    const entries = new Directory(uri).list()
+    let entries: (File | Directory)[] | undefined
+    if (uri.startsWith('content://')) {
+      const native = safToNativeFileUri(uri)
+      if (native.startsWith('file://')) {
+        try {
+          const info = Paths.info(native)
+          if (info.exists && info.isDirectory) {
+            entries = new Directory(native).list()
+          }
+        } catch {
+          // Fall back to SAF tree
+        }
+      }
+    }
+    if (!entries) {
+      entries = new Directory(uri).list()
+    }
     return entries.map((entry) => {
       const isDirectory = entry instanceof Directory
       return {

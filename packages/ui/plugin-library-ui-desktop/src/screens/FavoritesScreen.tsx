@@ -2,8 +2,8 @@ import { createElement as h, useMemo, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LibraryService, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
-import { useSaved } from '@bbebee/plugin-library/hooks'
-import { resolveTrackSourceName, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
+import { useFavoritesView, type FavoriteSortKey } from '@bbebee/plugin-library/hooks'
+import { resolveTrackSourceName, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -12,37 +12,37 @@ import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'duration'
-
 /** Favorites have no cover: fixed gradient purple for "Liked songs" is its theme colour. */
 const FAVORITES_TINT = '#450af5'
 
 export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
   const transport = useTransport(ctx)
-  const saved = useSaved(ctx, 'track')
-  const entries = saved.data ?? []
-  const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
-  // 1. Song dedup: filter out duplicate URNs
-  const urns = useMemo(() => {
-    const seen = new Set<string>()
-    return rawUrns.filter((u) => {
-      if (!u || seen.has(u)) return false
-      seen.add(u)
-      return true
-    })
-  }, [rawUrns])
-
-  const tracksMap = useTracksByUrn(ctx, urns)
   const player = serviceOf<PlayerService>(ctx, 'player')
-  const error = saved.error?.message
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortKey, setSortKey] = useState<FavoriteSortKey>('default')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const favorites = useFavoritesView(ctx)
+  const {
+    tracks: allTracks,
+    loading,
+    error,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    toggleSort,
+    filteredTracks: sortedTracks,
+    sortedUrns,
+    searchQuery,
+    setSearchQuery,
+    batch,
+  } = favorites
+
+  const isBatchMode = batch.isBatchMode
+  const setIsBatchMode = batch.setIsBatchMode
+  const selectedUrns = batch.selectedUrns
+  const allSelected = batch.isAllSelected(sortedUrns)
+
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<MenuAnchor | null>(null)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
   // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
@@ -50,61 +50,6 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const [viewMode, setViewMode] = useViewMode('favorites', 'list', ['compact', 'list'] as const)
   const menu = useTrackMenu(ctx)
   const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
-
-  const allTracks = useMemo(() => {
-    const seen = new Set<string>()
-    const list: Track[] = []
-    for (const urn of urns) {
-      const t = tracksMap.get(urn) ?? { urn, title: urn.split(':').pop() ?? urn, artists: [] }
-      if (!seen.has(t.urn)) {
-        seen.add(t.urn)
-        list.push(t)
-      }
-    }
-    return list
-  }, [urns, tracksMap])
-
-  const sortedTracks = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const matching = q
-      ? allTracks.filter((t) => {
-          return (
-            t.title.toLowerCase().includes(q) ||
-            t.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-            t.albumTitle?.toLowerCase().includes(q)
-          )
-        })
-      : [...allTracks]
-
-    if (sortKey === 'default') {
-      return sortOrder === 'desc' ? matching.reverse() : matching
-    }
-
-    return matching.sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'artist') {
-        const aArt = a.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'album') {
-        cmp = (a.albumTitle ?? '').localeCompare(b.albumTitle ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (sortKey === 'source') {
-        const aSrc = resolveTrackSourceName(ctx, a.urn)
-        const bSrc = resolveTrackSourceName(ctx, b.urn)
-        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'duration') {
-        cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-      }
-      return sortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [allTracks, searchQuery, sortKey, sortOrder])
-
-  const sortedUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
 
   const sortLabelMap: Record<FavoriteSortKey, string> = {
     default: t('library:favorites.defaultOrder'),
@@ -131,30 +76,19 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   const handleHeaderClick = (key: FavoriteSortKey) => {
-    if (sortKey === key) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortKey(key)
-      setSortOrder('asc')
-    }
+    toggleSort(key)
   }
 
-  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
   const handleToggleSelectAll = () => {
     if (allSelected) {
-      setSelectedUrns(new Set())
+      batch.clearSelection()
     } else {
-      setSelectedUrns(new Set(sortedUrns))
+      batch.selectAll(sortedUrns)
     }
   }
 
   const handleToggleSelect = (urn: string) => {
-    setSelectedUrns((prev) => {
-      const next = new Set(prev)
-      if (next.has(urn)) next.delete(urn)
-      else next.add(urn)
-      return next
-    })
+    batch.toggleSelect(urn)
   }
 
   const handleBatchPlay = () => {
@@ -169,7 +103,8 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
     const toAdd = Array.from(selectedUrns)
     if (toAdd.length > 0) {
-      const selectedTracks = toAdd.map((u) => tracksMap.get(u) ?? u)
+      const trackMap = new Map(allTracks.map((t) => [t.urn, t]))
+      const selectedTracks = toAdd.map((u) => trackMap.get(u) ?? u)
       openBatchAddToPlaylistMenu(
         selectedTracks,
         anchor ?? { x: typeof window !== 'undefined' ? window.innerWidth / 2 : 200, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200 },
@@ -190,12 +125,11 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         await library.setSaved(u, false).catch(() => {})
       }
     }
-    setSelectedUrns(new Set())
+    batch.clearSelection()
   }
 
   const handleExitBatch = () => {
-    setIsBatchMode(false)
-    setSelectedUrns(new Set())
+    batch.setBatchMode(false)
   }
 
   const moreMenuItems: MenuItemSpec[] = useMemo(() => {
@@ -274,9 +208,9 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       eyebrow: t('library:playlistDetail.playlist'),
       title: t('library:favorites.likedSongs'),
       subtitle:
-        urns.length === 1
-          ? t('library:favorites.savedMusicOne', { length: urns.length })
-          : t('library:favorites.savedMusicOther', { length: urns.length }),
+        allTracks.length === 1
+          ? t('library:favorites.savedMusicOne', { length: allTracks.length })
+          : t('library:favorites.savedMusicOther', { length: allTracks.length }),
     }),
     // Action Bar
     h(
@@ -417,9 +351,6 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         })
       : null,
     error ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { variant: 'sm', tone: 'error' }, error)) : null,
-    saved.status === 'error'
-      ? h('div', { style: { padding: '0 32px 8px 32px' } }, h(Text, { tone: 'error' }, t('library:favorites.couldNotReadFavorites', { message: saved.error?.message ?? '' })))
-      : null,
   )
 
   // The table header rides the stickyHeader slot (a direct child of the scroller).
@@ -467,7 +398,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         estimatedItemSize: tokens.size.row,
         keyExtractor: (t) => t.urn,
         empty:
-          saved.status === 'loading'
+          loading
             ? h(EmptyState, { title: t('library:collection.loading') })
             : h(EmptyState, {
                 icon: 'heart',

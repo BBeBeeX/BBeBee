@@ -1,7 +1,7 @@
-import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { Album, ArtworkRef, PlayerService, SourcesService, Track } from '@BBeBee/protocol'
+import type { Album, ArtworkRef, PlayerService, Track } from '@BBeBee/protocol'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, HoverLabel, List, MarqueeText, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, viewModeMenuItems, useViewMode, headerGradient, useI18n } from '@BBeBee/ui-kit-desktop'
 import { sortMenuItems, useTrackMenu } from '@BBeBee/ui-menus'
@@ -11,11 +11,8 @@ import { LocalAlbumCard } from '../components/LocalAlbumCard.js'
 import { LibraryTrackRow } from '../components/LibraryTrackRow.js'
 import { BatchActionBar } from '../components/BatchActionBar.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
-import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@bbebee/plugin-library/hooks'
+import { useLocalMusic, type LocalTrackSortKey, type LocalAlbumSortKey } from '@bbebee/plugin-library/hooks'
 import { useTransport } from '@BBeBee/toolkit/hooks'
-
-type LocalTrackSortKey = 'default' | 'title' | 'artist' | 'album' | 'duration'
-type LocalAlbumSortKey = 'default' | 'title' | 'artist' | 'year' | 'count'
 
 /** Album list/compact rows: flat mode still uses the LocalAlbumCard grid. */
 function LocalAlbumRow({
@@ -365,20 +362,44 @@ export function LocalMusicScreen({
 }: LocalMusicScreenProps): ReactElement {
   const { t } = useI18n(ctx)
   const transport = useTransport(ctx)
-  const [tracks, setTracks] = useState<readonly Track[]>([])
-  const [albums, setAlbums] = useState<readonly Album[]>([])
-  const [viewMode, setViewMode] = useState<'tracks' | 'albums' | 'artists'>('tracks')
-  const [selectedArtist, setSelectedArtist] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | undefined>(undefined)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [trackSortKey, setTrackSortKey] = useState<LocalTrackSortKey>('default')
-  const [trackSortOrder, setTrackSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [albumSortKey, setAlbumSortKey] = useState<LocalAlbumSortKey>('default')
-  const [albumSortOrder, setAlbumSortOrder] = useState<'asc' | 'desc'>('asc')
+  const {
+    tracks,
+    albums,
+    viewMode,
+    setViewMode,
+    setSelectedArtist,
+    loading,
+    error,
+    searchQuery,
+    setSearchQuery,
+    trackSortKey,
+    setTrackSortKey,
+    trackSortOrder,
+    setTrackSortOrder,
+    albumSortKey,
+    setAlbumSortKey,
+    albumSortOrder,
+    setAlbumSortOrder,
+    sortedTracks,
+    sortedTrackUrns,
+    artists,
+    filteredArtists,
+    effectiveSelectedArtist,
+    tracksForSelectedArtist: sortedArtistTracks,
+    currentTrackUrns,
+    sortedAlbums,
+    batch,
+    targetUrns,
+    toggleTrackSort,
+    toggleAlbumSort,
+  } = useLocalMusic(ctx, { highlightUrn, highlightUrns })
+
+  const isBatchMode = batch.isBatchMode
+  const setIsBatchMode = batch.setIsBatchMode
+  const selectedUrns = batch.selectedUrns
+  const allSelected = batch.isAllSelected(currentTrackUrns)
+
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<MenuAnchor | null>(null)
   // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
@@ -395,17 +416,6 @@ export function LocalMusicScreen({
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
-  const targetUrns = useMemo(() => {
-    const set = new Set<string>()
-    if (highlightUrn) set.add(highlightUrn)
-    if (highlightUrns) {
-      for (const u of highlightUrns) {
-        if (u) set.add(u)
-      }
-    }
-    return set
-  }, [highlightUrn, highlightUrns])
-
   const [activeHighlights, setActiveHighlights] = useState<Set<string>>(() => new Set(targetUrns))
 
   useEffect(() => {
@@ -418,249 +428,17 @@ export function LocalMusicScreen({
   }, [targetUrns])
 
   useEffect(() => {
-    if (targetUrns.size > 0) {
-      setViewMode('tracks')
-    }
-  }, [targetUrns])
-
-  useEffect(() => {
     if (targetUrns.size > 0 && collapse.scrollerRef.current) {
       collapse.scrollerRef.current.scrollTop = 0
     }
   }, [targetUrns, tracks.length])
 
-  const reload = useCallback(() => {
-    const sources = serviceOf<SourcesService>(ctx, 'sources') ?? ctx.sources
-    if (!sources?.listTracks) {
-      setLoading(false)
-      return
-    }
-    const unknownAlbumLabel = t('library:localAlbum.unknownAlbum')
-
-    const loadAlbums = fetchAllLocalAlbums(sources).catch(() => [] as Album[])
-
-    Promise.all([fetchAllLocalTracks(sources), loadAlbums])
-      .then(([loadedTracks, loadedAlbums]) => {
-        const seen = new Set<string>()
-        const dedupedTracks = loadedTracks.filter((t) => {
-          if (!t.urn || seen.has(t.urn)) return false
-          seen.add(t.urn)
-          return true
-        })
-        setTracks(dedupedTracks)
-
-        if (loadedAlbums.length > 0) {
-          setAlbums(loadedAlbums)
-        } else {
-          // Synthesize albums from local tracks if listAlbums returned empty
-          const map = new Map<string, Album>()
-          for (const t of loadedTracks) {
-            const albumTitle = t.albumTitle || unknownAlbumLabel
-            const key = t.albumUrn || `BBeBee:local:album:${encodeURIComponent(albumTitle)}`
-            if (!map.has(key)) {
-              map.set(key, {
-                urn: key,
-                title: albumTitle,
-                artists: t.artists || [],
-                year: t.year,
-                artwork: t.artwork,
-                trackCount: 1,
-              })
-            } else {
-              const existing = map.get(key)!
-              existing.trackCount = (existing.trackCount || 1) + 1
-            }
-          }
-          setAlbums(Array.from(map.values()))
-        }
-        setLoading(false)
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err))
-        setLoading(false)
-      })
-  }, [ctx, t])
-
-  useEffect(() => {
-    reload()
-    const offLibrary = ctx.on?.('library/changed', (kind) => {
-      if (kind === 'track' || kind === 'album' || !kind) reload()
-    })
-    const offScan = ctx.on?.('scan/finished', () => {
-      reload()
-    })
-    return () => {
-      offLibrary?.()
-      offScan?.()
-    }
-  }, [ctx, reload])
-
-  const sortedTracks = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const matching = q
-      ? tracks.filter((t) => {
-          return (
-            t.title.toLowerCase().includes(q) ||
-            t.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-            t.albumTitle?.toLowerCase().includes(q)
-          )
-        })
-      : [...tracks]
-
-    if (trackSortKey === 'default') {
-      if (targetUrns.size > 0) {
-        const highlighted: Track[] = []
-        const others: Track[] = []
-        for (const t of matching) {
-          if (targetUrns.has(t.urn)) highlighted.push(t)
-          else others.push(t)
-        }
-        const arranged = [...highlighted, ...others]
-        return trackSortOrder === 'desc' ? arranged.reverse() : arranged
-      }
-      return trackSortOrder === 'desc' ? matching.reverse() : matching
-    }
-
-    return matching.sort((a, b) => {
-      let cmp = 0
-      if (trackSortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (trackSortKey === 'artist') {
-        const aArt = a.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (trackSortKey === 'album') {
-        cmp = (a.albumTitle ?? '').localeCompare(b.albumTitle ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (trackSortKey === 'duration') {
-        cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-      }
-      return trackSortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [tracks, searchQuery, trackSortKey, trackSortOrder])
-
-  const sortedTrackUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
-
-  const artists = useMemo(() => {
-    const unknownArtistLabel = t('library:library.unknownArtist')
-    const map = new Map<string, { name: string; trackCount: number; artwork?: ArtworkRef }>()
-    for (const track of tracks) {
-      const trackArtists =
-        track.artists && track.artists.length > 0
-          ? track.artists
-          : [{ name: unknownArtistLabel }]
-      for (const a of trackArtists) {
-        const name = a.name?.trim() || unknownArtistLabel
-        const existing = map.get(name)
-        if (!existing) {
-          map.set(name, {
-            name,
-            trackCount: 1,
-            artwork: track.artwork,
-          })
-        } else {
-          existing.trackCount += 1
-          if (!existing.artwork && track.artwork) {
-            existing.artwork = track.artwork
-          }
-        }
-      }
-    }
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
-    )
-  }, [tracks, t])
-
-  const filteredArtists = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q || viewMode !== 'artists') return artists
-    return artists.filter((a) => a.name.toLowerCase().includes(q))
-  }, [artists, searchQuery, viewMode])
-
-  const effectiveSelectedArtist = useMemo(() => {
-    if (artists.length === 0) return null
-    if (selectedArtist && artists.some((a) => a.name === selectedArtist)) {
-      return selectedArtist
-    }
-    if (filteredArtists.length > 0) {
-      return filteredArtists[0]?.name ?? null
-    }
-    return artists[0]?.name ?? null
-  }, [artists, filteredArtists, selectedArtist])
-
-  const selectedArtistTracks = useMemo(() => {
-    if (!effectiveSelectedArtist) return []
-    const unknownArtistLabel = t('library:library.unknownArtist')
-    return tracks.filter((t) => {
-      const tArtists = t.artists && t.artists.length > 0 ? t.artists : [{ name: unknownArtistLabel }]
-      return tArtists.some((a) => (a.name?.trim() || unknownArtistLabel) === effectiveSelectedArtist)
-    })
-  }, [tracks, effectiveSelectedArtist, t])
-
-  const sortedArtistTracks = useMemo(() => {
-    if (viewMode !== 'artists') return []
-    const q = searchQuery.trim().toLowerCase()
-    const matching = q
-      ? selectedArtistTracks.filter((t) => {
-          return (
-            t.title.toLowerCase().includes(q) ||
-            t.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-            t.albumTitle?.toLowerCase().includes(q)
-          )
-        })
-      : [...selectedArtistTracks]
-
-    if (trackSortKey === 'default') {
-      return trackSortOrder === 'desc' ? matching.reverse() : matching
-    }
-
-    return matching.sort((a, b) => {
-      let cmp = 0
-      if (trackSortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (trackSortKey === 'artist') {
-        const aArt = a.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (trackSortKey === 'album') {
-        cmp = (a.albumTitle ?? '').localeCompare(b.albumTitle ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (trackSortKey === 'duration') {
-        cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-      }
-      return trackSortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [viewMode, selectedArtistTracks, searchQuery, trackSortKey, trackSortOrder])
-
-  const currentTracks = useMemo(() => {
-    if (viewMode === 'artists') {
-      return sortedArtistTracks
-    }
-    return sortedTracks
-  }, [viewMode, sortedArtistTracks, sortedTracks])
-
-  const currentTrackUrns = useMemo(() => currentTracks.map((t) => t.urn), [currentTracks])
-
-  const allSelected = currentTrackUrns.length > 0 && selectedUrns.size === currentTrackUrns.length
   const handleToggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedUrns(new Set())
-    } else {
-      setSelectedUrns(new Set(currentTrackUrns))
-    }
+    batch.selectAll(currentTrackUrns)
   }
 
   const handleToggleSelect = (trackUrn: string) => {
-    setSelectedUrns((prev) => {
-      const next = new Set(prev)
-      if (next.has(trackUrn)) next.delete(trackUrn)
-      else next.add(trackUrn)
-      return next
-    })
+    batch.toggleSelect(trackUrn)
   }
 
   const handleBatchPlay = () => {
@@ -689,14 +467,11 @@ export function LocalMusicScreen({
 
   const handleBatchDelete = () => {
     if (selectedUrns.size === 0) return
-    const toRemove = new Set(selectedUrns)
-    setTracks((prev) => prev.filter((t) => !toRemove.has(t.urn)))
-    setSelectedUrns(new Set())
+    batch.clearSelection()
   }
 
   const handleExitBatch = () => {
-    setIsBatchMode(false)
-    setSelectedUrns(new Set())
+    batch.setIsBatchMode(false)
   }
 
   const moreMenuItems: MenuItemSpec[] = useMemo(() => {
@@ -763,54 +538,12 @@ export function LocalMusicScreen({
     }
   }
 
-  const sortedAlbums = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const matching = q
-      ? albums.filter((a) => {
-          return (
-            a.title.toLowerCase().includes(q) ||
-            a.artists?.some((art) => art.name.toLowerCase().includes(q))
-          )
-        })
-      : [...albums]
-
-    if (albumSortKey === 'default') {
-      return albumSortOrder === 'desc' ? matching.reverse() : matching
-    }
-
-    return matching.sort((a, b) => {
-      let cmp = 0
-      if (albumSortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (albumSortKey === 'artist') {
-        const aArt = a.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (albumSortKey === 'year') {
-        cmp = (a.year ?? 0) - (b.year ?? 0)
-      } else if (albumSortKey === 'count') {
-        cmp = (a.trackCount ?? 0) - (b.trackCount ?? 0)
-      }
-      return albumSortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [albums, searchQuery, albumSortKey, albumSortOrder])
-
   const handleTrackHeaderClick = (key: LocalTrackSortKey) => {
-    if (trackSortKey === key) {
-      setTrackSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setTrackSortKey(key)
-      setTrackSortOrder('asc')
-    }
+    toggleTrackSort(key)
   }
 
   const handleAlbumHeaderClick = (key: LocalAlbumSortKey) => {
-    if (albumSortKey === key) {
-      setAlbumSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setAlbumSortKey(key)
-      setAlbumSortOrder('asc')
-    }
+    toggleAlbumSort(key)
   }
 
   const trackSortLabelMap: Record<LocalTrackSortKey, string> = {
@@ -865,7 +598,7 @@ export function LocalMusicScreen({
       ariaLabel: t('library:favorites.playAll'),
       onPress: () =>
         currentTrackUrns[0] &&
-        player?.playNow(currentTrackUrns, {
+        player?.playNow([...currentTrackUrns], {
           context: {
             kind: 'local',
             label:

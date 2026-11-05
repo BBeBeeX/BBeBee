@@ -17,13 +17,13 @@
  *    starting here. Playback never navigates; the transport bar announces it.
  */
 
-import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Collection, DownloadsService, LibraryService, PlayerService, ShareService, SleepTimerService, SourcesService, Track } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
-import { useAlbum } from '@bbebee/plugin-album/hooks'
+import { useAlbumView, type AlbumTrackSortKey as AlbumSortKey } from '@bbebee/plugin-album/hooks'
 import { resolveTrackSourceName, useResolvedArtwork, useTransport } from '@BBeBee/toolkit/hooks'
 import { formatDuration, formatTotalDuration } from '@BBeBee/toolkit'
 import { addToCollectionSubmenu, openExternalUrl, resolveOriginalResourceUrl, sleepTimerSubmenu, sortMenuItems, useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
@@ -456,10 +456,28 @@ function Pending({ label }: { label: string }): ReactElement {
   return h(EmptyState, { title: label, accessibilityLabel: label })
 }
 
-type AlbumSortKey = 'trackNo' | 'title' | 'album' | 'duration' | 'plays' | 'source'
-
 export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
-  const album = useAlbum(ctx, urn)
+  const albumView = useAlbumView(ctx, urn)
+  const {
+    album: albumData,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    filteredTracks: sortedTracks,
+    sortedUrns,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    batch,
+  } = albumView
+
+  const isBatchMode = batch.isBatchMode
+  const setIsBatchMode = batch.setIsBatchMode
+  const selectedUrns = batch.selectedUrns
+  const allSelected = batch.isAllSelected(sortedUrns)
+
   const transport = useTransport(ctx)
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const library = serviceOf<LibraryService>(ctx, 'library')
@@ -469,8 +487,6 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const menu = useTrackMenu(ctx)
   const saveToPlaylistMenu = useSaveToPlaylistMenu(ctx)
   const { t } = useI18n(ctx)
-  const [sortKey, setSortKey] = useState<AlbumSortKey>('trackNo')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
   // View mode: list is the default (matching previous behaviour); compact gives the artist its own column.
   const [viewMode, setViewMode] = useViewMode('album-detail', 'list', ['compact', 'list'] as const)
@@ -478,8 +494,6 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const [collections, setCollections] = useState<readonly Collection[]>([])
   const [isSaved, setIsSaved] = useState(false)
   const [savedTrackUrns, setSavedTrackUrns] = useState<Set<string>>(new Set())
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
   // Scroll collapse: the sticky bar slides in as the play button approaches the top, and docks once the scroll passes half its height (docked).
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   // A row's `track.loved` is the value at the album's last fetch, which can be
@@ -488,11 +502,11 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   const [lovedOverrides, setLovedOverrides] = useState<Map<string, boolean>>(new Map())
 
   // The theme colour of the background and the sticky bar comes from the album cover (dominantColor; extracted from the canvas when missing).
-  const resolvedCover = useResolvedArtwork(ctx, album.data?.artwork)
+  const resolvedCover = useResolvedArtwork(ctx, albumData?.artwork)
   const tint = useImageColor(resolvedCover?.sourceUrl, resolvedCover?.dominantColor)
 
   useEffect(() => {
-    const albumUrn = album.data?.urn
+    const albumUrn = albumData?.urn
     if (!library || !albumUrn) return
     let cancelled = false
 
@@ -561,7 +575,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       cancelled = true
       off()
     }
-  }, [ctx, album.data?.urn, library, sources])
+  }, [ctx, albumData?.urn, library, sources])
 
   const handleTrackAddToFavorites = useCallback(
     async (track: Track) => {
@@ -579,80 +593,37 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   )
 
   const handleToggleSave = useCallback(async () => {
-    if (!library || !album.data?.urn) return
+    if (!library || !albumData?.urn) return
     const next = !isSaved
-    await library.setSaved(album.data.urn, next)
+    await library.setSaved(albumData.urn, next)
     setIsSaved(next)
-  }, [library, album.data?.urn, isSaved])
+  }, [library, albumData?.urn, isSaved])
 
-  const rawTracks = album.data?.tracks ?? []
-  const tracks = useMemo(() => {
-    const seen = new Set<string>()
-    return rawTracks.filter((t) => {
-      if (!t.urn || seen.has(t.urn)) return false
-      seen.add(t.urn)
-      return true
-    })
-  }, [rawTracks])
-
-  const sortedTracks = useMemo(() => {
-    const list = [...tracks]
-    if (sortKey === 'trackNo') {
-      return sortOrder === 'desc' ? list.reverse() : list
-    }
-    list.sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'duration') {
-        cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-      } else if (sortKey === 'album' || sortKey === 'plays') {
-        const aAlb = a.albumTitle || album.data?.title || ''
-        const bAlb = b.albumTitle || album.data?.title || ''
-        cmp = aAlb.localeCompare(bAlb, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'source') {
-        const aSrc = resolveTrackSourceName(ctx, a.urn)
-        const bSrc = resolveTrackSourceName(ctx, b.urn)
-        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
-      }
-      return sortOrder === 'desc' ? -cmp : cmp
-    })
-    return list
-  }, [tracks, sortKey, sortOrder, album.data?.title])
-
-  const sortedUrns = useMemo(() => sortedTracks.map((track) => track.urn), [sortedTracks])
-
-  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
   const handleToggleSelectAll = () => {
     if (allSelected) {
-      setSelectedUrns(new Set())
+      batch.clearSelection()
     } else {
-      setSelectedUrns(new Set(sortedUrns))
+      batch.selectAll(sortedUrns)
     }
   }
 
   const handleToggleSelect = (trackUrn: string) => {
-    setSelectedUrns((prev) => {
-      const next = new Set(prev)
-      if (next.has(trackUrn)) next.delete(trackUrn)
-      else next.add(trackUrn)
-      return next
-    })
+    batch.toggleSelect(trackUrn)
   }
 
   const handleBatchPlay = () => {
     const toPlay = Array.from(selectedUrns)
-    if (toPlay.length > 0 && album.data) {
+    if (toPlay.length > 0 && albumData) {
       void player?.playNow(toPlay, {
-        context: { kind: 'album', urn: album.data.urn, label: album.data.title },
+        context: { kind: 'album', urn: albumData.urn, label: albumData.title },
       })
     }
   }
 
   const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
     const toAdd = Array.from(selectedUrns)
-    if (toAdd.length > 0) {
-      const trackMap = new Map(tracks.map((t) => [t.urn, t]))
+    if (toAdd.length > 0 && albumData) {
+      const trackMap = new Map((albumData.tracks ?? []).map((t) => [t.urn, t]))
       const selectedTracks = toAdd.map((u) => trackMap.get(u) ?? u)
       saveToPlaylistMenu.openBatch(
         selectedTracks,
@@ -679,26 +650,25 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       for (const u of selectedUrns) next.delete(u)
       return next
     })
-    setSelectedUrns(new Set())
+    batch.clearSelection()
   }
 
   const handleExitBatch = () => {
-    setIsBatchMode(false)
-    setSelectedUrns(new Set())
+    batch.setBatchMode(false)
   }
 
-  if (album.status === 'loading' || album.status === 'idle') {
+  if (loading) {
     return h(Pending, { label: t('album:index.loadingAlbum') })
   }
-  if (album.status === 'error' || !album.data) {
+  if (error || !albumData) {
     return h(EmptyState, {
       icon: 'alert',
       title: t('album:index.albumUnavailable'),
-      description: album.error?.message,
+      description: error,
     })
   }
 
-  const detail = album.data
+  const detail = albumData
 
   const isLocalAlbum = Boolean(
     detail.urn.startsWith('BBeBee:local:') ||
@@ -794,7 +764,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       id: 'enqueue',
       label: t('album:index.addToPlayQueue'),
       icon: tablerIcon('playlist-add', { size: 20 }),
-      onSelect: () => player.enqueueLast(sortedUrns),
+      onSelect: () => player.enqueueLast([...sortedUrns]),
     })
   }
 
@@ -852,8 +822,10 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
   }
 
   const sortLabelMap: Record<AlbumSortKey, string> = {
+    default: t('album:index.defaultOrder'),
     trackNo: t('album:index.defaultOrder'),
     title: t('album:index.title'),
+    artist: t('album:index.artist'),
     album: t('album:index.album'),
     plays: t('album:index.album'),
     source: t('album:index.source'),
@@ -884,7 +856,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
       ariaLabel: t('album:index.playAlbum'),
       srText: t('album:index.playAlbum'),
       onPress: () =>
-        void player?.playNow(sortedUrns, {
+        void player?.playNow([...sortedUrns], {
           context: { kind: 'album', urn: detail.urn, label: detail.title },
         }),
       disabled: detail.tracks.length === 0,
@@ -1246,7 +1218,7 @@ export function AlbumScreen({ ctx, urn }: { ctx: Context; urn?: string }): React
         estimatedItemSize: tokens.size.row,
         keyExtractor: (track) => track.urn,
         pageSize: 30,
-        onEndReached: isThirdParty && album.hasMore ? album.loadMore : undefined,
+        onEndReached: isThirdParty && hasMore ? loadMore : undefined,
         empty: h(EmptyState, { title: t('album:index.thisAlbumHasNoTracks') }),
         renderItem: (track, index) =>
           h(AlbumTrackTableRow, {

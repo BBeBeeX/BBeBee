@@ -68,3 +68,28 @@ describe('useToggleFavorite', () => {
     expect((ctx.sources as unknown as SourcesStub).loved).toEqual([{ urn: TRACK, loved: false }])
   })
 })
+
+describe('useLocalMusic', () => {
+  it('loads, sorts and filters local music', async () => {
+    const ctx = new Context()
+    const { useLocalMusic } = await import('./local-music.js')
+    const { result } = renderHook(() => useLocalMusic(ctx))
+
+    expect(result.current.loading).toBe(true)
+    expect(result.current.trackSortKey).toBe('default')
+    expect(result.current.batch.isBatchMode).toBe(false)
+
+    act(() => {
+      result.current.toggleTrackSort('title')
+      result.current.setSearchQuery('test')
+      result.current.batch.setBatchMode(true)
+      result.current.batch.toggleSelect('BBeBee:local:track:1')
+    })
+
+    expect(result.current.trackSortKey).toBe('title')
+    expect(result.current.searchQuery).toBe('test')
+    expect(result.current.batch.isBatchMode).toBe(true)
+    expect(result.current.batch.selectedCount).toBe(1)
+  })
+})
+

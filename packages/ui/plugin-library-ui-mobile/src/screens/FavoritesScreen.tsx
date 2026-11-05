@@ -3,9 +3,9 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LibraryService, PlayerService, SettingsService, SourcesService, Track } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
-import { useSaved } from '@bbebee/plugin-library/hooks'
+import { useFavoritesView } from '@bbebee/plugin-library/hooks'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import { resolveTrackSourceName, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
+import { resolveTrackSourceName, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import {
@@ -26,7 +26,6 @@ import { MobileLibraryTrackRow } from '../components/MobileLibraryTrackRow.js'
 import { SaveToPlaylistSheet } from '../components/SaveToPlaylistSheet.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-type FavoriteSortKey = 'default' | 'title' | 'artist' | 'album' | 'source' | 'duration'
 
 /** Favorites theme tint colour: purple gradient for "Liked songs". */
 const FAVORITES_TINT = '#450af5'
@@ -35,33 +34,33 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const transport = useTransport(ctx)
+  const player = serviceOf<PlayerService>(ctx, 'player')
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
-  const saved = useSaved(ctx, 'track')
-  const entries = saved.data ?? []
-  const rawUrns = useMemo(() => entries.map((entry) => entry.urn), [entries])
+  const favorites = useFavoritesView(ctx)
+  const {
+    tracks: allTracks,
+    loading,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    filteredTracks: sortedTracks,
+    sortedUrns,
+    searchQuery,
+    setSearchQuery,
+    batch,
+  } = favorites
 
-  // Strict song deduplication: filter out duplicate URNs
-  const urns = useMemo(() => {
-    const seen = new Set<string>()
-    return rawUrns.filter((u) => {
-      if (!u || seen.has(u)) return false
-      seen.add(u)
-      return true
-    })
-  }, [rawUrns])
+  const isBatchMode = batch.isBatchMode
+  const setIsBatchMode = batch.setIsBatchMode
+  const selectedUrns = batch.selectedUrns
+  const allSelected = batch.isAllSelected(sortedUrns)
 
-  const tracksMap = useTracksByUrn(ctx, urns)
-  const player = serviceOf<PlayerService>(ctx, 'player')
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchVisible, setSearchVisible] = useState(false)
-  const [sortKey, setSortKey] = useState<FavoriteSortKey>('default')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('list')
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const off = ctx.on('library/open-header-menu', (targetId?: string) => {
@@ -80,79 +79,16 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
-  const allTracks = useMemo(() => {
-    const seen = new Set<string>()
-    const list: Track[] = []
-    for (const urn of urns) {
-      const trk = tracksMap.get(urn) ?? { urn, title: urn.split(':').pop() ?? urn, artists: [] }
-      if (!seen.has(trk.urn)) {
-        seen.add(trk.urn)
-        list.push(trk)
-      }
-    }
-    return list
-  }, [urns, tracksMap])
-
-  const sortedTracks = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const matching = q
-      ? allTracks.filter((trk) => {
-          return (
-            trk.title.toLowerCase().includes(q) ||
-            trk.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-            trk.albumTitle?.toLowerCase().includes(q)
-          )
-        })
-      : [...allTracks]
-
-    if (sortKey === 'default') {
-      return sortOrder === 'desc' ? matching.reverse() : matching
-    }
-
-    return matching.sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'artist') {
-        const aArt = a.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'album') {
-        cmp = (a.albumTitle ?? '').localeCompare(b.albumTitle ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (sortKey === 'source') {
-        const aSrc = resolveTrackSourceName(ctx, a.urn)
-        const bSrc = resolveTrackSourceName(ctx, b.urn)
-        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'duration') {
-        cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0)
-      }
-      return sortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [allTracks, searchQuery, sortKey, sortOrder, ctx])
-
-  const sortedUrns = useMemo(() => sortedTracks.map((t) => t.urn), [sortedTracks])
-
-
-
-  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
   const handleToggleSelectAll = () => {
     if (allSelected) {
-      setSelectedUrns(new Set())
+      batch.clearSelection()
     } else {
-      setSelectedUrns(new Set(sortedUrns))
+      batch.selectAll(sortedUrns)
     }
   }
 
   const handleToggleSelect = (urn: string) => {
-    setSelectedUrns((prev) => {
-      const next = new Set(prev)
-      if (next.has(urn)) next.delete(urn)
-      else next.add(urn)
-      return next
-    })
+    batch.toggleSelect(urn)
   }
 
   const handleBatchPlay = () => {
@@ -167,7 +103,8 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
     const toAdd = Array.from(selectedUrns)
     if (toAdd.length > 0) {
-      const selectedTracks = toAdd.map((u) => tracksMap.get(u) ?? u)
+      const trackMap = new Map(allTracks.map((t) => [t.urn, t]))
+      const selectedTracks = toAdd.map((u) => trackMap.get(u) ?? u)
       openBatchAddToPlaylistMenu(selectedTracks, anchor ?? { x: 200, y: 200 })
     }
   }
@@ -185,12 +122,11 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         await library.setSaved(u, false).catch(() => {})
       }
     }
-    setSelectedUrns(new Set())
+    batch.clearSelection()
   }
 
   const handleExitBatch = () => {
-    setIsBatchMode(false)
-    setSelectedUrns(new Set())
+    batch.setBatchMode(false)
   }
 
   const unifiedMenuItems: MenuItemSpec[] = useMemo(() => {
@@ -361,9 +297,9 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         Text,
         { variant: 'sm', tone: 'muted' },
-        urns.length === 1
-          ? t('library:favorites.savedMusicOne', { length: urns.length })
-          : t('library:favorites.savedMusicOther', { length: urns.length }),
+        allTracks.length === 1
+          ? t('library:favorites.savedMusicOne', { length: allTracks.length })
+          : t('library:favorites.savedMusicOther', { length: allTracks.length }),
       ),
       // Action Bar: Play + Shuffle ... Search (old more & sort moved to unified 3-dots menu)
       h(
@@ -483,7 +419,7 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
         items: sortedTracks,
         keyExtractor: (trk) => trk.urn,
         empty:
-          saved.status === 'loading'
+          loading
             ? h(EmptyState, { title: t('library:collection.loading') })
             : h(EmptyState, {
                 icon: 'heart',

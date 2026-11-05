@@ -32,6 +32,7 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
         "android.permission.WAKE_LOCK",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
@@ -54,7 +55,8 @@
         }
       ],
       ["./plugins/with-audio-engine.js"],
-      ["./plugins/with-cleartext-traffic.js"]
+      ["./plugins/with-cleartext-traffic.js"],
+      ["./plugins/with-manage-storage.js"]
     ]
   }
 }

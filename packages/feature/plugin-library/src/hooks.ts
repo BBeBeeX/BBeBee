@@ -623,3 +623,5 @@ export function useLibraryHydration({
 // view from re-growing its own copy of the same traversal.
 export { collectAllFolderTracks } from './folders.js'
 export { fetchAllLocalAlbums, fetchAllLocalTracks } from './local-catalog.js'
+export * from './local-music.js'
+export * from './favorites.js'
