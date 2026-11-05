@@ -12,6 +12,8 @@ import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { HISTORY_ROUTES } from './views.js'
 
+export * from './hooks.js'
+
 export const name = 'plugin-history'
 
 /**

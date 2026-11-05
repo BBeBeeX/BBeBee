@@ -6,9 +6,10 @@
  * in flight, and how far along one task is.
  */
 
+import { useCallback, useMemo } from 'react'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
 import type { DownloadPolicy, DownloadTask } from '@BBeBee/protocol'
+import { formatBytes } from '@BBeBee/toolkit'
 import { useServiceState } from '@BBeBee/toolkit/hooks'
 
 /**
@@ -89,3 +90,92 @@ export function downloadProgress(task: DownloadTask): number | undefined {
   if (!task.bytesTotal || task.bytesTotal <= 0) return task.state === 'failed' ? 0 : undefined
   return Math.min(1, Math.max(0, task.bytesDone / task.bytesTotal))
 }
+
+export interface DownloadsViewState {
+  readonly tasks: readonly DownloadTask[]
+  readonly policy: DownloadPolicy
+  readonly summary: DownloadSummary
+  readonly activeTasks: readonly DownloadTask[]
+  readonly finishedTasks: readonly DownloadTask[]
+  readonly clearableTasks: readonly DownloadTask[]
+  readonly clearFinished: () => void
+  readonly toggleWifiOnly: () => void
+  readonly setWifiOnly: (enabled: boolean) => void
+}
+
+/**
+ * Headless data orchestration, policy controls, task partitioning, and summary
+ * formatting for the Downloads screen.
+ *
+ * Shared between desktop and mobile to ensure identical state semantics (rules/ui.md §1).
+ */
+export function useDownloadsView(ctx: Context): DownloadsViewState {
+  const tasks = useDownloadTasks(ctx)
+  const policy = useDownloadPolicy(ctx)
+  const summary = useMemo(() => summariseDownloads(tasks), [tasks])
+
+  const activeTasks = useMemo(
+    () => tasks.filter((t) => t.state === 'queued' || t.state === 'running' || t.state === 'paused'),
+    [tasks],
+  )
+
+  const finishedTasks = useMemo(
+    () => tasks.filter((t) => t.state !== 'queued' && t.state !== 'running' && t.state !== 'paused'),
+    [tasks],
+  )
+
+  // Kept downloads are the user's files; only their own 🗑 deletes one, so the
+  // clear button is offered for cache entries and dead tasks only.
+  const clearableTasks = useMemo(
+    () => finishedTasks.filter((t) => t.state === 'canceled' || (t.state === 'done' && !t.kept)),
+    [finishedTasks],
+  )
+
+  const clearFinished = useCallback(() => {
+    void ctx.downloads?.clearFinished?.()
+  }, [ctx])
+
+  const setWifiOnly = useCallback(
+    (wifiOnly: boolean) => {
+      void ctx.downloads?.setPolicy?.({ wifiOnly })
+    },
+    [ctx],
+  )
+
+  const toggleWifiOnly = useCallback(() => {
+    setWifiOnly(!policy.wifiOnly)
+  }, [policy.wifiOnly, setWifiOnly])
+
+  return {
+    tasks,
+    policy,
+    summary,
+    activeTasks,
+    finishedTasks,
+    clearableTasks,
+    clearFinished,
+    toggleWifiOnly,
+    setWifiOnly,
+  }
+}
+
+/**
+ * Formats download statistics into an i18n summary line.
+ */
+export function formatDownloadSummary(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  summary: DownloadSummary,
+  options?: { compact?: boolean },
+): string {
+  const parts: string[] = []
+  if (summary.active) parts.push(t('download:index.inProgress2', { active: summary.active }))
+  if (summary.done) {
+    const key = options?.compact
+      ? 'download:index.summaryDownloadedCompact'
+      : 'download:index.summaryDownloaded'
+    parts.push(t(key, { done: summary.done, bytes: formatBytes(summary.bytes) }))
+  }
+  if (summary.failed) parts.push(t('download:index.summaryFailed', { failed: summary.failed }))
+  return parts.length > 0 ? parts.join(' · ') : t('download:index.nothingYet')
+}
+

@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json",
+    "./hooks": "./src/hooks.ts",
     "./views": "./src/views.ts"
   },
   "main": "./src/index.ts",
@@ -16,6 +17,14 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./hooks": {
+        "types": "./dist/hooks.d.ts",
+        "default": "./dist/hooks.js"
+      },
+      "./views": {
+        "types": "./dist/views.d.ts",
+        "default": "./dist/views.js"
       }
     },
     "main": "./dist/index.js",
@@ -31,6 +40,12 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "cordis": "4.0.0-rc.9"
+    "@BBeBee/toolkit": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@testing-library/react": "^16.3.3"
   }
 }

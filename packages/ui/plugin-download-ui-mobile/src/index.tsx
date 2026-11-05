@@ -14,10 +14,9 @@ import type { DownloadTask, PlayerService } from '@BBeBee/protocol'
 import { DOWNLOADS_VIEWS } from '@bbebee/plugin-download/views'
 import {
   downloadProgress,
+  formatDownloadSummary,
   holdLabel,
-  summariseDownloads,
-  useDownloadPolicy,
-  useDownloadTasks,
+  useDownloadsView,
 } from '@bbebee/plugin-download/hooks'
 import { c, BOTTOM_CHROME_HEIGHT, Button, EmptyState, IconButton, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import type { UseI18nResult } from '@BBeBee/ui-kit-mobile'
@@ -30,19 +29,16 @@ const p = () => c()
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
-  const tasks = useDownloadTasks(ctx)
-  const policy = useDownloadPolicy(ctx)
-  const summary = summariseDownloads(tasks)
-
-  const active = tasks.filter(
-    (task) => task.state === 'queued' || task.state === 'running' || task.state === 'paused',
-  )
-  const finished = tasks.filter((task) => !active.includes(task))
-  // Kept downloads are the user's files; only their own 🗑 deletes one, so the
-  // header's clear button is offered for cache entries and dead tasks only.
-  const clearable = finished.filter(
-    (task) => task.state === 'canceled' || (task.state === 'done' && !task.kept),
-  )
+  const {
+    tasks,
+    policy,
+    summary,
+    activeTasks,
+    finishedTasks,
+    clearableTasks,
+    clearFinished,
+    toggleWifiOnly,
+  } = useDownloadsView(ctx)
 
   return h(
     (native.ScrollView ?? native.View) as never,
@@ -61,11 +57,11 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       native.View as never,
       { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[3] } },
       h(Text, { variant: 'lg' }, t('download:index.downloads')),
-      h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, summaryLine(t, summary)),
-      clearable.length > 0
+      h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1 }, formatDownloadSummary(t, summary, { compact: true })),
+      clearableTasks.length > 0
         ? h(Button, {
             variant: 'secondary',
-            onPress: () => void ctx.downloads.clearFinished(),
+            onPress: clearFinished,
             testID: 'downloads-clear',
             children: t('app:common.clear'),
           })
@@ -83,7 +79,7 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(PolicyToggle, {
         label: t('download:index.wiFiOnly'),
         active: policy.wifiOnly,
-        onPress: () => void ctx.downloads.setPolicy({ wifiOnly: !policy.wifiOnly }),
+        onPress: toggleWifiOnly,
         testID: 'downloads-wifi-only',
       }),
     ),
@@ -95,9 +91,9 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
         })
       : null,
 
-    active.length > 0 ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: active }) : null,
-    finished.length > 0
-      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finished })
+    activeTasks.length > 0 ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: activeTasks }) : null,
+    finishedTasks.length > 0
+      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finishedTasks })
       : null,
   )
 }
@@ -149,16 +145,6 @@ function PolicyToggle({
   )
 }
 
-function summaryLine(t: UseI18nResult['t'], summary: ReturnType<typeof summariseDownloads>): string {
-  const parts: string[] = []
-  if (summary.active) parts.push(t('download:index.inProgress2', { active: summary.active }))
-  if (summary.done)
-    parts.push(
-      t('download:index.summaryDownloadedCompact', { done: summary.done, bytes: formatBytes(summary.bytes) }),
-    )
-  if (summary.failed) parts.push(t('download:index.summaryFailed', { failed: summary.failed }))
-  return parts.length > 0 ? parts.join(' · ') : t('download:index.nothingYet')
-}
 
 function DownloadSection({
   ctx,

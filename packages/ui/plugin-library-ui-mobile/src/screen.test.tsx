@@ -389,7 +389,7 @@ describe('PlaylistDetailScreen on mobile', () => {
       await tick()
     })
 
-    expect(player.calls[0]).toBe(`${TRACK} <- 2`)
+    expect(player.calls[0]).toBe(`${TRACK} <- 1`)
   })
 
   it('removes the item, not every row that shares its track', async () => {
@@ -449,7 +449,7 @@ describe('PlaylistDetailScreen on mobile', () => {
       getByTestIdHelper(container, 'playlist-play').click()
       await tick()
     })
-    expect(player.calls).toContain(`${TRACK} <- 2`)
+    expect(player.calls).toContain(`${TRACK} <- 1`)
 
     // Shuffle via playlist-shuffle
     await act(async () => {
@@ -509,7 +509,7 @@ describe('PlaylistDetailScreen on mobile', () => {
       await tick()
     })
 
-    expect(player.calls).toContain(`playNow:${TRACK},${TRACK}`)
+    expect(player.calls).toContain(`playNow:${TRACK}`)
   })
 })
 

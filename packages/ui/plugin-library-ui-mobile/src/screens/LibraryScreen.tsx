@@ -19,13 +19,7 @@ import type { Context } from 'cordis'
 import type { DownloadsService, PlayerService, SettingsService, ShareService } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings, tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import {
-  useCollections,
-  useLibraryHydration,
-  useLibraryProfile,
-  usePlaylists,
-  useSaved,
-} from '@bbebee/plugin-library/hooks'
+import { useLibraryView } from '@bbebee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
@@ -69,20 +63,44 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
 
-  const playlists = usePlaylists(ctx)
-  const collections = useCollections(ctx)
-  const savedAlbumEntries = useSaved(ctx, 'album')
-  const savedArtistEntries = useSaved(ctx, 'artist')
-  const savedTrackEntries = useSaved(ctx, 'track')
-  const allSaved = useSaved(ctx)
+  const view = useLibraryView(ctx)
+  const {
+    generation,
+    setGeneration,
+    playlists,
+    collections,
+    savedAlbumEntries,
+    savedArtistEntries,
+    savedTrackEntries,
+    allSaved,
+    hydration,
+    pinnedUrns,
+    activeFilter,
+    setActiveFilter,
+    searchQuery,
+    setSearchQuery,
+    sortMode,
+    setSortMode,
+    creatorName,
+    expandedFolderIds,
+    toggleFolderExpanded,
+    filterAndSort,
+  } = view
+
+  const {
+    historyMap,
+    localTracks,
+    albumsMap,
+    playlistFirstTrackArtworks,
+    collectionFirstArtworks,
+    containedPlaylistUrns,
+    setContainedPlaylistUrns,
+  } = hydration
 
   const player = serviceOf<PlayerService>(ctx, 'player')
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
 
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('all')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortMode, setSortMode] = useState<SortMode>('creator')
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   // The header menu's glass surface, read fresh on every render: the
   // menu opens from a state change, so a settings change made elsewhere
@@ -93,7 +111,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   )
   const [pendingCreate, setPendingCreate] = useState<'playlist' | 'folder' | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
-  const [generation, setGeneration] = useState(0)
 
   useEffect(() => {
     const off = ctx.on('library/open-header-menu', (targetId?: string) => {
@@ -103,47 +120,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     })
     return () => void off()
   }, [ctx])
-
-  // Coalesce rapid bursts (a scan emits `library/changed` per batch):
-  // without this, every batch triggers a full library hydration.
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const bump = () => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => {
-        timer = undefined
-        setGeneration((n) => n + 1)
-      }, 750)
-    }
-    const offChanged = ctx.on('library/changed', () => bump())
-    const offCollections = ctx.on('library/collections-changed', () => bump())
-    return () => {
-      if (timer) clearTimeout(timer)
-      offChanged()
-      offCollections()
-    }
-  }, [ctx])
-
-  const {
-    historyMap,
-    localTracks,
-    albumsMap,
-    playlistFirstTrackArtworks,
-    collectionFirstArtworks,
-    containedPlaylistUrns,
-    setContainedPlaylistUrns,
-  } = useLibraryHydration({
-    ctx,
-    generation,
-    savedAlbumEntries: savedAlbumEntries.data,
-    savedTrackEntries: savedTrackEntries.data,
-    playlists: playlists.data,
-    collections: collections.data,
-  })
-
-  const pinnedUrns = useMemo(() => {
-    return new Set(allSaved.data?.filter((e) => e.pinned).map((e) => e.urn) ?? [])
-  }, [allSaved.data])
 
   const playlistMenu = usePlaylistMenu(ctx)
   const collectionMenu = useCollectionMenu(ctx)
@@ -157,16 +133,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   )
 
   const [folderItemsMap, setFolderItemsMap] = useState<Map<string, UnifiedItem[]>>(new Map())
-  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
-
-  const toggleFolderExpanded = useCallback((folderId: string) => {
-    setExpandedFolderIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(folderId)) next.delete(folderId)
-      else next.add(folderId)
-      return next
-    })
-  }, [])
 
   const {
     isItemPinned,
@@ -204,11 +170,6 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   })
 
   const favoriteUrns = useMemo(() => savedTrackEntries.data?.map((e) => e.urn) ?? [], [savedTrackEntries.data])
-
-  // The local user is the creator: used by both the playlist row's creator
-  // and the "Playlist • X" subtitle — same rule as the desktop twin.
-  const profile = useLibraryProfile(ctx)
-  const creatorName = profile?.name ?? t('library:userProfile.mine')
 
   const navigate = useCallback(
     (viewId: string, params?: Record<string, unknown>) => {
@@ -336,44 +297,10 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     [playlistItems, albumItems, collectionItems, artistItems],
   )
 
-  const sortItems = useCallback(
-    (a: UnifiedItem, b: UnifiedItem): number => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
-      if (sortMode === 'alphabetical') {
-        return a.title.localeCompare(b.title, 'zh-Hans-CN')
-      }
-      if (sortMode === 'recent-played') {
-        return (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0)
-      }
-      if (sortMode === 'creator') {
-        return (a.creator ?? '').localeCompare(b.creator ?? '', 'zh-Hans-CN')
-      }
-      return (b.addedAt ?? 0) - (a.addedAt ?? 0)
-    },
-    [sortMode],
+  const filteredItems = useMemo(
+    () => filterAndSort(allItems),
+    [allItems, filterAndSort],
   )
-
-  const filteredItems = useMemo(() => {
-    let result = allItems
-    if (activeFilter === 'playlist') {
-      result = result.filter((item) => item.kind === 'playlist' || item.kind === 'favorite')
-    } else if (activeFilter === 'album') {
-      result = result.filter((item) => item.kind === 'album')
-    } else if (activeFilter === 'artist') {
-      result = result.filter((item) => item.kind === 'artist')
-    } else if (activeFilter === 'downloaded') {
-      result = result.filter((item) => item.kind === 'local' || item.isDownloaded)
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      result = result.filter(
-        (item) => item.title.toLowerCase().includes(q) || item.subtitle.toLowerCase().includes(q),
-      )
-    }
-
-    return [...result].sort(sortItems)
-  }, [allItems, activeFilter, searchQuery, sortItems])
 
   // One folder's rows, resolved the same way the desktop twin resolves them:
   // playlists and albums by identity, tracks through the catalogue, and a

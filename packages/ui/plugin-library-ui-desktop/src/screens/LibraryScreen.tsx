@@ -8,24 +8,14 @@ import type {
 } from '@BBeBee/protocol'
 import { tryParseUrn } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import {
-  useCollections,
-  useLibraryHydration,
-  useLibraryProfile,
-  usePlaylists,
-  useSaved,
-} from '@bbebee/plugin-library/hooks'
+import { useLibraryView } from '@bbebee/plugin-library/hooks'
 import type { MenuAnchor, MenuItemSpec } from '@BBeBee/ui-core'
 import { serviceOf } from '@BBeBee/ui-core'
 import { ContextMenu, EmptyState, List, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
 import { UnifiedLibraryRow, type UnifiedItem } from '../components/UnifiedLibraryRow.js'
 import { LibraryCreateButton, LibraryCreateMenu } from '../components/LibraryCreateDropdown.js'
-import {
-  LibraryToolbar,
-  type LibraryFilterKey,
-  type LibrarySortMode,
-} from '../components/LibraryToolbar.js'
+import { LibraryToolbar } from '../components/LibraryToolbar.js'
 import { LibraryModals } from '../components/LibraryModals.js'
 import { CollapsedLibraryView } from '../components/views/CollapsedLibraryView.js'
 import { ExpandedLibraryView } from '../components/views/ExpandedLibraryView.js'
@@ -118,26 +108,47 @@ export function LibraryScreen({
     return () => window.removeEventListener('mousedown', handleClickOutside)
   }, [isCreateMenuOpen])
 
-  const playlists = usePlaylists(ctx)
-  const collections = useCollections(ctx)
-  const savedAlbumEntries = useSaved(ctx, 'album')
-  const savedArtistEntries = useSaved(ctx, 'artist')
-  const savedTrackEntries = useSaved(ctx, 'track')
-  const allSaved = useSaved(ctx)
+  const view = useLibraryView(ctx)
+  const {
+    generation,
+    setGeneration,
+    playlists,
+    collections,
+    savedAlbumEntries,
+    savedArtistEntries,
+    savedTrackEntries,
+    allSaved,
+    creatorName,
+    hydration,
+    pinnedUrns,
+    activeFilter,
+    setActiveFilter,
+    searchQuery,
+    setSearchQuery,
+    sortMode,
+    setSortMode,
+    filterAndSort,
+  } = view
+
+  const {
+    historyMap,
+    localTracks,
+    albumsMap,
+    playlistFirstTrackArtworks,
+    collectionFirstArtworks,
+    containedPlaylistUrns,
+    setContainedPlaylistUrns,
+  } = hydration
 
   const player = serviceOf<PlayerService>(ctx, 'player')
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
 
-  const [activeFilter, setActiveFilter] = useState<LibraryFilterKey>('all')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortMode, setSortMode] = useState<LibrarySortMode>('creator')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | undefined>(undefined)
 
   const [draft, setDraft] = useState('')
   const [collectionDraft, setCollectionDraft] = useState('')
   const [error, setError] = useState<string | undefined>(undefined)
-  const [generation, setGeneration] = useState(0)
 
   const playlistMenu = usePlaylistMenu(ctx)
   const collectionMenu = useCollectionMenu(ctx)
@@ -149,47 +160,6 @@ export function LibraryScreen({
     },
     [],
   )
-
-  useEffect(() => {
-    // Coalesce rapid bursts (a scan emits `library/changed` per batch):
-    // without this, every batch triggers a full library hydration.
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const bump = () => {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => {
-        timer = undefined
-        setGeneration((n) => n + 1)
-      }, 750)
-    }
-    const offChanged = ctx.on('library/changed', () => bump())
-    const offCollections = ctx.on('library/collections-changed', () => bump())
-    return () => {
-      if (timer) clearTimeout(timer)
-      offChanged()
-      offCollections()
-    }
-  }, [ctx])
-
-  const {
-    historyMap,
-    localTracks,
-    albumsMap,
-    playlistFirstTrackArtworks,
-    collectionFirstArtworks,
-    containedPlaylistUrns,
-    setContainedPlaylistUrns,
-  } = useLibraryHydration({
-    ctx,
-    generation,
-    savedAlbumEntries: savedAlbumEntries.data,
-    savedTrackEntries: savedTrackEntries.data,
-    playlists: playlists.data,
-    collections: collections.data,
-  })
-
-  const pinnedUrns = useMemo(() => {
-    return new Set(allSaved.data?.filter((e) => e.pinned).map((e) => e.urn) ?? [])
-  }, [allSaved.data])
 
   const {
     isItemPinned,
@@ -229,10 +199,6 @@ export function LibraryScreen({
   })
 
   const favoriteUrns = useMemo(() => savedTrackEntries.data?.map((e) => e.urn) ?? [], [savedTrackEntries.data])
-
-  // The local user is the creator: used by both the playlist row's creator and the "Playlist • X" subtitle.
-  const profile = useLibraryProfile(ctx)
-  const creatorName = profile?.name ?? t('library:userProfile.mine')
 
   // Favorites and Local music are no longer two cards in the list below: they render as
   // two quick entries under the music library title and above the filter toolbar (see renderQuickItem).
@@ -362,38 +328,8 @@ export function LibraryScreen({
   }, [playlistItems, albumItems, collectionItems, artistItems])
 
   const filteredItems = useMemo(() => {
-    let result = allItems
-    if (activeFilter === 'playlist') {
-      result = result.filter((item) => item.kind === 'playlist' || item.kind === 'favorite')
-    } else if (activeFilter === 'album') {
-      result = result.filter((item) => item.kind === 'album')
-    } else if (activeFilter === 'artist') {
-      result = result.filter((item) => item.kind === 'artist')
-    } else if (activeFilter === 'downloaded') {
-      result = result.filter((item) => item.kind === 'local' || item.isDownloaded)
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      result = result.filter(
-        (item) => item.title.toLowerCase().includes(q) || item.subtitle.toLowerCase().includes(q),
-      )
-    }
-
-    return [...result].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
-      if (sortMode === 'alphabetical') {
-        return a.title.localeCompare(b.title, 'zh-Hans-CN')
-      }
-      if (sortMode === 'recent-played') {
-        return (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0)
-      }
-      if (sortMode === 'creator') {
-        return (a.creator ?? '').localeCompare(b.creator ?? '', 'zh-Hans-CN')
-      }
-      return (b.addedAt ?? 0) - (a.addedAt ?? 0)
-    })
-  }, [allItems, activeFilter, searchQuery, sortMode])
+    return filterAndSort(allItems)
+  }, [allItems, filterAndSort])
 
   const loadCollectionUnifiedItems = useCallback(
     async (collectionId: string): Promise<UnifiedItem[]> => {

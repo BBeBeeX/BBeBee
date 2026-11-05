@@ -18,29 +18,24 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type {} from '@BBeBee/protocol'
 import { DOWNLOADS_VIEWS } from '@bbebee/plugin-download/views'
-import { summariseDownloads, useDownloadPolicy, useDownloadTasks } from '@bbebee/plugin-download/hooks'
+import { formatDownloadSummary, useDownloadsView } from '@bbebee/plugin-download/hooks'
 import { Button, EmptyState, Text, useI18n } from '@BBeBee/ui-kit-desktop'
-import type { UseI18nResult } from '@BBeBee/ui-kit-desktop'
-import { formatBytes } from '@BBeBee/toolkit'
 import { tokens } from '@BBeBee/ui-tokens'
 import { DownloadSection } from './components/DownloadSection.js'
 import { PolicyToggle } from './components/PolicyToggle.js'
 
 export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
-  const tasks = useDownloadTasks(ctx)
-  const policy = useDownloadPolicy(ctx)
-  const summary = summariseDownloads(tasks)
-
-  const active = tasks.filter(
-    (task) => task.state === 'queued' || task.state === 'running' || task.state === 'paused',
-  )
-  const finished = tasks.filter((task) => !active.includes(task))
-  // Kept downloads are the user's files; only their own 🗑 deletes one, so the
-  // header's clear button is offered for cache entries and dead tasks only.
-  const clearable = finished.filter(
-    (task) => task.state === 'canceled' || (task.state === 'done' && !task.kept),
-  )
+  const {
+    tasks,
+    policy,
+    summary,
+    activeTasks,
+    finishedTasks,
+    clearableTasks,
+    clearFinished,
+    toggleWifiOnly,
+  } = useDownloadsView(ctx)
 
   return h(
     'section',
@@ -57,11 +52,11 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       'header',
       { style: { display: 'flex', alignItems: 'baseline', gap: tokens.space[3] } },
       h(Text, { variant: 'lg' }, t('download:index.downloads')),
-      h(Text, { variant: 'sm', tone: 'muted' }, summaryLine(t, summary)),
-      clearable.length > 0
+      h(Text, { variant: 'sm', tone: 'muted' }, formatDownloadSummary(t, summary)),
+      clearableTasks.length > 0
         ? h(Button, {
             variant: 'secondary',
-            onPress: () => void ctx.downloads.clearFinished(),
+            onPress: clearFinished,
             testID: 'downloads-clear',
             children: t('download:index.clearFinished'),
           })
@@ -79,7 +74,7 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
       h(PolicyToggle, {
         label: t('download:index.wiFiOnly'),
         active: policy.wifiOnly,
-        onPress: () => void ctx.downloads.setPolicy({ wifiOnly: !policy.wifiOnly }),
+        onPress: toggleWifiOnly,
         testID: 'downloads-wifi-only',
       }),
     ),
@@ -90,22 +85,13 @@ export function DownloadsScreen({ ctx }: { ctx: Context }): ReactElement {
           description: t('download:index.emptyDescription'),
         })
       : null,
-    active.length > 0
-      ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: active })
+    activeTasks.length > 0
+      ? h(DownloadSection, { ctx, title: t('download:index.inProgress'), tasks: activeTasks })
       : null,
-    finished.length > 0
-      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finished })
+    finishedTasks.length > 0
+      ? h(DownloadSection, { ctx, title: t('download:index.downloaded'), tasks: finishedTasks })
       : null,
   )
-}
-
-function summaryLine(t: UseI18nResult['t'], summary: ReturnType<typeof summariseDownloads>): string {
-  const parts: string[] = []
-  if (summary.active) parts.push(t('download:index.inProgress2', { active: summary.active }))
-  if (summary.done)
-    parts.push(t('download:index.summaryDownloaded', { done: summary.done, bytes: formatBytes(summary.bytes) }))
-  if (summary.failed) parts.push(t('download:index.summaryFailed', { failed: summary.failed }))
-  return parts.length > 0 ? parts.join(' · ') : t('download:index.nothingYet')
 }
 
 export const name = 'plugin-download-ui-desktop'

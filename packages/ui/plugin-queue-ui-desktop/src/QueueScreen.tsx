@@ -7,47 +7,20 @@
  * handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, useCallback, useMemo, useRef, useState, type ReactElement } from 'react'
+import { createElement as h, useCallback, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { PlayRecord, QueueItem, QueueSourceContext, Track } from '@BBeBee/protocol'
+import type { PlayRecord, QueueItem, Track } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
 import {
+  CONTEXT_KIND_LABEL_KEYS,
+  formatRelativeTime,
   queueTrackFallback,
-  usePlayHistory,
-  useQueue,
-  useTracksByUrn,
-  useTransport,
-  useUpcoming,
+  useQueueView,
 } from '@BBeBee/toolkit/hooks'
 import { ContextMenu, EmptyState, List, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
-import type { UseI18nResult } from '@BBeBee/ui-kit-desktop'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
-import { upcomingDropToQueueIndex } from './reorder.js'
 import { QueueTrackRow } from './QueueTrackRow.js'
-
-/** Catalogue keys for the label shown for a context that carries a kind but no label. */
-const CONTEXT_KIND_LABEL_KEYS: Record<QueueSourceContext['kind'], string> = {
-  album: 'queue:index.contextKindLabels.album',
-  playlist: 'queue:index.contextKindLabels.playlist',
-  artist: 'queue:index.contextKindLabels.artist',
-  search: 'queue:index.contextKindLabels.search',
-  radio: 'queue:index.contextKindLabels.radio',
-  local: 'queue:index.contextKindLabels.local',
-  favorites: 'queue:index.contextKindLabels.favorites',
-}
-
-function formatRelativeTime(t: UseI18nResult['t'], timestamp: number): string {
-  const diff = Date.now() - timestamp
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return t('queue:index.justNow')
-  if (minutes < 60) return t('queue:index.minAgo', { minutes })
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return t('queue:index.hrAgo', { hours })
-  const days = Math.floor(hours / 24)
-  if (days < 7) return t('queue:index.daysAgo', { days })
-  return new Date(timestamp).toLocaleDateString()
-}
 
 export interface QueueScreenProps {
   ctx: Context
@@ -57,11 +30,31 @@ export interface QueueScreenProps {
 /** The up-next and recent play history screen with virtualised scrolling. */
 export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   const { t } = useI18n(ctx)
-  const [tab, setTab] = useState<'queue' | 'history'>('queue')
-  const queue = useQueue(ctx)
-  const upcoming = useUpcoming(ctx)
-  const state = useTransport(ctx)
   const menu = useTrackMenu(ctx)
+
+  // Track the scroll window to only fetch tracks within view and near buffer
+  const [windowStart, setWindowStart] = useState(0)
+  const onScroll = useCallback((scrollTop: number) => {
+    const itemIndex = Math.max(0, Math.floor(scrollTop / 64))
+    const block = Math.floor(itemIndex / 25) * 25
+    setWindowStart((prev) => (prev === block ? prev : block))
+  }, [])
+
+  const {
+    tab,
+    setTab,
+    queue,
+    upcoming,
+    state,
+    currentItem,
+    queueTracks,
+    historyLoading,
+    uniqueHistoryRecords,
+    uniqueHistoryUrns,
+    historyTracks,
+    shuffleOn,
+    moveUpcoming,
+  } = useQueueView(ctx, { windowStart })
 
   // Drag-to-reorder. The refs carry everything the drop handler reads, because
   // the memoized rows keep their first handler closures: queue/upcoming are
@@ -74,10 +67,6 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   const [dropIndex, setDropIndex] = useState<number | null>(null)
   const dragIdRef = useRef<string | null>(null)
   const dropIndexRef = useRef<number | null>(null)
-
-  // Under shuffle the visible order is a permutation, not the rows — a drop
-  // position cannot be honoured, so dragging is off and the section says so.
-  const shuffleOn = state.shuffle
 
   const resetDrag = () => {
     dragIdRef.current = null
@@ -117,8 +106,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     const at = dropIndexRef.current
     resetDrag()
     if (!id || at === null) return
-    const toIndex = upcomingDropToQueueIndex(id, at, queueRef.current, upcomingRef.current)
-    ctx.player.moveItem(id, toIndex)
+    moveUpcoming(id, at)
   }
 
   const keyboardMove = (id: string, direction: -1 | 1) => {
@@ -129,70 +117,8 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     // would be the gap right below the dragged row, which is where it is.
     const gap = direction === -1 ? from - 1 : from + 2
     if (gap < 0 || gap > upcomingRef.current.length) return
-    const toIndex = upcomingDropToQueueIndex(id, gap, queueRef.current, upcomingRef.current)
-    ctx.player.moveItem(id, toIndex)
+    moveUpcoming(id, gap)
   }
-
-  // Track the scroll window to only fetch tracks within view and near buffer
-  const [windowStart, setWindowStart] = useState(0)
-  const onScroll = useCallback((scrollTop: number) => {
-    const itemIndex = Math.max(0, Math.floor(scrollTop / 64))
-    const block = Math.floor(itemIndex / 25) * 25
-    setWindowStart((prev) => (prev === block ? prev : block))
-  }, [])
-
-  const currentIdx = useMemo(() => {
-    let idx = queue.findIndex(
-      (item) =>
-        item.id === state.currentItemId ||
-        (state.trackUrn && item.trackUrn === state.trackUrn),
-    )
-    if (idx === -1 && queue.length > 0) idx = 0
-    return idx
-  }, [queue, state.currentItemId, state.trackUrn])
-
-  const currentItem = queue[currentIdx] ?? queue[0]
-
-  // Queue tracks resolution: when on history tab, don't query queue tracks;
-  // for small queues (<= 100) resolve all; for large queues (> 100), window by scroll position.
-  const queueTrackUrns = useMemo(() => {
-    if (tab !== 'queue') return []
-    if (queue.length <= 100) {
-      return queue.map((item) => item.trackUrn)
-    }
-    const urns = new Set<string>()
-    if (currentItem) urns.add(currentItem.trackUrn)
-    const start = Math.max(0, windowStart - 15)
-    const end = Math.min(upcoming.length, windowStart + 60)
-    for (let i = start; i < end; i++) {
-      const item = upcoming[i]
-      if (item) urns.add(item.trackUrn)
-    }
-    return Array.from(urns)
-  }, [tab, queue, upcoming, currentItem, windowStart])
-
-  const queueTracks = useTracksByUrn(ctx, queueTrackUrns)
-
-  // Play history resolution (de-duplicated by trackUrn, preserving most recent occurrence, capped at 50)
-  const { records: historyRecords, loading: historyLoading } = usePlayHistory(ctx, { limit: 100 })
-  const { uniqueHistoryRecords, uniqueHistoryUrns } = useMemo(() => {
-    const seen = new Set<string>()
-    const list: PlayRecord[] = []
-    const urns: string[] = []
-    for (const record of historyRecords) {
-      if (!seen.has(record.trackUrn)) {
-        seen.add(record.trackUrn)
-        list.push(record)
-        urns.push(record.trackUrn)
-        if (list.length >= 50) {
-          break
-        }
-      }
-    }
-    return { uniqueHistoryRecords: list, uniqueHistoryUrns: urns }
-  }, [historyRecords])
-
-  const historyTracks = useTracksByUrn(ctx, uniqueHistoryUrns)
 
   const handleClose = () => {
     if (onClose) {

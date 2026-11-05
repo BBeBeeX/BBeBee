@@ -32,13 +32,16 @@
   "dependencies": {
     "@BBeBee/protocol": "workspace:*",
     "@BBeBee/toolkit": "workspace:*",
-    "cordis": "4.0.0-rc.9"
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
   },
   "devDependencies": {
     "@BBeBee/core-db-desktop": "workspace:*",
     "@BBeBee/core-fs-desktop": "workspace:*",
     "@BBeBee/core-paths-desktop": "workspace:*",
     "@BBeBee/kernel": "workspace:*",
-    "@bbebee/plugin-cache": "workspace:*"
+    "@bbebee/plugin-cache": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.0"
   }
 }

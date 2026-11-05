@@ -4,20 +4,16 @@ import type { Context } from 'cordis'
 import type {
   DownloadsService,
   LibraryService,
-  PlaylistItem,
-  PlaylistDetail,
   Playlist,
   PlayerService,
   SettingsService,
   ShareService,
-  SourcesService,
-  Track,
   UrnKind,
 } from '@BBeBee/protocol'
-import { resolveMobileLiquidGlassSettings, tryParseUrn } from '@BBeBee/protocol'
-import { usePlaylist, useLibraryProfile } from '@bbebee/plugin-library/hooks'
+import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
+import { usePlaylistView, useLibraryProfile, type PlaylistSortKey, type PlaylistViewRow } from '@bbebee/plugin-library/hooks'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
-import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
+import { resolveTrackSourceName, useResolvedArtwork, useTransport } from '@BBeBee/toolkit/hooks'
 import { formatTotalDuration } from '@BBeBee/toolkit'
 import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
 import { useSaveToPlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
@@ -43,15 +39,7 @@ import { LibraryModals } from '../components/LibraryModals.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 import type { DeleteConfirmTarget } from '../hooks/useLibraryActions.js'
 
-type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'source' | 'duration'
-type SortOrder = 'asc' | 'desc'
 type ViewMode = 'list' | 'compact'
-
-interface PlaylistRowItem {
-  item: PlaylistItem
-  track: Track
-  index: number
-}
 
 export function PlaylistDetailScreen({
   ctx,
@@ -69,7 +57,6 @@ export function PlaylistDetailScreen({
   const library = serviceOf<LibraryService>(ctx, 'library')
   const downloads = serviceOf<DownloadsService>(ctx, 'downloads')
   const shareService = serviceOf<ShareService>(ctx, 'share')
-  const sources = serviceOf<SourcesService>(ctx, 'sources')
   const menu = useTrackMenu(ctx, { fromPlaylistUrn: urn })
   const saveToPlaylistMenu = useSaveToPlaylistMenu(ctx)
 
@@ -77,83 +64,27 @@ export function PlaylistDetailScreen({
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
 
-  const parsedUrn = tryParseUrn(urn ?? '')
-  const isThirdPartyUrn = Boolean(parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local')
-
-  const state = usePlaylist(ctx, isThirdPartyUrn ? undefined : urn)
-
-  const [thirdPartyData, setThirdPartyData] = useState<{
-    detail?: PlaylistDetail
-    hasMore: boolean
-    cursor?: string
-    loading: boolean
-    loadingMore: boolean
-    error?: Error
-  }>({
-    hasMore: false,
-    loading: isThirdPartyUrn,
-    loadingMore: false,
-  })
-
-  useEffect(() => {
-    if (!urn || !isThirdPartyUrn) return
-    let cancelled = false
-    setThirdPartyData({ hasMore: false, loading: true, loadingMore: false })
-
-    const fetchFirstPage = async () => {
-      try {
-        const src = serviceOf<SourcesService>(ctx, 'sources')
-        const lib = serviceOf<LibraryService>(ctx, 'library')
-        let res: PlaylistDetail | undefined
-        if (src && typeof src.getPlaylist === 'function') {
-          res = await src.getPlaylist(urn, { limit: 30 })
-        }
-        if (!res && lib && typeof lib.getPlaylist === 'function') {
-          res = await lib.getPlaylist(urn, { limit: 30 })
-        }
-        if (!cancelled) {
-          setThirdPartyData({
-            detail: res,
-            hasMore: Boolean(res?.hasMore),
-            cursor: res?.cursor,
-            loading: false,
-            loadingMore: false,
-          })
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setThirdPartyData({
-            hasMore: false,
-            loading: false,
-            loadingMore: false,
-            error: err instanceof Error ? err : new Error(String(err)),
-          })
-        }
-      }
-    }
-
-    void fetchFirstPage()
-    return () => {
-      cancelled = true
-    }
-  }, [ctx, urn, isThirdPartyUrn])
-
-  const detail = isThirdPartyUrn ? thirdPartyData.detail : state.data
-
-  // Keep full item list; same track may appear at multiple positions
-  const rawItems = useMemo(() => {
-    return isThirdPartyUrn ? (thirdPartyData.detail?.items ?? []) : (state.data?.items ?? [])
-  }, [isThirdPartyUrn, thirdPartyData.detail?.items, state.data?.items])
-
-  const urns = useMemo(() => rawItems.map((item) => item.trackUrn), [rawItems])
-  const tracks = useTracksByUrn(ctx, urns)
-
-  // Third party source name
-  const sourceId = parsedUrn?.sourceId && parsedUrn.sourceId !== 'local' ? parsedUrn.sourceId : undefined
-  const isThirdParty = Boolean(sourceId)
-  const sourceRecord = sourceId && typeof sources?.get === 'function' ? sources.get(sourceId) : undefined
-  const sourcePlugin = sourceId && typeof sources?.source === 'function' ? sources.source(sourceId) : undefined
-  const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId || ''
+  const view = usePlaylistView(ctx, urn)
+  const {
+    detail,
+    rows: processedRows,
+    rawItems,
+    isThirdParty,
+    sourceName,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    searchQuery,
+    setSearchQuery,
+    batch,
+    sortedUrns,
+    toggleSelectAll,
+    removeSelectedItems,
+    removeSingleItem,
+    playTrack,
+    playBatch,
+  } = view
 
   const profile = useLibraryProfile(ctx)
   const creatorName = profile?.name ?? t('library:userProfile.mine')
@@ -161,12 +92,9 @@ export function PlaylistDetailScreen({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [sortKey, setSortKey] = useState<PlaylistSortKey>('custom')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
-  const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
+  const isBatchMode = batch.isBatchMode
+  const selectedUrns = batch.selectedUrns
   const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
@@ -211,59 +139,12 @@ export function PlaylistDetailScreen({
     return () => void off()
   }, [ctx, loadSavedState])
 
-  const allRows = useMemo<PlaylistRowItem[]>(() => {
-    return rawItems.map((item, index) => {
-      const trk = tracks.get(item.trackUrn)
-      const track = trk ?? { urn: item.trackUrn, title: item.trackUrn.split(':').pop() ?? item.trackUrn, artists: [] }
-      return { item, track, index }
-    })
-  }, [rawItems, tracks])
-
-  const allTracks = useMemo(() => allRows.map((r) => r.track), [allRows])
-
-  // Filter & sort tracks
-  const processedRows = useMemo(() => {
-    let list = [...allRows]
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase()
-      list = list.filter(
-        ({ track }) =>
-          track.title.toLowerCase().includes(q) ||
-          track.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-          track.albumTitle?.toLowerCase().includes(q),
-      )
-    }
-    if (sortKey !== 'custom') {
-      list.sort((a, b) => {
-        let cmp = 0
-        if (sortKey === 'title') {
-          cmp = a.track.title.localeCompare(b.track.title)
-        } else if (sortKey === 'artist') {
-          const aArtist = a.track.artists?.[0]?.name ?? ''
-          const bArtist = b.track.artists?.[0]?.name ?? ''
-          cmp = aArtist.localeCompare(bArtist)
-        } else if (sortKey === 'album') {
-          cmp = (a.track.albumTitle ?? '').localeCompare(b.track.albumTitle ?? '')
-        } else if (sortKey === 'duration') {
-          cmp = (a.track.durationMs ?? 0) - (b.track.durationMs ?? 0)
-        }
-        return sortOrder === 'asc' ? cmp : -cmp
-      })
-    } else if (sortOrder === 'desc') {
-      list.reverse()
-    }
-    return list
-  }, [allRows, searchQuery, sortKey, sortOrder])
-
-  const sortedUrns = useMemo(() => processedRows.map((r) => r.track.urn), [processedRows])
+  const allTracks = useMemo(() => processedRows.map((r) => r.track), [processedRows])
   const activeTrackUrn = transport?.trackUrn
   const isPlaying = transport?.status === 'playing'
 
   const play = (trackUrn: string) => {
-    if (!detail || !player) return
-    void player.playFromContext(trackUrn, sortedUrns, {
-      context: { kind: 'playlist', urn: detail.urn, label: detail.name },
-    })
+    void playTrack(trackUrn)
   }
 
   // Toggle favorite playlist
@@ -286,38 +167,21 @@ export function PlaylistDetailScreen({
 
   // Single item removal
   const handleRemoveItem = (itemId: string) => {
-    if (!library || !detail || detail.isSmart) return
     setError(undefined)
-    void library.removeItems(detail.urn, [itemId]).catch((cause: unknown) =>
+    void removeSingleItem(itemId).catch((cause: unknown) =>
       setError(cause instanceof Error ? cause.message : String(cause)),
     )
   }
 
   // Batch operations
-  const handleToggleSelectAll = () => {
-    if (selectedUrns.size === sortedUrns.length) {
-      setSelectedUrns(new Set())
-    } else {
-      setSelectedUrns(new Set(sortedUrns))
-    }
-  }
+  const handleToggleSelectAll = toggleSelectAll
 
   const handleToggleSelect = (trackUrn: string) => {
-    setSelectedUrns((prev) => {
-      const copy = new Set(prev)
-      if (copy.has(trackUrn)) copy.delete(trackUrn)
-      else copy.add(trackUrn)
-      return copy
-    })
+    batch.toggleSelect(trackUrn)
   }
 
   const handleBatchPlay = () => {
-    const toPlay = sortedUrns.filter((u) => selectedUrns.has(u))
-    if (toPlay.length > 0 && player && detail) {
-      void player.playNow(toPlay, {
-        context: { kind: 'playlist', urn: detail.urn, label: detail.name },
-      })
-    }
+    void playBatch()
   }
 
   const handleBatchDownload = () => {
@@ -331,21 +195,15 @@ export function PlaylistDetailScreen({
         tone: 'info',
       })
       void downloads.enqueue(selectedTracks)
-      setIsBatchMode(false)
-      setSelectedUrns(new Set())
+      batch.setBatchMode(false)
     }
   }
 
   const handleBatchRemove = () => {
-    if (!library || !detail || detail.isSmart) return
-    const itemIds = processedRows
-      .filter((r) => selectedUrns.has(r.track.urn))
-      .map((r) => r.item.id)
-    if (itemIds.length > 0) {
-      void library.removeItems(detail.urn, itemIds)
-      setIsBatchMode(false)
-      setSelectedUrns(new Set())
-    }
+    setError(undefined)
+    void removeSelectedItems().catch((cause: unknown) =>
+      setError(cause instanceof Error ? cause.message : String(cause)),
+    )
   }
 
   const handleBack = () => {
@@ -363,11 +221,12 @@ export function PlaylistDetailScreen({
       artist: t('library:favorites.artist'),
       album: t('library:favorites.album'),
       source: t('library:favorites.source'),
+      dateAdded: t('library:playlistDetail.dateAdded'),
       duration: t('library:favorites.duration'),
     }
 
     const sortChildren: MenuItemSpec[] = (
-      ['custom', 'title', 'artist', 'album', 'source', 'duration'] as PlaylistSortKey[]
+      ['custom', 'title', 'artist', 'album', 'source', 'dateAdded', 'duration'] as PlaylistSortKey[]
     ).map((key) => ({
       id: `sort-${key}`,
       label: sortLabels[key],
@@ -425,8 +284,7 @@ export function PlaylistDetailScreen({
       label: isBatchMode ? t('library:favorites.exitBatchOperations') : t('library:favorites.batchOperations'),
       icon: 'list-check',
       onSelect: () => {
-        setIsBatchMode((prev) => !prev)
-        setSelectedUrns(new Set())
+        batch.setBatchMode(!batch.isBatchMode)
       },
     })
 
@@ -504,15 +362,15 @@ export function PlaylistDetailScreen({
   ])
 
   if (!urn) return h(EmptyState, { title: t('library:playlistDetail.noPlaylistChosen') })
-  if (state.status === 'error' || thirdPartyData.error) {
+  if (view.error) {
     return h(EmptyState, {
       icon: 'alert',
       title: t('library:playlistDetail.couldNotOpenThePlaylist'),
-      description: state.error?.message || thirdPartyData.error?.message,
+      description: view.error,
       action: h(Button, { onPress: handleBack, variant: 'secondary', children: t('album:index.backToLibrary') }),
     })
   }
-  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
+  if (!detail || view.loading) return h(EmptyState, { title: t('library:collection.loading') })
 
   const totalDurationStr = formatTotalDuration(allTracks)
 
@@ -638,8 +496,8 @@ export function PlaylistDetailScreen({
               testID: 'playlist-play',
               accessibilityRole: 'button',
               accessibilityLabel: t('library:playlistDetail.play'),
-              disabled: urns.length === 0,
-              onPress: () => urns[0] && play(urns[0]),
+              disabled: sortedUrns.length === 0,
+              onPress: () => sortedUrns[0] && play(sortedUrns[0]),
               style: {
                 width: 44,
                 height: 44,
@@ -647,7 +505,7 @@ export function PlaylistDetailScreen({
                 backgroundColor: 'var(--color-primary, #5F87FF)',
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: urns.length === 0 ? 0.5 : 1,
+                opacity: sortedUrns.length === 0 ? 0.5 : 1,
               },
             },
             tablerIcon('play', { size: 22, color: '#FFFFFF' }),
@@ -659,16 +517,16 @@ export function PlaylistDetailScreen({
               testID: 'playlist-shuffle',
               accessibilityRole: 'button',
               accessibilityLabel: t('album:index.shuffle'),
-              disabled: urns.length === 0,
+              disabled: sortedUrns.length === 0,
               onPress: () => {
-                if (urns.length > 0 && player) {
-                  const shuffled = [...urns].sort(() => Math.random() - 0.5)
+                if (sortedUrns.length > 0 && player) {
+                  const shuffled = [...sortedUrns].sort(() => Math.random() - 0.5)
                   void player.playNow(shuffled, {
                     context: { kind: 'playlist', urn: detail.urn, label: detail.name },
                   })
                 }
               },
-              style: { padding: 8, opacity: urns.length === 0 ? 0.5 : 1 },
+              style: { padding: 8, opacity: sortedUrns.length === 0 ? 0.5 : 1 },
             },
             tablerIcon('shuffle', { size: 22, color: c().text.muted }),
           ),
@@ -789,14 +647,13 @@ export function PlaylistDetailScreen({
             onBatchDownload: downloads ? handleBatchDownload : undefined,
             onBatchDelete: !detail.isSmart && !isThirdParty ? handleBatchRemove : undefined,
             onExitBatch: () => {
-              setIsBatchMode(false)
-              setSelectedUrns(new Set())
+              batch.setBatchMode(false)
             },
           }),
         )
       : null,
     // Track list
-    h(List<PlaylistRowItem>, {
+    h(List<PlaylistViewRow>, {
       items: processedRows,
       testID: 'playlist-tracks',
       accessibilityLabel: detail.name,
@@ -809,11 +666,11 @@ export function PlaylistDetailScreen({
           ? t('library:playlistDetail.noTrackMatchesTheseRules')
           : t('library:playlistDetail.addTracksToFill'),
       }),
-      renderItem: ({ item, track, index }) =>
+      renderItem: ({ item, track, originalIndex }) =>
         h(MobileLibraryTrackRow, {
           ctx,
           track,
-          index,
+          index: originalIndex,
           active: track.urn === activeTrackUrn,
           isPlaying: track.urn === activeTrackUrn && isPlaying,
           inLibrary: isTrackInLibrary(track),

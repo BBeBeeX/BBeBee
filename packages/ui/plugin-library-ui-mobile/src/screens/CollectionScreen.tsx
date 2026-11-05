@@ -1,9 +1,9 @@
 import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { LibraryService, PlayNowOptions, SettingsService } from '@BBeBee/protocol'
+import type { SettingsService } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
-import { useCollectionDetail, type CollectionMember } from '@bbebee/plugin-library/hooks'
+import { useCollectionView, type CollectionMember } from '@bbebee/plugin-library/hooks'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { useTransport } from '@BBeBee/toolkit/hooks'
@@ -27,8 +27,6 @@ import { MobileLibraryTrackRow } from '../components/MobileLibraryTrackRow.js'
 import { SaveToPlaylistSheet } from '../components/SaveToPlaylistSheet.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-type CollectionSortKey = 'default' | 'title' | 'kind'
-
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
   const { t } = useI18n(ctx)
   const native = nativePrimitives()
@@ -36,14 +34,25 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
-  const state = useCollectionDetail(ctx, id)
-  const detail = state.data
-  const members = detail?.members ?? []
+  const {
+    detail,
+    collectionName,
+    sortedMembers,
+    trackUrns,
+    loading,
+    error,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    renameCollection,
+    deleteCollection,
+    playTrack,
+    playAll,
+  } = useCollectionView(ctx, id)
 
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'compact' | 'list'>('list')
-  const [sortKey, setSortKey] = useState<CollectionSortKey>('default')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [renamingOpen, setRenamingOpen] = useState(false)
   const [renameDraft, setRenameDraft] = useState('')
 
@@ -64,63 +73,32 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
-  const player = serviceOf<{ playNow(urns: string[], opts?: PlayNowOptions): Promise<void> }>(
-    ctx,
-    'player',
-  )
-  const library = serviceOf<LibraryService>(ctx, 'library') ?? ctx.library
-
-  const collectionName = detail?.collection?.name ?? t('library:collection.collectionFallback')
+  const displayName = collectionName || t('library:collection.collectionFallback')
 
   const handleStartRename = useCallback(() => {
-    setRenameDraft(collectionName)
+    setRenameDraft(displayName)
     setRenamingOpen(true)
-  }, [collectionName])
+  }, [displayName])
 
   const handleConfirmRename = useCallback(async () => {
     if (!id || !renameDraft.trim()) return
     try {
-      await library?.renameCollection?.(id, renameDraft.trim())
+      await renameCollection(renameDraft.trim())
       setRenamingOpen(false)
     } catch {
       // ignore
     }
-  }, [id, renameDraft, library])
+  }, [id, renameDraft, renameCollection])
 
   const handleDeleteCollection = useCallback(async () => {
     if (!id) return
     try {
-      await library?.deleteCollection?.(id)
+      await deleteCollection()
       ctx.ui.navigate(LIBRARY_VIEWS.home)
     } catch {
       // ignore
     }
-  }, [id, library, ctx.ui])
-
-  // Sorted members
-  const sortedMembers = useMemo(() => {
-    const list = [...members]
-    if (sortKey === 'default') {
-      return sortOrder === 'desc' ? list.reverse() : list
-    }
-    return list.sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'title') {
-        cmp = a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'kind') {
-        cmp = a.kind.localeCompare(b.kind)
-      }
-      return sortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [members, sortKey, sortOrder])
-
-  const trackUrns = useMemo(
-    () =>
-      sortedMembers
-        .filter((member) => member.kind === 'track' && member.track)
-        .map((member) => member.urn),
-    [sortedMembers],
-  )
+  }, [id, deleteCollection, ctx.ui])
 
   const unifiedMenuItems: MenuItemSpec[] = useMemo(() => {
     return [
@@ -205,13 +183,13 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   }, [t, handleStartRename, handleDeleteCollection, viewMode, sortKey, sortOrder])
 
   if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
-  if (state.status === 'error') {
+  if (error) {
     return h(EmptyState, {
       title: t('library:collection.couldNotOpenTheCollection'),
-      description: state.error?.message,
+      description: error,
     })
   }
-  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
+  if (!detail || loading) return h(EmptyState, { title: t('library:collection.loading') })
 
   return h(
     native.View as never,
@@ -248,20 +226,16 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
         h(
           Text,
           { variant: 'sm', tone: 'muted' },
-          members.length === 1
-            ? t('library:collection.itemsOne', { count: members.length })
-            : t('library:collection.itemsOther', { count: members.length }),
+          sortedMembers.length === 1
+            ? t('library:collection.itemsOne', { count: sortedMembers.length })
+            : t('library:collection.itemsOther', { count: sortedMembers.length }),
         ),
       ),
       h(
         native.View as never,
         { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[2] } },
         h(Button, {
-          onPress: () =>
-            trackUrns[0] &&
-            void player?.playNow(trackUrns, {
-              context: { kind: 'playlist', label: collectionName },
-            }),
+          onPress: () => void playAll(),
           disabled: trackUrns.length === 0,
           testID: 'collection-play',
           children: t('library:playlistDetail.play'),
@@ -282,21 +256,19 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
           description: t('library:collection.addAlbumsOrPlaylistsFrom'),
         }),
         renderItem: (member, index) => {
-          if (member.kind === 'track' && member.track) {
+          const track = member.track
+          if (member.kind === 'track' && track) {
             return h(MobileLibraryTrackRow, {
               ctx,
-              track: member.track,
+              track,
               index,
-              active: transport?.trackUrn === member.track.urn,
-              isPlaying: transport?.trackUrn === member.track.urn && transport?.status === 'playing',
+              active: transport?.trackUrn === track.urn,
+              isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
               compact: viewMode === 'compact',
-              inLibrary: isTrackInLibrary(member.track, true),
-              onPress: () =>
-                void player?.playNow(trackUrns, {
-                  context: { kind: 'playlist', label: collectionName },
-                }),
-              onMore: (anchor) => menu.open({ track: member.track! }, anchor),
-              onAddToFavorites: () => handleToggleFavorite(member.track!),
+              inLibrary: isTrackInLibrary(track, true),
+              onPress: () => void playTrack(track.urn),
+              onMore: (anchor) => menu.open({ track }, anchor),
+              onAddToFavorites: () => handleToggleFavorite(track),
               onHeartPress: (t) => openAddToPlaylistMenu(t, { x: 0, y: 0 }),
             })
           }

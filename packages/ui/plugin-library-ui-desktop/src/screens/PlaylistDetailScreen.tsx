@@ -1,10 +1,9 @@
-import { createElement as h, useCallback, useEffect, useMemo, useState } from 'react'
+import { createElement as h, useState } from 'react'
 import type { ChangeEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { ArtworkRef, LibraryService, PlaylistItem, PlaylistDetail, SourcesService, ShareService, Track } from '@BBeBee/protocol'
-import { tryParseUrn } from '@BBeBee/protocol'
-import { usePlaylist } from '@bbebee/plugin-library/hooks'
-import { resolveTrackSourceName, useResolvedArtwork, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
+import type { ShareService } from '@BBeBee/protocol'
+import { usePlaylistView, type PlaylistSortKey, type PlaylistViewRow } from '@bbebee/plugin-library/hooks'
+import { resolveTrackSourceName, useResolvedArtwork, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
 import { sortMenuItems, usePlaylistMenu, useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, DetailHero, DetailPlayButton, DetailTableHeader, type DetailColumnSpec, EmptyState, List, PageMarqueeProvider, SaveToPlaylistPopover, StickyDetailBar, Text, tablerIcon, useDetailBarCollapse, useImageColor, headerGradient, viewModeMenuItems, useViewMode, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -16,237 +15,60 @@ import { BatchActionBar } from '../components/BatchActionBar.js'
 import { EditPlaylistModal } from '../components/modals/EditPlaylistModal.js'
 import { useTrackLibraryInfo } from '../hooks/useTrackLibraryInfo.js'
 
-type PlaylistSortKey = 'custom' | 'title' | 'artist' | 'album' | 'source' | 'dateAdded' | 'duration'
-
 export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string }): ReactElement {
   const { t } = useI18n(ctx)
   const transport = useTransport(ctx)
-  const sources = serviceOf<SourcesService>(ctx, 'sources')
-  const parsedUrn = tryParseUrn(urn ?? '')
-  const isThirdPartyUrn = Boolean(parsedUrn && parsedUrn.sourceId && parsedUrn.sourceId !== 'local')
 
-  const state = usePlaylist(ctx, isThirdPartyUrn ? undefined : urn)
-
-  const [thirdPartyData, setThirdPartyData] = useState<{
-    detail?: PlaylistDetail
-    hasMore: boolean
-    cursor?: string
-    loading: boolean
-    loadingMore: boolean
-    error?: Error
-  }>({
-    hasMore: false,
-    loading: isThirdPartyUrn,
-    loadingMore: false,
-  })
-
-  useEffect(() => {
-    if (!urn || !isThirdPartyUrn) return
-    let cancelled = false
-    setThirdPartyData({ hasMore: false, loading: true, loadingMore: false })
-
-    const fetchFirstPage = async () => {
-      try {
-        const src = serviceOf<SourcesService>(ctx, 'sources')
-        const lib = serviceOf<LibraryService>(ctx, 'library')
-        let res: PlaylistDetail | undefined
-        if (src && typeof src.getPlaylist === 'function') {
-          res = await src.getPlaylist(urn, { limit: 30 })
-        }
-        if (!res && lib && typeof lib.getPlaylist === 'function') {
-          res = await lib.getPlaylist(urn, { limit: 30 })
-        }
-        if (!cancelled) {
-          setThirdPartyData({
-            detail: res,
-            hasMore: Boolean(res?.hasMore),
-            cursor: res?.cursor,
-            loading: false,
-            loadingMore: false,
-          })
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setThirdPartyData({
-            hasMore: false,
-            loading: false,
-            loadingMore: false,
-            error: err instanceof Error ? err : new Error(String(err)),
-          })
-        }
-      }
-    }
-
-    void fetchFirstPage()
-    return () => {
-      cancelled = true
-    }
-  }, [ctx, urn, isThirdPartyUrn])
-
-  const handleLoadMore = useCallback(async () => {
-    if (!urn || !isThirdPartyUrn) return
-    if (thirdPartyData.loadingMore || !thirdPartyData.hasMore || !thirdPartyData.cursor) return
-
-    setThirdPartyData((prev) => ({ ...prev, loadingMore: true }))
-    try {
-      const src = serviceOf<SourcesService>(ctx, 'sources')
-      const lib = serviceOf<LibraryService>(ctx, 'library')
-      let res: PlaylistDetail | undefined
-      if (src && typeof src.getPlaylist === 'function') {
-        res = await src.getPlaylist(urn, { limit: 30, cursor: thirdPartyData.cursor })
-      }
-      if (!res && lib && typeof lib.getPlaylist === 'function') {
-        res = await lib.getPlaylist(urn, { limit: 30, cursor: thirdPartyData.cursor })
-      }
-      if (res) {
-        setThirdPartyData((prev) => {
-          const prevItems = prev.detail?.items ?? []
-          const existingUrns = new Set(prevItems.map((it) => it.trackUrn))
-          const newItems = (res.items ?? []).filter((it) => !existingUrns.has(it.trackUrn))
-          return {
-            ...prev,
-            detail: prev.detail ? { ...prev.detail, items: [...prevItems, ...newItems] } : res,
-            hasMore: Boolean(res.hasMore),
-            cursor: res.cursor,
-            loadingMore: false,
-          }
-        })
-      } else {
-        setThirdPartyData((prev) => ({ ...prev, hasMore: false, loadingMore: false }))
-      }
-    } catch {
-      setThirdPartyData((prev) => ({ ...prev, loadingMore: false }))
-    }
-  }, [ctx, urn, isThirdPartyUrn, thirdPartyData.cursor, thirdPartyData.hasMore, thirdPartyData.loadingMore])
-
-  const detail = isThirdPartyUrn ? thirdPartyData.detail : state.data
-  // 1. Song dedup: filter duplicates by trackUrn
-  const rawItems = useMemo(() => {
-    const list = isThirdPartyUrn ? (thirdPartyData.detail?.items ?? []) : (state.data?.items ?? [])
-    const seen = new Set<string>()
-    return list.filter((item) => {
-      if (!item.trackUrn || seen.has(item.trackUrn)) return false
-      seen.add(item.trackUrn)
-      return true
-    })
-  }, [isThirdPartyUrn, thirdPartyData.detail?.items, state.data?.items])
-
-  const urns = useMemo(() => rawItems.map((item) => item.trackUrn), [rawItems])
-  const tracks = useTracksByUrn(ctx, urns)
-
-  // Identify third party source: only when the playlist itself originates from a third-party source
-  const sourceId = parsedUrn?.sourceId && parsedUrn.sourceId !== 'local' ? parsedUrn.sourceId : undefined
-  const isThirdParty = Boolean(sourceId)
-  const sourceRecord = sourceId && typeof sources?.get === 'function' ? sources.get(sourceId) : undefined
-  const sourcePlugin = sourceId && typeof sources?.source === 'function' ? sources.source(sourceId) : undefined
-  const sourceName = sourcePlugin?.doc?.sourceName || sourceRecord?.displayName || sourceId || ''
+  const view = usePlaylistView(ctx, urn)
+  const {
+    detail,
+    loading,
+    loadingMore,
+    hasMore,
+    error: viewError,
+    rows: filteredRows,
+    rawItems,
+    tracks,
+    isThirdParty,
+    sourceName,
+    coverArtwork,
+    sortKey,
+    setSortKey,
+    sortOrder,
+    setSortOrder,
+    searchQuery,
+    setSearchQuery,
+    batch,
+    sortedUrns,
+    allSelected,
+    toggleSelectAll,
+    removeSelectedItems,
+    handleLoadMore,
+    playTrack,
+    playBatch,
+  } = view
 
   const playlistMenu = usePlaylistMenu(ctx)
   const [error, setError] = useState<string | undefined>(undefined)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortKey, setSortKey] = useState<PlaylistSortKey>('custom')
-  // View mode: list is the default (matching previous behaviour); compact hides the artwork and gives the artist its own column.
   const [viewMode, setViewMode] = useViewMode('playlist-detail', 'list', ['compact', 'list'] as const)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<MenuAnchor | null>(null)
-  const [isBatchMode, setIsBatchMode] = useState(false)
-  const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
-  // Scroll collapse: the sticky bar slides in from above the viewport as the play button
-  // approaches, docks the button into the sticky bar once the scroll passes half its
-  // height (docked), and the table header docks right below the sticky bar.
+  const isBatchMode = batch.isBatchMode
+  const selectedUrns = batch.selectedUrns
+
+  // Scroll collapse
   const collapse = useDetailBarCollapse({ barHeight: 64, anchorHeight: 56 })
   const menu = useTrackMenu(ctx, { fromPlaylistUrn: urn })
   const { isTrackInLibrary, handleAddToFavorites, openAddToPlaylistMenu, openBatchAddToPlaylistMenu, saveToPlaylistMenuProps } = useTrackLibraryInfo(ctx)
 
-  // Theme colour of the background and the sticky bar: the playlist cover first, then the first track's cover.
-  const coverArtwork: ArtworkRef | undefined =
-    detail?.artwork ?? tracks.get(rawItems[0]?.trackUrn ?? '')?.artwork
+  // Theme colour of the background and the sticky bar
   const resolvedCover = useResolvedArtwork(ctx, coverArtwork)
   const tint = useImageColor(resolvedCover?.sourceUrl, resolvedCover?.dominantColor)
 
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const list = rawItems.map((item, originalIndex) => ({
-      item,
-      trackUrn: item.trackUrn,
-      track: tracks.get(item.trackUrn),
-      originalIndex,
-    }))
-
-    const matching = q
-      ? list.filter(({ track, trackUrn }) => {
-          if (!track) return trackUrn.toLowerCase().includes(q)
-          return (
-            track.title.toLowerCase().includes(q) ||
-            track.artists?.some((a) => a.name.toLowerCase().includes(q)) ||
-            track.albumTitle?.toLowerCase().includes(q)
-          )
-        })
-      : list
-
-    if (sortKey === 'custom') {
-      return sortOrder === 'desc' ? [...matching].reverse() : matching
-    }
-
-    return [...matching].sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'title') {
-        cmp = (a.track?.title ?? '').localeCompare(b.track?.title ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (sortKey === 'artist') {
-        const aArt = a.track?.artists?.map((x) => x.name).join(', ') ?? ''
-        const bArt = b.track?.artists?.map((x) => x.name).join(', ') ?? ''
-        cmp = aArt.localeCompare(bArt, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'album') {
-        cmp = (a.track?.albumTitle ?? '').localeCompare(b.track?.albumTitle ?? '', undefined, {
-          numeric: true,
-          sensitivity: 'base',
-        })
-      } else if (sortKey === 'source') {
-        const aSrc = resolveTrackSourceName(ctx, a.trackUrn)
-        const bSrc = resolveTrackSourceName(ctx, b.trackUrn)
-        cmp = aSrc.localeCompare(bSrc, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (sortKey === 'dateAdded') {
-        cmp = (a.item.addedAt ?? 0) - (b.item.addedAt ?? 0)
-      } else if (sortKey === 'duration') {
-        cmp = (a.track?.durationMs ?? 0) - (b.track?.durationMs ?? 0)
-      }
-      return sortOrder === 'desc' ? -cmp : cmp
-    })
-  }, [rawItems, tracks, searchQuery, sortKey, sortOrder])
-
-  const sortedUrns = useMemo(() => filteredRows.map((r) => r.trackUrn), [filteredRows])
-
-  const allSelected = sortedUrns.length > 0 && selectedUrns.size === sortedUrns.length
-  const handleToggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedUrns(new Set())
-    } else {
-      setSelectedUrns(new Set(sortedUrns))
-    }
-  }
-
-  const handleToggleSelect = (trackUrn: string) => {
-    setSelectedUrns((prev) => {
-      const next = new Set(prev)
-      if (next.has(trackUrn)) next.delete(trackUrn)
-      else next.add(trackUrn)
-      return next
-    })
-  }
-
-  const handleBatchPlay = () => {
-    const toPlay = Array.from(selectedUrns)
-    if (toPlay.length > 0 && detail) {
-      void ctx.player.playNow(toPlay, {
-        context: { kind: 'playlist', urn: detail.urn, label: detail.name },
-      })
-    }
-  }
+  const handleToggleSelectAll = toggleSelectAll
+  const handleToggleSelect = (trackUrn: string) => batch.toggleSelect(trackUrn)
+  const handleBatchPlay = () => void playBatch()
 
   const handleBatchAddToPlaylist = (anchor?: MenuAnchor) => {
     const toAdd = Array.from(selectedUrns)
@@ -260,36 +82,25 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
   }
 
   const handleBatchDelete = async () => {
-    if (!detail || selectedUrns.size === 0) return
-    const itemIds = rawItems
-      .filter((it) => selectedUrns.has(it.trackUrn))
-      .map((it) => it.id)
-    if (itemIds.length > 0) {
-      setError(undefined)
-      try {
-        await ctx.library.removeItems(detail.urn, itemIds)
-        setSelectedUrns(new Set())
-      } catch (cause: unknown) {
-        setError(cause instanceof Error ? cause.message : String(cause))
-      }
+    setError(undefined)
+    try {
+      await removeSelectedItems()
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : String(cause))
     }
   }
 
   const handleExitBatch = () => {
-    setIsBatchMode(false)
-    setSelectedUrns(new Set())
+    batch.setBatchMode(false)
   }
 
   const play = (trackUrn: string) => {
-    if (!detail) return
-    void ctx.player.playFromContext(trackUrn, sortedUrns, {
-      context: { kind: 'playlist', urn: detail.urn, label: detail.name },
-    })
+    void playTrack(trackUrn)
   }
 
-  const isError = isThirdPartyUrn ? Boolean(thirdPartyData.error) : state.status === 'error'
-  const errorMessage = isThirdPartyUrn ? thirdPartyData.error?.message : state.error?.message
-  const isLoading = isThirdPartyUrn ? thirdPartyData.loading : state.status === 'loading'
+  const isError = Boolean(viewError)
+  const errorMessage = viewError
+  const isLoading = loading
   if (!urn) return h(EmptyState, { title: t('library:playlistDetail.noPlaylistChosen') })
   if (isError) {
     return h(EmptyState, { title: t('library:playlistDetail.couldNotOpenThePlaylist'), description: errorMessage })
@@ -362,13 +173,12 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         e.preventDefault()
         playlistMenu.open(
           { urn: detail.urn, name: detail.name },
-          urns,
+          sortedUrns,
           { x: e.clientX, y: e.clientY },
           {
             isBatchMode,
             onToggleBatchMode: () => {
-              setIsBatchMode((prev) => !prev)
-              setSelectedUrns(new Set())
+              batch.setBatchMode(!batch.isBatchMode)
             },
             onBatchPlay: handleBatchPlay,
             onBatchAddToPlaylist: handleBatchAddToPlaylist,
@@ -448,7 +258,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
           (detail.owner?.[0] || 'B').toUpperCase(),
         ),
         h('span', { style: { fontWeight: 700, color: 'var(--bb-text-primary, #FFFFFF)' } }, detail.owner || 'BBeBee'),
-        h('span', null, detail.isSmart ? t('library:playlistDetail.smartPlaylist') : t('library:playlistDetail.songCount', { count: detail.trackCount ?? urns.length })),
+        h('span', null, detail.isSmart ? t('library:playlistDetail.smartPlaylist') : t('library:playlistDetail.songCount', { count: detail.trackCount ?? rawItems.length })),
         totalDurationStr ? h('span', null, `, ${totalDurationStr}`) : null,
       ),
     }),
@@ -524,13 +334,12 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
               playlistMenu.open(
                 { urn: detail.urn, name: detail.name },
-                urns,
+                sortedUrns,
                 { x: rect.left, y: rect.bottom + 6 },
                 {
                   isBatchMode,
                   onToggleBatchMode: () => {
-                    setIsBatchMode((prev) => !prev)
-                    setSelectedUrns(new Set())
+                    batch.setBatchMode(!batch.isBatchMode)
                   },
                   onBatchPlay: handleBatchPlay,
                   onBatchAddToPlaylist: handleBatchAddToPlaylist,
@@ -721,7 +530,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
     h(
       'div',
       { ref: collapse.scrollerRef, style: { flex: 1, minHeight: 0 } },
-      h(List<{ item: PlaylistItem; trackUrn: string; track?: Track; originalIndex: number }>, {
+      h(List<PlaylistViewRow>, {
         testID: 'playlist-tracks',
         header: headerNode,
         sticky: stickyBar,
@@ -729,7 +538,7 @@ export function PlaylistDetailScreen({ ctx, urn }: { ctx: Context; urn?: string 
         onScroll: collapse.handleScroll,
         items: filteredRows,
         pageSize: 30,
-        onEndReached: isThirdPartyUrn && thirdPartyData.hasMore && !thirdPartyData.loadingMore ? handleLoadMore : undefined,
+        onEndReached: isThirdParty && hasMore && !loadingMore ? handleLoadMore : undefined,
         estimatedItemSize: tokens.size.row,
         keyExtractor: (row) => row.item.id,
         empty: h(EmptyState, {

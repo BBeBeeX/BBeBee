@@ -22,6 +22,7 @@
     "@bbebee/plugin-player": "workspace:*",
     "@bbebee/plugin-queue": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
     "@BBeBee/ui-core": "workspace:*",
     "@BBeBee/ui-kit-mobile": "workspace:*",
     "@BBeBee/ui-menus": "workspace:*",

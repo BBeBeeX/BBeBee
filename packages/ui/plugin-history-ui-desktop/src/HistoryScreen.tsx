@@ -7,23 +7,24 @@
  * 3. Playback history track list with date filtering, playback controls, and context menus.
  */
 
-import { createElement as h, memo, useMemo, useState } from 'react'
+import { createElement as h, memo } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PlayRecord, Track } from '@BBeBee/protocol'
 import {
-  usePlayHistory,
-  usePlayHistoryStats,
-  usePlayHistoryHeatmap,
-  useTracksByUrn,
   useTransport,
   useResolvedArtwork,
 } from '@BBeBee/toolkit/hooks'
+import {
+  fallbackTrack,
+  formatHistoryTime,
+  useHistoryView,
+} from '@bbebee/plugin-history/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { ContextMenu, EmptyState, List, TrackRow, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { MenuAnchor, TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
-import { PlayHeatmap, formatPlayDuration, type TranslateFn } from './PlayHeatmap.js'
+import { PlayHeatmap, formatPlayDuration } from './PlayHeatmap.js'
 
 const CachedTrackRow = memo(
   function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): ReactElement {
@@ -161,36 +162,6 @@ const HistoryTrackRow = memo(
     prev.playCount === next.playCount,
 )
 
-function formatHistoryTime(t: TranslateFn, timestamp: number): string {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const isYesterday =
-    date.getFullYear() === yesterday.getFullYear() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getDate() === yesterday.getDate()
-
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const timeStr = `${hours}:${minutes}`
-
-  if (isToday) return t('history:history.todayAt', { time: timeStr })
-  if (isYesterday) return t('history:history.yesterdayAt', { time: timeStr })
-
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  if (date.getFullYear() === now.getFullYear()) {
-    return `${month}/${day} ${timeStr}`
-  }
-  return `${date.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeStr}`
-}
-
 function StatCard({
   title,
   value,
@@ -220,55 +191,25 @@ function StatCard({
   )
 }
 
-function fallbackTrack(urn: string, title = ''): Track {
-  return { urn, title, artists: [] }
-}
-
 export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   const { t } = useI18n(ctx)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [confirmClear, setConfirmClear] = useState(false)
-
-  const { stats } = usePlayHistoryStats(ctx)
-  const { heatmap } = usePlayHistoryHeatmap(ctx, 365)
-  const { records, loading } = usePlayHistory(ctx, {
-    limit: 500,
-    date: selectedDate ?? undefined,
-  })
-
-  const { uniqueRecords, playCountMap } = useMemo(() => {
-    const counts = new Map<string, number>()
-    const seen = new Set<string>()
-    const list: PlayRecord[] = []
-    for (const r of records) {
-      counts.set(r.trackUrn, (counts.get(r.trackUrn) ?? 0) + 1)
-      if (!seen.has(r.trackUrn)) {
-        seen.add(r.trackUrn)
-        list.push(r)
-      }
-    }
-    return { uniqueRecords: list, playCountMap: counts }
-  }, [records])
+  const {
+    selectedDate,
+    setSelectedDate,
+    confirmClear,
+    setConfirmClear,
+    handleClear,
+    stats,
+    heatmap,
+    loading,
+    uniqueRecords,
+    playCountMap,
+    tracks,
+    completionRate,
+  } = useHistoryView(ctx)
 
   const transport = useTransport(ctx)
-  const tracks = useTracksByUrn(
-    ctx,
-    uniqueRecords.map((r) => r.trackUrn),
-  )
   const menu = useTrackMenu(ctx)
-
-  const handleClear = async () => {
-    try {
-      await ctx.player?.clearHistory?.()
-    } finally {
-      setConfirmClear(false)
-    }
-  }
-
-  const completionRate =
-    stats.totalPlays > 0
-      ? `${((stats.completedPlays / stats.totalPlays) * 100).toFixed(1)}%`
-      : '0%'
 
   return h(
     'div',

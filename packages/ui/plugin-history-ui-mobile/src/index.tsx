@@ -4,19 +4,17 @@
  * One screen: playback history and activity statistics.
  */
 
-import { createElement as h, useMemo, useState } from 'react'
+import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { PlayRecord, SettingsService, Track } from '@BBeBee/protocol'
+import type { PlayRecord, SettingsService } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { HISTORY_VIEWS } from '@bbebee/plugin-history/views'
 import {
-  usePlayHistory,
-  usePlayHistoryHeatmap,
-  usePlayHistoryStats,
-  useTracksByUrn,
-  useTransport,
-} from '@bbebee/plugin-player/hooks'
+  fallbackTrack,
+  formatHistoryTime,
+  useHistoryView,
+} from '@bbebee/plugin-history/hooks'
 import { ContextMenu, EmptyState, List, Text, TrackRow, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
@@ -31,43 +29,6 @@ function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): Re
     ...props,
     track: artwork ? { ...props.track, artwork } : props.track,
   })
-}
-
-function fallbackTrack(urn: string, title = ''): Track {
-  return { urn, title, artists: [] }
-}
-
-function formatHistoryTime(
-  t: (key: string, params?: Record<string, string | number>) => string,
-  timestamp: number,
-): string {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const isYesterday =
-    date.getFullYear() === yesterday.getFullYear() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getDate() === yesterday.getDate()
-
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  const timeStr = `${hours}:${minutes}`
-
-  if (isToday) return t('history:history.todayAt', { time: timeStr })
-  if (isYesterday) return t('history:history.yesterdayAt', { time: timeStr })
-
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  if (date.getFullYear() === now.getFullYear()) {
-    return `${month}/${day} ${timeStr}`
-  }
-  return `${date.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${timeStr}`
 }
 
 function StatCard({
@@ -105,50 +66,24 @@ export function HistoryScreen({ ctx }: { ctx: Context }): ReactElement {
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [confirmClear, setConfirmClear] = useState(false)
   const native = nativePrimitives()
+  const {
+    selectedDate,
+    setSelectedDate,
+    confirmClear,
+    setConfirmClear,
+    handleClear,
+    stats,
+    heatmap,
+    loading,
+    uniqueRecords,
+    playCountMap,
+    tracks,
+    completionRate,
+    transport,
+  } = useHistoryView(ctx)
 
-  const { stats } = usePlayHistoryStats(ctx)
-  const { heatmap } = usePlayHistoryHeatmap(ctx, 365)
-  const { records, loading } = usePlayHistory(ctx, {
-    limit: 500,
-    date: selectedDate ?? undefined,
-  })
-
-  const { uniqueRecords, playCountMap } = useMemo(() => {
-    const counts = new Map<string, number>()
-    const seen = new Set<string>()
-    const list: PlayRecord[] = []
-    for (const r of records) {
-      counts.set(r.trackUrn, (counts.get(r.trackUrn) ?? 0) + 1)
-      if (!seen.has(r.trackUrn)) {
-        seen.add(r.trackUrn)
-        list.push(r)
-      }
-    }
-    return { uniqueRecords: list, playCountMap: counts }
-  }, [records])
-
-  const transport = useTransport(ctx)
-  const tracks = useTracksByUrn(
-    ctx,
-    uniqueRecords.map((r) => r.trackUrn),
-  )
   const menu = useTrackMenu(ctx)
-
-  const handleClear = async () => {
-    try {
-      await ctx.player?.clearHistory?.()
-    } finally {
-      setConfirmClear(false)
-    }
-  }
-
-  const completionRate =
-    stats.totalPlays > 0
-      ? `${((stats.completedPlays / stats.totalPlays) * 100).toFixed(1)}%`
-      : '0%'
 
   const renderTopBar = () =>
     h(

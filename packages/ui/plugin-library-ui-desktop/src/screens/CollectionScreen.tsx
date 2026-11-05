@@ -1,11 +1,11 @@
 import { createElement as h, useState } from 'react'
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { PlayNowOptions, Track } from '@BBeBee/protocol'
+import type { Track } from '@BBeBee/protocol'
 import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { formatDuration } from '@BBeBee/toolkit'
-import { useCollectionDetail, type CollectionMember } from '@bbebee/plugin-library/hooks'
-import { serviceOf, type MenuAnchor } from '@BBeBee/ui-core'
+import { useCollectionView, type CollectionMember } from '@bbebee/plugin-library/hooks'
+import type { MenuAnchor } from '@BBeBee/ui-core'
 import { Artwork, Button, ContextMenu, EmptyState, List, SaveToPlaylistPopover, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { tokens } from '@BBeBee/ui-tokens'
@@ -209,12 +209,17 @@ function MemberRow({ member, onOpen }: { member: CollectionMember; onOpen: () =>
 export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): ReactElement {
   const { t } = useI18n(ctx)
   const transport = useTransport(ctx)
-  const state = useCollectionDetail(ctx, id)
-  const detail = state.data
-  const tracks = detail?.members ?? []
-  const trackUrns = tracks
-    .filter((member) => member.kind === 'track' && member.track)
-    .map((member) => member.urn)
+  const {
+    detail,
+    collectionName,
+    sortedMembers: members,
+    trackUrns,
+    loading,
+    error,
+    playTrack,
+    playAll,
+  } = useCollectionView(ctx, id)
+
   const menu = useTrackMenu(ctx)
   const {
     isTrackInLibrary,
@@ -223,19 +228,18 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
     saveToPlaylistMenuProps,
   } = useTrackLibraryInfo(ctx)
 
-
   if (!id) return h(EmptyState, { title: t('library:collection.noCollectionChosen') })
-  if (state.status === 'error') {
-    return h(EmptyState, { title: t('library:collection.couldNotOpenTheCollection'), description: state.error?.message })
+  if (error) {
+    return h(EmptyState, { title: t('library:collection.couldNotOpenTheCollection'), description: error })
   }
-  if (!detail) return h(EmptyState, { title: t('library:collection.loading') })
+  if (!detail || loading) return h(EmptyState, { title: t('library:collection.loading') })
 
-  const players = serviceOf<{ playNow(urns: string[], opts?: PlayNowOptions): Promise<void> }>(ctx, 'player')
+  const displayName = collectionName || t('library:collection.collectionFallback')
 
   return h(
     'section',
     {
-      'aria-label': detail.collection?.name ?? t('library:collection.collectionFallback'),
+      'aria-label': displayName,
       style: { display: 'flex', flexDirection: 'column', gap: tokens.space[3], padding: tokens.space[4], height: '100%' },
     },
     h(
@@ -244,21 +248,17 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
       h(
         'div',
         { style: { flex: 1, minWidth: 0 } },
-        h(Text, { variant: 'xl', numberOfLines: 1 }, detail.collection?.name ?? t('library:collection.collectionFallback')),
+        h(Text, { variant: 'xl', numberOfLines: 1 }, displayName),
         h(
           Text,
           { variant: 'sm', tone: 'muted' },
-          detail.members.length === 1
-            ? t('library:collection.itemsOne', { count: detail.members.length })
-            : t('library:collection.itemsOther', { count: detail.members.length }),
+          members.length === 1
+            ? t('library:collection.itemsOne', { count: members.length })
+            : t('library:collection.itemsOther', { count: members.length }),
         ),
       ),
       h(Button, {
-        onPress: () =>
-          trackUrns[0] &&
-          void players?.playNow(trackUrns, {
-            context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
-          }),
+        onPress: () => void playAll(),
         disabled: trackUrns.length === 0,
         testID: 'collection-play',
         children: t('library:playlistDetail.play'),
@@ -269,7 +269,7 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
       { style: { flex: 1, minHeight: 0 } },
       h(List<CollectionMember>, {
         testID: 'collection-members',
-        items: [...(detail.members ?? [])],
+        items: [...members],
         estimatedItemSize: tokens.size.row,
         keyExtractor: (member) => member.urn,
         empty: h(EmptyState, {
@@ -278,24 +278,18 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
           description: t('library:collection.addAlbumsOrPlaylistsFrom'),
         }),
         renderItem: (member) => {
-          if (member.kind === 'track' && member.track) {
+          const track = member.track
+          if (member.kind === 'track' && track) {
             return h(CollectionTrackTableRow, {
               ctx,
-              track: member.track,
-              active: transport?.trackUrn === member.track.urn,
-              isPlaying: transport?.trackUrn === member.track.urn && transport?.status === 'playing',
-              inLibrary: isTrackInLibrary(member.track, true),
+              track,
+              active: transport?.trackUrn === track.urn,
+              isPlaying: transport?.trackUrn === track.urn && transport?.status === 'playing',
+              inLibrary: isTrackInLibrary(track, true),
               onAddToFavorites: handleAddToFavorites,
               onOpenPlaylistMenu: openAddToPlaylistMenu,
-              onPress: () =>
-                void players
-                  ?.playNow(trackUrns, {
-                    context: { kind: 'playlist', label: detail.collection?.name ?? t('library:collection.collectionFallback') },
-                  })
-                  .then(() => {
-                    /* playNow starts at the first track; the context is the collection */
-                  }),
-              onMore: (anchor) => menu.open({ track: member.track! }, anchor),
+              onPress: () => void playTrack(track.urn),
+              onMore: (anchor) => menu.open({ track }, anchor),
             })
           }
           return h(MemberRow, {

@@ -7,53 +7,24 @@
  * this package handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, useMemo, useRef, useState } from 'react'
+import { createElement as h, useRef } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type {} from '@BBeBee/protocol'
-import type { PlayRecord, QueueItem, QueueSourceContext, SettingsService, Track } from '@BBeBee/protocol'
+import type { PlayRecord, QueueItem, SettingsService, Track } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { QUEUE_VIEWS } from '@bbebee/plugin-queue/views'
 import {
+  CONTEXT_KIND_LABEL_KEYS,
+  formatRelativeTime,
   queueTrackFallback,
-  usePlayHistory,
-  useQueue,
-  useTracksByUrn,
-  useTransport,
-  useUpcoming,
-} from '@bbebee/plugin-player/hooks'
+  useQueueView,
+} from '@BBeBee/toolkit/hooks'
 import { ContextMenu, EmptyState, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { useResolvedArtwork } from '@bbebee/plugin-cache/hooks'
 import { useTrackMenu } from '@BBeBee/ui-menus'
 import { serviceOf } from '@BBeBee/ui-core'
 import type { TrackRowProps } from '@BBeBee/ui-core'
 import { tokens } from '@BBeBee/ui-tokens'
-
-/** Catalogue keys for the label shown for a context that carries a kind but no label. */
-const CONTEXT_KIND_LABEL_KEYS: Record<QueueSourceContext['kind'], string> = {
-  album: 'queue:index.contextKindLabels.album',
-  playlist: 'queue:index.contextKindLabels.playlist',
-  artist: 'queue:index.contextKindLabels.artist',
-  search: 'queue:index.contextKindLabels.search',
-  radio: 'queue:index.contextKindLabels.radio',
-  local: 'queue:index.contextKindLabels.local',
-  favorites: 'queue:index.contextKindLabels.favorites',
-}
-
-function formatRelativeTime(
-  t: (key: string, params?: Record<string, string | number>) => string,
-  timestamp: number,
-): string {
-  const diff = Date.now() - timestamp
-  const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return t('queue:index.justNow')
-  if (minutes < 60) return t('queue:index.minAgo', { minutes })
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return t('queue:index.hrAgo', { hours })
-  const days = Math.floor(hours / 24)
-  if (days < 7) return t('queue:index.daysAgo', { days })
-  return new Date(timestamp).toLocaleDateString()
-}
 
 /** `TrackRow` renders its own `Artwork`; this is the same resolution for its track. */
 function CachedTrackRow({ ctx, ...props }: TrackRowProps & { ctx: Context }): ReactElement {
@@ -72,51 +43,25 @@ export interface QueueScreenProps {
 /** The up-next list and recently played history screen. */
 export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   const { t } = useI18n(ctx)
-  const [tab, setTab] = useState<'queue' | 'history'>('queue')
-  const queue = useQueue(ctx)
-  const upcoming = useUpcoming(ctx)
-  const state = useTransport(ctx)
   const menu = useTrackMenu(ctx)
   const liquidGlass = resolveMobileLiquidGlassSettings(
     serviceOf<SettingsService>(ctx, 'settings')?.getSync().liquidGlass,
   )
   const native = nativePrimitives()
 
-  // Track hydration for queue
-  const queueTracks = useTracksByUrn(ctx, queue.map((item) => item.trackUrn))
-
-  const currentIdx = useMemo(() => {
-    let idx = queue.findIndex(
-      (item) =>
-        item.id === state.currentItemId ||
-        (state.trackUrn && item.trackUrn === state.trackUrn),
-    )
-    if (idx === -1 && queue.length > 0) idx = 0
-    return idx
-  }, [queue, state.currentItemId, state.trackUrn])
-
-  const currentItem = queue[currentIdx] ?? queue[0]
-
-  // Play history resolution (de-duplicated by trackUrn, preserving most recent occurrence, capped at 50)
-  const { records: historyRecords, loading: historyLoading } = usePlayHistory(ctx, { limit: 100 })
-  const { uniqueHistoryRecords, uniqueHistoryUrns } = useMemo(() => {
-    const seen = new Set<string>()
-    const list: PlayRecord[] = []
-    const urns: string[] = []
-    for (const record of historyRecords) {
-      if (!seen.has(record.trackUrn)) {
-        seen.add(record.trackUrn)
-        list.push(record)
-        urns.push(record.trackUrn)
-        if (list.length >= 50) {
-          break
-        }
-      }
-    }
-    return { uniqueHistoryRecords: list, uniqueHistoryUrns: urns }
-  }, [historyRecords])
-
-  const historyTracks = useTracksByUrn(ctx, uniqueHistoryUrns)
+  const {
+    tab,
+    setTab,
+    queue,
+    upcoming,
+    state,
+    currentItem,
+    queueTracks,
+    historyLoading,
+    uniqueHistoryRecords,
+    uniqueHistoryUrns,
+    historyTracks,
+  } = useQueueView(ctx)
 
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
