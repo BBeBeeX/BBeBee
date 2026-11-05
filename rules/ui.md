@@ -82,6 +82,13 @@ Each shell resolves the contribution ID against its target view registry via `ct
 
 - `@BBeBee/toolkit/hooks` provides `useService` and `useServiceState(key, events, select)` backed by `useSyncExternalStore`; `@BBeBee/ui-core` re-exports them, so existing imports keep working.
 - No `useEffect` for domain mutations (call service methods directly).
+- **Headless Domain View Hooks & Batch State Invariant**:
+  - UI screens (`LocalMusicScreen`, `FavoritesScreen`, `AlbumScreen` on desktop and mobile) **must never implement their own duplicate track/album deduplication, multi-field sorting, search filtering, or batch selection logic**.
+  - All such view state machines belong strictly in Layer 4 headless hooks:
+    - `@BBeBee/toolkit/hooks`: `useBatchSelection` exposes the standard batch state machine (`isBatchMode`, `selectedUrns`, `toggleSelect`, `selectAll`, `clearSelection`, `isSelected`, `isAllSelected`, `selectedCount`).
+    - `@bbebee/plugin-library/hooks`: `useLocalMusic` (handles local track/album deduplication, multi-key sorting, artist classification and filtering, search filtering, and batch selection) and `useFavoritesView` (handles favorites hydration, multi-key sorting, search filtering, and batch selection).
+    - `@bbebee/plugin-album/hooks`: `useAlbumView` (handles album track deduplication, track number / title / duration / source sorting, search filtering, and batch selection).
+  - UI packages remain strictly thin presentation adapters (React Native views in mobile, React DOM table/rows in desktop) that wire up headless hook outputs to gestures and markup.
 - **Optimistic UI Feedback & Instant Actions**:
   - Interactive actions (e.g. toggling favorite on albums, playlists or tracks, batch downloading) must flip local UI state optimistically and emit instant user feedback via `ctx.emit('ui/toast', ...)` before awaiting background persistence.
   - If asynchronous persistence fails, the optimistic UI state must be gracefully rolled back.

@@ -135,6 +135,12 @@ export interface FsService {
 > `content://` SAF tree URI, not a path: it cannot be handed to a native audio decoder, and its
 > permission must be persisted across restarts. `core-fs-mobile` persists the grant and exposes
 > `fs.toPlayableUri(uri)` used by `ctx.audio`; on iOS and desktop that is the identity function.
+> On Android 11+ (API 30+), `core-fs-mobile` implements **hybrid POSIX/SAF path resolution**:
+> it maps SAF document and tree URIs (`primary:...` and volume UUIDs) to native POSIX paths via
+> `safToNativeFileUri`. When the app holds `MANAGE_EXTERNAL_STORAGE` ("All files access"), `list()`
+> and `stat()` query the POSIX filesystem directly, bypassing Android MediaProvider FUSE MIME-type
+> filters that otherwise hide non-standard audio extensions like `.m4s`. If POSIX access is
+> restricted or unmapped, `core-fs-mobile` falls back seamlessly to SAF `Directory.list()`.
 > The optional `signal` aborts that copy at the await points (`readBytes`-style `AbortError`);
 > it is advisory, since a copy already in flight natively cannot be interrupted mid-write.
 > The scanner ([06](../sources/spec.md)) is written against `list`/`stat` precisely so it does
