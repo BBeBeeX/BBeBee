@@ -4,6 +4,7 @@ import type { Context } from 'cordis'
 import type { LibraryService, PlayerService, SettingsService, SourcesService, Track } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useSaved } from '@bbebee/plugin-library/hooks'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { resolveTrackSourceName, useTracksByUrn, useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
 import { useTrackMenu } from '@BBeBee/ui-menus'
@@ -63,8 +64,10 @@ export function FavoritesScreen({ ctx }: { ctx: Context }): ReactElement {
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setHeaderMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'library.favorites' || targetId === LIBRARY_VIEWS.favorites) {
+        setHeaderMenuOpen(true)
+      }
     })
     return () => void off()
   }, [ctx])

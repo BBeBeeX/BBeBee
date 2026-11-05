@@ -48,8 +48,10 @@ export function CollectionScreen({ ctx, id }: { ctx: Context; id?: string }): Re
   const [renameDraft, setRenameDraft] = useState('')
 
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setHeaderMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'library.collection' || targetId === LIBRARY_VIEWS.collection) {
+        setHeaderMenuOpen(true)
+      }
     })
     return () => void off()
   }, [ctx])

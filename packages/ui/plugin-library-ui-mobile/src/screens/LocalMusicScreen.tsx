@@ -4,6 +4,7 @@ import type { Context } from 'cordis'
 import type { Album, ArtworkRef, PlayerService, SettingsService, SourcesService, Track } from '@BBeBee/protocol'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { fetchAllLocalAlbums, fetchAllLocalTracks } from '@bbebee/plugin-library/hooks'
+import { LIBRARY_VIEWS } from '@bbebee/plugin-library/views'
 import { ALBUM_VIEWS } from '@bbebee/plugin-album/views'
 import { useTransport } from '@BBeBee/toolkit/hooks'
 import { serviceOf, type MenuAnchor, type MenuItemSpec } from '@BBeBee/ui-core'
@@ -71,8 +72,10 @@ export function LocalMusicScreen({
   const [selectedUrns, setSelectedUrns] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setHeaderMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'library.local' || targetId === LIBRARY_VIEWS.local) {
+        setHeaderMenuOpen(true)
+      }
     })
     return () => void off()
   }, [ctx])
@@ -119,7 +122,6 @@ export function LocalMusicScreen({
   const reload = useCallback(() => {
     const sources = serviceOf<SourcesService>(ctx, 'sources') ?? ctx.sources
     if (!sources?.listTracks) {
-      setLoading(false)
       return
     }
     const unknownAlbumLabel = t('library:localAlbum.unknownAlbum')
@@ -176,9 +178,16 @@ export function LocalMusicScreen({
     const offScan = ctx.on?.('scan/finished', () => {
       reload()
     })
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    if (!ctx.sources?.listTracks) {
+      retryTimer = setTimeout(() => {
+        reload()
+      }, 500)
+    }
     return () => {
       offLibrary?.()
       offScan?.()
+      if (retryTimer) clearTimeout(retryTimer)
     }
   }, [ctx, reload])
 
@@ -928,11 +937,17 @@ export function LocalMusicScreen({
             keyExtractor: (trk) => trk.urn,
             empty: loading
               ? h(EmptyState, { title: t('library:collection.loading') })
-              : h(EmptyState, {
-                  icon: 'folder',
-                  title: t('library:localMusic.noLocalMusicYet'),
-                  description: t('library:localMusic.afterAddingAMusicFolder'),
-                }),
+              : searchQuery.trim()
+                ? h(EmptyState, {
+                    icon: 'search',
+                    title: t('library:favorites.nothingFound'),
+                    description: t('library:localMusic.searchLocalFiles'),
+                  })
+                : h(EmptyState, {
+                    icon: 'folder',
+                    title: t('library:localMusic.noLocalMusicYet'),
+                    description: t('library:localMusic.afterAddingAMusicFolder'),
+                  }),
             renderItem: (trk, index) =>
               h(MobileLibraryTrackRow, {
                 ctx,
@@ -971,9 +986,13 @@ export function LocalMusicScreen({
               },
               sortedAlbums.length === 0
                 ? h(EmptyState, {
-                    icon: 'disc',
-                    title: t('library:localMusic.noLocalAlbumsYet'),
-                    description: t('library:localMusic.afterAddingALocalMusic'),
+                    icon: searchQuery.trim() ? 'search' : 'disc',
+                    title: searchQuery.trim()
+                      ? t('library:favorites.nothingFound')
+                      : t('library:localMusic.noLocalAlbumsYet'),
+                    description: searchQuery.trim()
+                      ? t('library:localMusic.searchLocalAlbums')
+                      : t('library:localMusic.afterAddingALocalMusic'),
                   })
                 : sortedAlbums.map((album) =>
                     h(LocalAlbumCard, {

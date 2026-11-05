@@ -177,8 +177,10 @@ export function PlaylistDetailScreen({
 
   // Top-right navigation menu event
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'library.playlist' || targetId === LIBRARY_VIEWS.playlist) {
+        setMenuOpen(true)
+      }
     })
     return () => {
       off()

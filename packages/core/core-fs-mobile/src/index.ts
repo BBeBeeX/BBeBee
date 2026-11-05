@@ -188,22 +188,6 @@ export class FsExpo extends Service implements FsService {
     assertFs(config, mode, this.scopeOf(uri, capabilityConfigOf(config)))
   }
 
-  /**
-   * Resolves a SAF content URI to a direct filesystem URI if accessible.
-   */
-  private effectiveUri(uri: Uri): Uri {
-    if (uri.startsWith('content://com.android.externalstorage.documents')) {
-      const mapped = safToNativeFileUri(uri)
-      if (mapped !== uri) {
-        try {
-          if (Paths.info(mapped).exists) return mapped
-        } catch {
-          // Fall back to original URI
-        }
-      }
-    }
-    return uri
-  }
 
   /* ── Well-known locations ───────────────────────────────────────────── */
 
@@ -245,37 +229,35 @@ export class FsExpo extends Service implements FsService {
 
   async exists(uri: Uri): Promise<boolean> {
     this.check(uri, 'read')
-    const effective = this.effectiveUri(uri)
-    if (effective.startsWith('content://')) {
+    if (uri.startsWith('content://')) {
       try {
-        return Boolean(new File(effective).exists || new Directory(effective).exists)
+        return Boolean(new File(uri).exists || new Directory(uri).exists)
       } catch {
         return false
       }
     }
-    return Paths.info(effective).exists
+    return Paths.info(uri).exists
   }
 
   async stat(uri: Uri): Promise<FileStat> {
     this.check(uri, 'read')
-    const effective = this.effectiveUri(uri)
-    if (effective.startsWith('content://')) {
+    if (uri.startsWith('content://')) {
       try {
-        const file = new File(effective)
+        const file = new File(uri)
         if (file.exists) {
           return {
             uri: trim(file.uri),
-            name: this.basename(effective),
+            name: this.basename(uri),
             isDirectory: false,
             size: file.size ?? 0,
             mtime: file.lastModified ?? 0,
           }
         }
-        const directory = new Directory(effective)
+        const directory = new Directory(uri)
         if (directory.exists) {
           return {
             uri: trim(directory.uri),
-            name: this.basename(effective),
+            name: this.basename(uri),
             isDirectory: true,
             size: 0,
             mtime: 0,
@@ -286,17 +268,17 @@ export class FsExpo extends Service implements FsService {
       }
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
-    const info = Paths.info(effective)
+    const info = Paths.info(uri)
     if (!info.exists) {
       // The contract requires a rejection, and the conformance suite matches
       // on the message — callers branch on this, not on a sentinel.
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
     if (info.isDirectory) {
-      const directory = new Directory(effective)
+      const directory = new Directory(uri)
       return {
         uri: trim(directory.uri),
-        name: Paths.basename(effective),
+        name: Paths.basename(uri),
         isDirectory: true,
         // ⚠️ Expo exposes neither a directory mtime nor a reliable size.
         // Reporting 0 rather than Date.now() is deliberate: a fabricated "now"
@@ -307,10 +289,10 @@ export class FsExpo extends Service implements FsService {
         mtime: 0,
       }
     }
-    const file = new File(effective)
+    const file = new File(uri)
     return {
       uri: trim(file.uri),
-      name: Paths.basename(effective),
+      name: Paths.basename(uri),
       isDirectory: false,
       size: file.size,
       mtime: file.lastModified ?? 0,
@@ -319,8 +301,7 @@ export class FsExpo extends Service implements FsService {
 
   async list(uri: Uri): Promise<FileStat[]> {
     this.check(uri, 'read')
-    const effective = this.effectiveUri(uri)
-    const entries = new Directory(effective).list()
+    const entries = new Directory(uri).list()
     return entries.map((entry) => {
       const isDirectory = entry instanceof Directory
       return {
@@ -347,14 +328,13 @@ export class FsExpo extends Service implements FsService {
 
   async remove(uri: Uri, opts?: { recursive?: boolean }): Promise<void> {
     this.check(uri, 'write')
-    const effective = this.effectiveUri(uri)
-    if (effective.startsWith('content://')) {
-      const file = new File(effective)
+    if (uri.startsWith('content://')) {
+      const file = new File(uri)
       if (file.exists) {
         file.delete()
         return
       }
-      const directory = new Directory(effective)
+      const directory = new Directory(uri)
       if (directory.exists) {
         if (!opts?.recursive && directory.list().length > 0) {
           throw new Error(`ENOTEMPTY: directory not empty: ${uri}`)
@@ -364,15 +344,15 @@ export class FsExpo extends Service implements FsService {
       }
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
-    const info = Paths.info(effective)
+    const info = Paths.info(uri)
     if (!info.exists) throw new Error(`ENOENT: no such file or directory: ${uri}`)
 
     if (!info.isDirectory) {
-      new File(effective).delete()
+      new File(uri).delete()
       return
     }
 
-    const directory = new Directory(effective)
+    const directory = new Directory(uri)
     if (!opts?.recursive && directory.list().length > 0) {
       // Expo's delete() is always recursive, so the guard is ours. Silently
       // deleting a tree the caller did not ask to delete is worse than an error.
@@ -436,8 +416,7 @@ export class FsExpo extends Service implements FsService {
   async readFile(uri: Uri, opts?: ReadOptions): Promise<string> {
     this.check(uri, 'read')
     throwIfAborted(opts?.signal)
-    const effective = this.effectiveUri(uri)
-    const file = new File(effective)
+    const file = new File(uri)
     const text = opts?.encoding === 'base64' ? await file.base64() : await file.text()
     // The await above is the one place an abort can land mid-read; without
     // this check an aborted read would resolve as if it had been wanted.
@@ -448,8 +427,7 @@ export class FsExpo extends Service implements FsService {
   async readBytes(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uint8Array> {
     this.check(uri, 'read')
     throwIfAborted(opts?.signal)
-    const effective = this.effectiveUri(uri)
-    const bytes = await new File(effective).bytes()
+    const bytes = await new File(uri).bytes()
     throwIfAborted(opts?.signal)
     return bytes
   }
@@ -458,8 +436,7 @@ export class FsExpo extends Service implements FsService {
     this.check(uri, 'read')
     const length = Math.max(0, Math.floor(end) - Math.floor(start))
     if (length === 0) return new Uint8Array(0)
-    const effective = this.effectiveUri(uri)
-    const file = new File(effective)
+    const file = new File(uri)
     const handle = file.open(FileMode.ReadOnly)
     try {
       handle.offset = Math.floor(start)
@@ -506,8 +483,7 @@ export class FsExpo extends Service implements FsService {
    */
   createReadStream(uri: Uri, range?: { start: number; end?: number }): ReadableStream<Uint8Array> {
     this.check(uri, 'read')
-    const effective = this.effectiveUri(uri)
-    const file = new File(effective)
+    const file = new File(uri)
     const CHUNK = 64 * 1024
 
     let handle: ReturnType<File['open']> | undefined
@@ -588,16 +564,7 @@ export class FsExpo extends Service implements FsService {
   async pickDirectory(): Promise<Uri | undefined> {
     const directory = await Directory.pickDirectoryAsync()
     if (!directory) return undefined
-    const uri = trim(directory.uri)
-    const mapped = safToNativeFileUri(uri)
-    if (mapped !== uri) {
-      try {
-        if (Paths.info(mapped).exists) return mapped
-      } catch {
-        // Fall back to original URI
-      }
-    }
-    return uri
+    return trim(directory.uri)
   }
 
   /**
@@ -667,7 +634,14 @@ export class FsExpo extends Service implements FsService {
     const mapped = safToNativeFileUri(uri)
     if (mapped !== uri) {
       try {
-        if (Paths.info(mapped).exists) return mapped
+        if (Paths.info(mapped).exists) {
+          // Probe POSIX read permission on this specific file.
+          // If Android FUSE blocks it (e.g. media_type != 2 under READ_MEDIA_AUDIO),
+          // open() throws EACCES and we fall through to copying via SAF ContentResolver.
+          const handle = new File(mapped).open(FileMode.ReadOnly)
+          handle.close()
+          return mapped
+        }
       } catch {
         // Fall through to SAF cache copy
       }

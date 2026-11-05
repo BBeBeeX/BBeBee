@@ -81,8 +81,10 @@ export function AlbumScreen({
 
   // Header menu listener: Triggered by top-right navigation bar button
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'album.view') {
+        setMenuOpen(true)
+      }
     })
     return () => {
       off()

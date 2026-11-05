@@ -177,14 +177,45 @@ export function ContextMenu(
     ? submenu.items.filter((item) => item.label.toLowerCase().includes(needle))
     : []
 
-  const close = () => props.onClose()
-  const activate = (item: MenuItemSpec) => {
-    if (item.disabled) return
-    if (item.submenu) {
-      setSubmenuId(item.id)
+  const close = () => {
+    setSubmenuId(undefined)
+    setFilter('')
+    setCreating(false)
+    setDraft('')
+    props.onClose()
+  }
+
+  const handleRequestClose = () => {
+    if (submenuId) {
+      setSubmenuId(undefined)
       setFilter('')
       setCreating(false)
       setDraft('')
+    } else {
+      close()
+    }
+  }
+
+  // On React Native Android, synchronous unmounting of an active touch target
+  // locks JSTouchDispatcher with "Got DOWN touch before receiving UP or CANCEL".
+  // In DOM / node unit tests, synchronous execution is required for synchronous assertions.
+  const defer = (fn: () => void) => {
+    if (typeof requestAnimationFrame === 'function' && typeof document === 'undefined') {
+      requestAnimationFrame(fn)
+    } else {
+      fn()
+    }
+  }
+
+  const activate = (item: MenuItemSpec) => {
+    if (item.disabled) return
+    if (item.submenu) {
+      defer(() => {
+        setSubmenuId(item.id)
+        setFilter('')
+        setCreating(false)
+        setDraft('')
+      })
       return
     }
     void item.onSelect?.()
@@ -200,10 +231,12 @@ export function ContextMenu(
           item: { id: '__back', label: `\u2039 ${submenu.title ?? t('app:common.back', 'Back')}` },
           isDropdown,
           onActivate: () => {
-            setSubmenuId(undefined)
-            setFilter('')
-            setCreating(false)
-            setDraft('')
+            defer(() => {
+              setSubmenuId(undefined)
+              setFilter('')
+              setCreating(false)
+              setDraft('')
+            })
           },
         }),
         isDropdown
@@ -416,7 +449,7 @@ export function ContextMenu(
         visible: true,
         transparent: true,
         animationType: 'fade',
-        onRequestClose: close,
+        onRequestClose: handleRequestClose,
       },
       h(
         native.View as never,
@@ -479,7 +512,7 @@ export function ContextMenu(
       visible: true,
       transparent: true,
       animationType: 'slide',
-      onRequestClose: close,
+      onRequestClose: handleRequestClose,
     },
     h(
       native.View as never,

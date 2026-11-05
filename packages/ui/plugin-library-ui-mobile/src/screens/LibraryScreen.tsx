@@ -96,8 +96,10 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   const [generation, setGeneration] = useState(0)
 
   useEffect(() => {
-    const off = ctx.on('library/open-header-menu', () => {
-      setHeaderMenuOpen(true)
+    const off = ctx.on('library/open-header-menu', (targetId?: string) => {
+      if (!targetId || targetId === 'library.home' || targetId === LIBRARY_VIEWS.home) {
+        setHeaderMenuOpen(true)
+      }
     })
     return () => void off()
   }, [ctx])

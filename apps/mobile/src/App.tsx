@@ -1136,17 +1136,18 @@ function Shell({ ctx }: { ctx: Context }) {
       rightAction ?? h(View, { style: { minWidth: 40 } }),
     )
 
-  const libraryHeaderMenuButton = headerGlassButton(
-    {
-      onPress: () => {
-        ctx.emit('library/open-header-menu')
+  const libraryHeaderMenuButton = (targetId?: string) =>
+    headerGlassButton(
+      {
+        onPress: () => {
+          ctx.emit('library/open-header-menu', targetId)
+        },
+        accessibilityLabel: t('library:library.actions') || 'More options',
+        testID: 'library-header-menu',
       },
-      accessibilityLabel: t('library:library.actions') || 'More options',
-      testID: 'library-header-menu',
-    },
-    tablerIcon('dots', { size: 22, color: palette.text.primary }) ??
-      h(Text, { style: { color: palette.text.primary, fontSize: 22, fontWeight: '700' } }, '⋯'),
-  )
+      tablerIcon('dots', { size: 22, color: palette.text.primary }) ??
+        h(Text, { style: { color: palette.text.primary, fontSize: 22, fontWeight: '700' } }, '⋯'),
+    )
 
   const getRouteHeaderStyle = (id?: string): ViewStyle | undefined => {
     if (id === 'library.favorites') {
@@ -1189,7 +1190,7 @@ function Shell({ ctx }: { ctx: Context }) {
     pageTitleFor(currentId),
     () => setIsDrawerOpen(true),
     canGoBack ? () => void goBack() : undefined,
-    isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton : undefined,
+    isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton(currentId) : undefined,
     getRouteHeaderStyle(currentId),
   )
   const pageBody = h(
@@ -1238,7 +1239,7 @@ function Shell({ ctx }: { ctx: Context }) {
     pageTitleFor(leftCurrentId),
     () => setIsDrawerOpen(true),
     leftCanGoBack ? () => void leftGoBack() : undefined,
-    isLibraryRouteWithMenu(leftCurrentId) ? libraryHeaderMenuButton : undefined,
+    isLibraryRouteWithMenu(leftCurrentId) ? libraryHeaderMenuButton(leftCurrentId) : undefined,
     getRouteHeaderStyle(leftCurrentId),
   )
   const leftPageBody = pageBodyFor(
@@ -1712,7 +1713,7 @@ function Shell({ ctx }: { ctx: Context }) {
         pageTitleFor(currentId),
         undefined,
         isSettingsSubpage(currentId) ? () => void goBack() : undefined,
-        isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton : undefined,
+        isLibraryRouteWithMenu(currentId) ? libraryHeaderMenuButton(currentId) : undefined,
       ),
       pageBody,
     ),

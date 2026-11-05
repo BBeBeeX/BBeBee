@@ -168,7 +168,7 @@ declare module 'cordis' {
      */
     'library/profile-changed'(): void
     /** Request the mobile library screen to open its header menu (create & sort). */
-    'library/open-header-menu'(): void
+    'library/open-header-menu'(targetId?: string): void
     'scan/specified-dirs-changed'(dirs: readonly ScanSpecifiedDir[]): void
     'scan/started'(specifiedDirId: string): void
     'scan/progress'(specifiedDirId: string, done: number, total?: number, dirsListed?: number, currentFile?: string): void

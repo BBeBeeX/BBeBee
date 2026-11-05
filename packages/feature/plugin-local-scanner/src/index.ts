@@ -693,6 +693,8 @@ export class Scanner extends Service implements ScannerService {
       knownAnywhere.set(row.uri, row)
     }
 
+    await this.reconcileUriAliases(dir.id, files, known, knownAnywhere)
+
     const seen = new Set<string>()
     for (let i = 0; i < files.length; i += this.config.batchSize) {
       if (opts.signal.aborted) break
@@ -740,8 +742,21 @@ export class Scanner extends Service implements ScannerService {
     // aggregate as authoritative.
     if (!complete) summary.incomplete = true
     if (complete) {
-      const gone = [...known.keys()].filter((uri) => !seen.has(uri))
-      if (gone.length > 0) await this.forgetGone(gone, summary)
+      let shouldReconcile = true
+      if (files.length === 0 && known.size > 0) {
+        try {
+          const dirExists = await this.ownCtx.fs.exists(dir.uri)
+          if (!dirExists) {
+            shouldReconcile = true
+          }
+        } catch {
+          shouldReconcile = false
+        }
+      }
+      if (shouldReconcile) {
+        const gone = [...known.keys()].filter((uri) => !seen.has(uri))
+        if (gone.length > 0) await this.forgetGone(gone, summary)
+      }
     }
 
     await this.ownCtx.db.exec(
@@ -1123,6 +1138,38 @@ export class Scanner extends Service implements ScannerService {
   }
 
   /**
+   * Reconciles URI aliases between SAF and POSIX file paths.
+   * If a file was previously imported with file:// but current walk yielded content://,
+   * updates the database records in scan_entries and media_bindings so the entry is recognized as
+   * existing rather than treated as gone and deleted.
+   */
+  private async reconcileUriAliases(
+    _specifiedDirId: string,
+    files: FileStat[],
+    known: Map<string, EntryRow>,
+    knownAnywhere: Map<string, EntryRow>,
+  ): Promise<void> {
+    for (const file of files) {
+      if (known.has(file.uri)) continue
+      const counterpart = safToFileUri(file.uri)
+      if (counterpart && known.has(counterpart)) {
+        const oldUri = counterpart
+        const newUri = file.uri
+        await this.ownCtx.db.exec('UPDATE scan_entries SET uri = ? WHERE uri = ?', [newUri, oldUri])
+        await this.ownCtx.db.exec('UPDATE media_bindings SET uri = ? WHERE uri = ?', [newUri, oldUri])
+        const entry = known.get(oldUri)!
+        entry.uri = newUri
+        known.delete(oldUri)
+        known.set(newUri, entry)
+        if (knownAnywhere.has(oldUri)) {
+          knownAnywhere.delete(oldUri)
+          knownAnywhere.set(newUri, entry)
+        }
+      }
+    }
+  }
+
+  /**
    * Cleans up unloved local tracks that were mistakenly inserted into `library_items`
    * by earlier scanner versions. `library_items` represents the user's curated favorites,
    * so local tracks should only appear if explicitly favorited (track_stats.loved = 1).
@@ -1421,6 +1468,23 @@ function parentDirectoryOf(uri: string): string {
   const normalized = uri.replace(/\\/g, '/')
   const idx = normalized.lastIndexOf('/')
   return idx > 0 ? normalized.slice(0, idx) : normalized
+}
+
+function safToFileUri(safUri: string): string | undefined {
+  if (!safUri.startsWith('content://com.android.externalstorage.documents')) return undefined
+  try {
+    const docIdx = safUri.indexOf('/document/')
+    const target = docIdx >= 0 ? safUri.slice(docIdx + '/document/'.length) : undefined
+    if (!target) return undefined
+    const decoded = decodeURIComponent(target.split('?')[0] ?? '')
+    if (decoded.startsWith('primary:')) {
+      const rel = decoded.slice('primary:'.length).replace(/^\/+/, '')
+      return `file:///storage/emulated/0/${rel}`
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
 }
 
 export const name = 'plugin-local-scanner'
