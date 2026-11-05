@@ -27,7 +27,7 @@ import type { FsService, PathsService, Uri } from '@BBeBee/protocol'
 import { scopeContext } from '@BBeBee/kernel'
 import { PathsExpo } from '@bbebee/core-paths-mobile'
 import { tempDir } from '@BBeBee/kernel/testing'
-import { FsExpo } from './index.js'
+import { FsExpo, safToNativeFileUri } from './index.js'
 
 let root: string
 let ctx: Context
@@ -187,6 +187,49 @@ describe('core-fs-mobile specifics', () => {
     } finally {
       picker.__resetForTests()
     }
+  })
+})
+
+describe('safToNativeFileUri', () => {
+  it('maps primary tree and document URIs to /storage/emulated/0', () => {
+    expect(
+      safToNativeFileUri(
+        'content://com.android.externalstorage.documents/tree/primary%3AMusic' as Uri,
+      ),
+    ).toBe('file:///storage/emulated/0/Music')
+
+    expect(
+      safToNativeFileUri(
+        'content://com.android.externalstorage.documents/tree/primary%3AMusic/document/primary%3AMusic%2Faudio.flac' as Uri,
+      ),
+    ).toBe('file:///storage/emulated/0/Music/audio.flac')
+
+    expect(
+      safToNativeFileUri(
+        'content://com.android.externalstorage.documents/document/primary%3AMusic%2Fsong.mp3' as Uri,
+      ),
+    ).toBe('file:///storage/emulated/0/Music/song.mp3')
+
+    expect(
+      safToNativeFileUri('content://com.android.externalstorage.documents/tree/primary%3A' as Uri),
+    ).toBe('file:///storage/emulated/0')
+  })
+
+  it('maps secondary storage volume to /storage/<volume>', () => {
+    expect(
+      safToNativeFileUri(
+        'content://com.android.externalstorage.documents/tree/0123-4567%3AMusic/document/0123-4567%3AMusic%2Fsong.mp3' as Uri,
+      ),
+    ).toBe('file:///storage/0123-4567/Music/song.mp3')
+  })
+
+  it('preserves non-externalstorage URIs and file URIs unchanged', () => {
+    expect(safToNativeFileUri('file:///storage/emulated/0/Music/audio.flac' as Uri)).toBe(
+      'file:///storage/emulated/0/Music/audio.flac',
+    )
+    expect(safToNativeFileUri('content://media/external/audio/123' as Uri)).toBe(
+      'content://media/external/audio/123',
+    )
   })
 })
 

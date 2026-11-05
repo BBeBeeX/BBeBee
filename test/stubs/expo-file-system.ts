@@ -112,7 +112,7 @@ export class File {
   delete(): void {
     rmSync(this.path, { force: true })
   }
-  open(): FileHandle {
+  open(_mode?: string): FileHandle {
     return new FileHandle(this.path)
   }
 
@@ -236,4 +236,9 @@ export const Paths = {
   get availableDiskSpace(): number {
     return Number.MAX_SAFE_INTEGER
   },
+}
+
+export enum FileMode {
+  ReadOnly = 'r',
+  ReadWrite = 'rw',
 }

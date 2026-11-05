@@ -16,6 +16,8 @@ import {
   BackHandler,
   Image,
   PanResponder,
+  PermissionsAndroid,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -70,6 +72,31 @@ import { DEFERRED_PLUGIN_IDS } from './plugins'
 // The brand mark on the tablet rail — the existing app icon, reused rather
 // than a second asset shipped for one layout.
 import brandIcon from '../assets/icon.png'
+
+/**
+ * Request runtime Android permissions for audio media reading and notifications.
+ */
+async function requestAndroidPermissions(): Promise<void> {
+  if (Platform.OS !== 'android') return
+  try {
+    const apiLevel =
+      typeof Platform.Version === 'number'
+        ? Platform.Version
+        : parseInt(String(Platform.Version), 10)
+    if (apiLevel >= 33) {
+      await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      ])
+    } else {
+      await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+      ])
+    }
+  } catch {
+    // Non-fatal if permission request fails or user dismisses
+  }
+}
 
 /**
  * The idle gate for the deferred plugin pass, mirroring desktop's
@@ -1949,6 +1976,7 @@ export default function App() {
 
   useEffect(() => {
     let disposed = false
+    void requestAndroidPermissions()
     boot()
       .then((app) => {
         bootAppRef.current = app

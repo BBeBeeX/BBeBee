@@ -8,7 +8,7 @@
  * See docs/04-core-services.md §1.
  */
 
-import { Directory, File, Paths } from 'expo-file-system'
+import { Directory, File, FileMode, Paths } from 'expo-file-system'
 import * as DocumentPicker from 'expo-document-picker'
 import { Service } from 'cordis'
 import type { Context } from 'cordis'
@@ -29,6 +29,57 @@ import type {
 type Scope = 'own' | 'media' | 'cache' | 'downloads' | 'logs' | 'all'
 
 const trim = (uri: string): Uri => uri.replace(/\/$/, '')
+
+/**
+ * Maps Android SAF externalstorage provider content URIs to direct filesystem URIs.
+ *
+ * SAF document/tree URIs produced by ExternalStorageProvider (`com.android.externalstorage.documents`)
+ * encode the storage volume and relative path, e.g.:
+ * - `content://com.android.externalstorage.documents/tree/primary%3AMusic/document/primary%3AMusic%2Faudio.flac`
+ * - `content://com.android.externalstorage.documents/tree/primary%3AMusic`
+ *
+ * When `primary:` is present, it maps to `/storage/emulated/0/...`. Secondary volumes
+ * like `1234-5678:Music/...` map to `/storage/1234-5678/...`.
+ *
+ * Mapping to direct `file://` URIs bypasses the volatile SAF DocumentFile permission token
+ * that Android drops across app re-installs or process restarts, allowing direct POSIX access
+ * through MediaStore/FUSE storage emulation.
+ */
+export function safToNativeFileUri(uri: Uri): Uri {
+  if (!uri.startsWith('content://com.android.externalstorage.documents')) {
+    return uri
+  }
+  try {
+    let targetId: string | undefined
+    const documentIdx = uri.indexOf('/document/')
+    if (documentIdx !== -1) {
+      targetId = uri.slice(documentIdx + '/document/'.length)
+    } else {
+      const treeIdx = uri.indexOf('/tree/')
+      if (treeIdx !== -1) {
+        targetId = uri.slice(treeIdx + '/tree/'.length)
+      }
+    }
+    if (!targetId) return uri
+
+    const decodedId = decodeURIComponent(targetId.split('?')[0] ?? '')
+    if (decodedId.startsWith('primary:')) {
+      const relPath = decodedId.slice('primary:'.length).replace(/^\/+/, '').replace(/\/+$/, '')
+      const fullPath = relPath ? `/storage/emulated/0/${relPath}` : '/storage/emulated/0'
+      return `file://${fullPath}` as Uri
+    }
+    const volMatch = decodedId.match(/^([0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}):(.*)$/)
+    if (volMatch) {
+      const vol = volMatch[1]
+      const relPath = (volMatch[2] ?? '').replace(/^\/+/, '').replace(/\/+$/, '')
+      const fullPath = relPath ? `/storage/${vol}/${relPath}` : `/storage/${vol}`
+      return `file://${fullPath}` as Uri
+    }
+  } catch {
+    // If decoding fails, fall back to original URI
+  }
+  return uri
+}
 
 /**
  * The abort error every read on this platform throws.
@@ -137,6 +188,23 @@ export class FsExpo extends Service implements FsService {
     assertFs(config, mode, this.scopeOf(uri, capabilityConfigOf(config)))
   }
 
+  /**
+   * Resolves a SAF content URI to a direct filesystem URI if accessible.
+   */
+  private effectiveUri(uri: Uri): Uri {
+    if (uri.startsWith('content://com.android.externalstorage.documents')) {
+      const mapped = safToNativeFileUri(uri)
+      if (mapped !== uri) {
+        try {
+          if (Paths.info(mapped).exists) return mapped
+        } catch {
+          // Fall back to original URI
+        }
+      }
+    }
+    return uri
+  }
+
   /* ── Well-known locations ───────────────────────────────────────────── */
 
   async dir(kind: WellKnownDir): Promise<Uri | undefined> {
@@ -154,56 +222,60 @@ export class FsExpo extends Service implements FsService {
   }
 
   basename(uri: Uri): string {
-    if (uri.startsWith('content://')) {
-      const decoded = decodeURIComponent(uri)
+    const effective = safToNativeFileUri(uri)
+    if (effective.startsWith('content://')) {
+      const decoded = decodeURIComponent(effective)
       const lastSlash = decoded.lastIndexOf('/')
       if (lastSlash >= 0) return decoded.slice(lastSlash + 1)
     }
-    return Paths.basename(uri)
+    return Paths.basename(effective)
   }
 
   extname(uri: Uri): string {
-    if (uri.startsWith('content://')) {
-      const base = this.basename(uri).split('?')[0] ?? ''
+    const effective = safToNativeFileUri(uri)
+    if (effective.startsWith('content://')) {
+      const base = this.basename(effective).split('?')[0] ?? ''
       const dot = base.lastIndexOf('.')
       if (dot !== -1) return base.slice(dot)
     }
-    return Paths.extname(uri)
+    return Paths.extname(effective)
   }
 
   /* ── Metadata ───────────────────────────────────────────────────────── */
 
   async exists(uri: Uri): Promise<boolean> {
     this.check(uri, 'read')
-    if (uri.startsWith('content://')) {
+    const effective = this.effectiveUri(uri)
+    if (effective.startsWith('content://')) {
       try {
-        return Boolean(new File(uri).exists || new Directory(uri).exists)
+        return Boolean(new File(effective).exists || new Directory(effective).exists)
       } catch {
         return false
       }
     }
-    return Paths.info(uri).exists
+    return Paths.info(effective).exists
   }
 
   async stat(uri: Uri): Promise<FileStat> {
     this.check(uri, 'read')
-    if (uri.startsWith('content://')) {
+    const effective = this.effectiveUri(uri)
+    if (effective.startsWith('content://')) {
       try {
-        const file = new File(uri)
+        const file = new File(effective)
         if (file.exists) {
           return {
             uri: trim(file.uri),
-            name: this.basename(uri),
+            name: this.basename(effective),
             isDirectory: false,
             size: file.size ?? 0,
             mtime: file.lastModified ?? 0,
           }
         }
-        const directory = new Directory(uri)
+        const directory = new Directory(effective)
         if (directory.exists) {
           return {
             uri: trim(directory.uri),
-            name: this.basename(uri),
+            name: this.basename(effective),
             isDirectory: true,
             size: 0,
             mtime: 0,
@@ -214,17 +286,17 @@ export class FsExpo extends Service implements FsService {
       }
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
-    const info = Paths.info(uri)
+    const info = Paths.info(effective)
     if (!info.exists) {
       // The contract requires a rejection, and the conformance suite matches
       // on the message — callers branch on this, not on a sentinel.
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
     if (info.isDirectory) {
-      const directory = new Directory(uri)
+      const directory = new Directory(effective)
       return {
         uri: trim(directory.uri),
-        name: Paths.basename(uri),
+        name: Paths.basename(effective),
         isDirectory: true,
         // ⚠️ Expo exposes neither a directory mtime nor a reliable size.
         // Reporting 0 rather than Date.now() is deliberate: a fabricated "now"
@@ -235,10 +307,10 @@ export class FsExpo extends Service implements FsService {
         mtime: 0,
       }
     }
-    const file = new File(uri)
+    const file = new File(effective)
     return {
       uri: trim(file.uri),
-      name: Paths.basename(uri),
+      name: Paths.basename(effective),
       isDirectory: false,
       size: file.size,
       mtime: file.lastModified ?? 0,
@@ -247,7 +319,8 @@ export class FsExpo extends Service implements FsService {
 
   async list(uri: Uri): Promise<FileStat[]> {
     this.check(uri, 'read')
-    const entries = new Directory(uri).list()
+    const effective = this.effectiveUri(uri)
+    const entries = new Directory(effective).list()
     return entries.map((entry) => {
       const isDirectory = entry instanceof Directory
       return {
@@ -274,13 +347,14 @@ export class FsExpo extends Service implements FsService {
 
   async remove(uri: Uri, opts?: { recursive?: boolean }): Promise<void> {
     this.check(uri, 'write')
-    if (uri.startsWith('content://')) {
-      const file = new File(uri)
+    const effective = this.effectiveUri(uri)
+    if (effective.startsWith('content://')) {
+      const file = new File(effective)
       if (file.exists) {
         file.delete()
         return
       }
-      const directory = new Directory(uri)
+      const directory = new Directory(effective)
       if (directory.exists) {
         if (!opts?.recursive && directory.list().length > 0) {
           throw new Error(`ENOTEMPTY: directory not empty: ${uri}`)
@@ -290,15 +364,15 @@ export class FsExpo extends Service implements FsService {
       }
       throw new Error(`ENOENT: no such file or directory: ${uri}`)
     }
-    const info = Paths.info(uri)
+    const info = Paths.info(effective)
     if (!info.exists) throw new Error(`ENOENT: no such file or directory: ${uri}`)
 
     if (!info.isDirectory) {
-      new File(uri).delete()
+      new File(effective).delete()
       return
     }
 
-    const directory = new Directory(uri)
+    const directory = new Directory(effective)
     if (!opts?.recursive && directory.list().length > 0) {
       // Expo's delete() is always recursive, so the guard is ours. Silently
       // deleting a tree the caller did not ask to delete is worse than an error.
@@ -362,7 +436,8 @@ export class FsExpo extends Service implements FsService {
   async readFile(uri: Uri, opts?: ReadOptions): Promise<string> {
     this.check(uri, 'read')
     throwIfAborted(opts?.signal)
-    const file = new File(uri)
+    const effective = this.effectiveUri(uri)
+    const file = new File(effective)
     const text = opts?.encoding === 'base64' ? await file.base64() : await file.text()
     // The await above is the one place an abort can land mid-read; without
     // this check an aborted read would resolve as if it had been wanted.
@@ -373,7 +448,8 @@ export class FsExpo extends Service implements FsService {
   async readBytes(uri: Uri, opts?: { signal?: AbortSignal }): Promise<Uint8Array> {
     this.check(uri, 'read')
     throwIfAborted(opts?.signal)
-    const bytes = await new File(uri).bytes()
+    const effective = this.effectiveUri(uri)
+    const bytes = await new File(effective).bytes()
     throwIfAborted(opts?.signal)
     return bytes
   }
@@ -382,8 +458,9 @@ export class FsExpo extends Service implements FsService {
     this.check(uri, 'read')
     const length = Math.max(0, Math.floor(end) - Math.floor(start))
     if (length === 0) return new Uint8Array(0)
-    const file = new File(uri)
-    const handle = file.open()
+    const effective = this.effectiveUri(uri)
+    const file = new File(effective)
+    const handle = file.open(FileMode.ReadOnly)
     try {
       handle.offset = Math.floor(start)
       return handle.readBytes(length)
@@ -429,7 +506,8 @@ export class FsExpo extends Service implements FsService {
    */
   createReadStream(uri: Uri, range?: { start: number; end?: number }): ReadableStream<Uint8Array> {
     this.check(uri, 'read')
-    const file = new File(uri)
+    const effective = this.effectiveUri(uri)
+    const file = new File(effective)
     const CHUNK = 64 * 1024
 
     let handle: ReturnType<File['open']> | undefined
@@ -439,7 +517,7 @@ export class FsExpo extends Service implements FsService {
 
     return new ReadableStream<Uint8Array>({
       start() {
-        handle = file.open()
+        handle = file.open(FileMode.ReadOnly)
         if (position > 0) handle.offset = position
       },
       pull(controller) {
@@ -509,7 +587,17 @@ export class FsExpo extends Service implements FsService {
 
   async pickDirectory(): Promise<Uri | undefined> {
     const directory = await Directory.pickDirectoryAsync()
-    return directory ? trim(directory.uri) : undefined
+    if (!directory) return undefined
+    const uri = trim(directory.uri)
+    const mapped = safToNativeFileUri(uri)
+    if (mapped !== uri) {
+      try {
+        if (Paths.info(mapped).exists) return mapped
+      } catch {
+        // Fall back to original URI
+      }
+    }
+    return uri
   }
 
   /**
@@ -551,9 +639,14 @@ export class FsExpo extends Service implements FsService {
    * ⚠️ The sharpest leak in the abstraction.
    *
    * On Android a user-picked folder is a SAF `content://` tree uri, which a
-   * native audio decoder cannot open. There is no general conversion, so the
-   * honest answer is to copy the file into app storage and hand back that
-   * path. Callers that only enumerate (the scanner) never come here.
+   * native audio decoder cannot open. When the volume/path can be resolved to
+   * the underlying filesystem directly (e.g. primary: -> /storage/emulated/0),
+   * we return the direct `file://` URI to allow native decoders (libmpv) direct
+   * streaming without cache copying.
+   *
+   * If direct mapping is not available, the honest answer is to copy the file
+   * into app storage and hand back that path. Callers that only enumerate
+   * (the scanner) never come here.
    *
    * The cache filename is a **hash**, not the encoded uri: a perfectly ordinary
    * SAF uri percent-encodes to ~280 characters, over the 255-byte filename
@@ -570,6 +663,15 @@ export class FsExpo extends Service implements FsService {
     // Copying is a read of the source; the gate must rule on it.
     this.check(uri, 'read')
     throwIfAborted(opts?.signal)
+
+    const mapped = safToNativeFileUri(uri)
+    if (mapped !== uri) {
+      try {
+        if (Paths.info(mapped).exists) return mapped
+      } catch {
+        // Fall through to SAF cache copy
+      }
+    }
 
     const source = new File(uri)
     const stamp = `${uri}\x00${source.size}\x00${source.lastModified ?? 0}`
@@ -643,5 +745,5 @@ function hashUri(value: string): string {
   return lanes.map((n) => n.toString(16).padStart(8, '0')).join('')
 }
 
-export { File, Directory, Paths } from 'expo-file-system'
+export { File, Directory, FileMode, Paths } from 'expo-file-system'
 export default FsExpo
