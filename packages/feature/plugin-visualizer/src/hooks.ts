@@ -96,9 +96,15 @@ export function useAudioData(
     if (!active) return
 
     let animId = 0
+    let isRunning = false
     const visualizer = serviceOf<VisualizerService>(ctx, 'visualizer')
 
     const loop = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        isRunning = false
+        animId = 0
+        return
+      }
       if (visualizer) {
         if (frequencyDataRef.current) {
           visualizer.getFrequencyData(frequencyDataRef.current)
@@ -110,10 +116,40 @@ export function useAudioData(
       animId = requestAnimationFrame(loop)
     }
 
-    animId = requestAnimationFrame(loop)
+    const start = () => {
+      if (isRunning) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      isRunning = true
+      animId = requestAnimationFrame(loop)
+    }
+
+    const stop = () => {
+      isRunning = false
+      if (animId) {
+        cancelAnimationFrame(animId)
+        animId = 0
+      }
+    }
+
+    start()
+
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        stop()
+      } else {
+        start()
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
 
     return () => {
-      if (animId) cancelAnimationFrame(animId)
+      stop()
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+      }
     }
   }, [ctx, active, fftSize])
 

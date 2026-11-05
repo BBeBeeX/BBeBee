@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Context } from 'cordis'
 import { Context as CordisContext } from 'cordis'
-import { VisualizerPlugin, apply, name, inject } from './index.js'
+import { VisualizerPlugin, apply, name, inject, NativeMpvImpl } from './index.js'
 import { DEFAULT_VISUALIZER_SETTINGS } from '@BBeBee/protocol'
 
 describe('plugin-visualizer', () => {
@@ -215,5 +215,81 @@ describe('plugin-visualizer', () => {
     expect(plugin.currentAnalyser).toBeDefined()
     expect(plugin.analyserNode).toBe(mockAnalyser)
     ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
+  })
+
+  it('pauses NativeMpvImpl polling when document becomes hidden and resumes when visible', async () => {
+    vi.useFakeTimers()
+    let isHidden = false
+    const listeners: Record<string, (() => void)[]> = {}
+    const originalDoc = globalThis.document
+
+    const mockDoc = {
+      get hidden() {
+        return isHidden
+      },
+      addEventListener: vi.fn((event: string, cb: () => void) => {
+        listeners[event] = listeners[event] || []
+        listeners[event].push(cb)
+      }),
+      removeEventListener: vi.fn((event: string, cb: () => void) => {
+        if (listeners[event]) {
+          listeners[event] = listeners[event].filter((fn) => fn !== cb)
+        }
+      }),
+    }
+    vi.stubGlobal('document', mockDoc)
+
+    try {
+      const fetchMock = vi.fn(async () => ({
+        frequencyData: [10, 20],
+        timeDomainData: [128, 128],
+      }))
+
+      const analyser = new NativeMpvImpl({
+        fftSize: 32,
+        fetchSpectrum: fetchMock,
+      })
+
+      // Active state: timer runs and calls fetchMock
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock).toHaveBeenCalled()
+      const callsBefore = fetchMock.mock.calls.length
+
+      // Simulate document minimization/hidden
+      isHidden = true
+      listeners['visibilitychange']?.forEach((cb) => cb())
+
+      await vi.advanceTimersByTimeAsync(64)
+      // No new calls while hidden
+      expect(fetchMock.mock.calls.length).toBe(callsBefore)
+
+      // Simulate document restore to visible
+      isHidden = false
+      listeners['visibilitychange']?.forEach((cb) => cb())
+
+      await vi.advanceTimersByTimeAsync(32)
+      // Calls resume
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore)
+
+      // Test explicit pause / resume
+      const callsBeforePause = fetchMock.mock.calls.length
+      analyser.pause()
+      await vi.advanceTimersByTimeAsync(64)
+      expect(fetchMock.mock.calls.length).toBe(callsBeforePause)
+
+      analyser.resume()
+      await vi.advanceTimersByTimeAsync(32)
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforePause)
+
+      analyser.dispose()
+      expect(mockDoc.removeEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
+    } finally {
+      if (originalDoc) {
+        vi.stubGlobal('document', originalDoc)
+      } else {
+        vi.unstubAllGlobals()
+      }
+      vi.useRealTimers()
+    }
   })
 })

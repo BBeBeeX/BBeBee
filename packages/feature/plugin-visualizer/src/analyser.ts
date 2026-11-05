@@ -26,6 +26,8 @@ export interface AudioAnalyser {
   setFftSize(size: number): void
   getByteFrequencyData(array: Uint8Array): void
   getByteTimeDomainData(array: Uint8Array): void
+  pause?(): void
+  resume?(): void
   dispose(): void
 }
 
@@ -97,6 +99,9 @@ export class NativeMpvImpl implements AudioAnalyser {
   private latestWave: Uint8Array
   private pollTimer?: ReturnType<typeof setInterval>
   private isDisposed = false
+  private isPaused = false
+  private readonly fetchSpectrum?: () => Promise<FftFrame | null>
+  private onVisibilityChange?: () => void
 
   constructor(
     options: {
@@ -107,13 +112,27 @@ export class NativeMpvImpl implements AudioAnalyser {
   ) {
     this._fftSize = options.fftSize ?? 128
     this._smoothingTimeConstant = options.smoothingTimeConstant ?? 0.82
+    this.fetchSpectrum = options.fetchSpectrum
 
     const binCount = this._fftSize / 2
     this.smoothedFreq = new Float32Array(binCount)
     this.latestWave = new Uint8Array(this._fftSize).fill(128)
 
-    if (options.fetchSpectrum) {
-      this.startPolling(options.fetchSpectrum)
+    if (typeof document !== 'undefined') {
+      this.onVisibilityChange = () => {
+        if (document.hidden) {
+          this.pausePolling()
+        } else if (!this.isPaused) {
+          this.resumePolling()
+        }
+      }
+      document.addEventListener('visibilitychange', this.onVisibilityChange)
+    }
+
+    if (this.fetchSpectrum) {
+      if (typeof document === 'undefined' || !document.hidden) {
+        this.startPolling()
+      }
     }
   }
 
@@ -171,14 +190,43 @@ export class NativeMpvImpl implements AudioAnalyser {
     }
   }
 
-  private startPolling(fetchSpectrum: () => Promise<FftFrame | null>): void {
+  pause(): void {
+    this.isPaused = true
+    this.pausePolling()
+  }
+
+  resume(): void {
+    this.isPaused = false
+    if (typeof document === 'undefined' || !document.hidden) {
+      this.resumePolling()
+    }
+  }
+
+  private pausePolling(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer)
+      this.pollTimer = undefined
+    }
+  }
+
+  private resumePolling(): void {
+    if (this.isDisposed || this.isPaused || this.pollTimer || !this.fetchSpectrum) return
+    this.startPolling()
+  }
+
+  private startPolling(): void {
+    if (this.pollTimer || !this.fetchSpectrum || this.isDisposed || this.isPaused) return
     let inFlight = false
     // Poll at ~60fps
     this.pollTimer = setInterval(async () => {
-      if (this.isDisposed || inFlight) return
+      if (this.isDisposed || this.isPaused || inFlight) return
+      if (typeof document !== 'undefined' && document.hidden) {
+        this.pausePolling()
+        return
+      }
       inFlight = true
       try {
-        const frame = await fetchSpectrum()
+        const frame = await this.fetchSpectrum!()
         if (frame) {
           this.feedFrame(frame)
         }
@@ -221,9 +269,10 @@ export class NativeMpvImpl implements AudioAnalyser {
 
   dispose(): void {
     this.isDisposed = true
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer)
-      this.pollTimer = undefined
+    this.pausePolling()
+    if (this.onVisibilityChange && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange)
+      this.onVisibilityChange = undefined
     }
   }
 }

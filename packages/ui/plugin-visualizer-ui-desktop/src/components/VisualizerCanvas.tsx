@@ -98,6 +98,7 @@ export function VisualizerCanvas({
 
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
     let animId = 0
+    let isRunning = false
 
     const resize = () => {
       if (!canvas) return
@@ -155,6 +156,12 @@ export function VisualizerCanvas({
 
     // Animation render loop
     const render = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        isRunning = false
+        animId = 0
+        return
+      }
+
       const w = canvas.width
       const h = canvas.height
 
@@ -322,14 +329,49 @@ export function VisualizerCanvas({
 
       if (isPlaying) {
         animId = requestAnimationFrame(render)
+      } else {
+        isRunning = false
+        animId = 0
       }
     }
 
-    render()
+    const start = () => {
+      if (isRunning) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      isRunning = true
+      render()
+    }
+
+    const stop = () => {
+      isRunning = false
+      if (animId) {
+        cancelAnimationFrame(animId)
+        animId = 0
+      }
+    }
+
+    start()
+
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        stop()
+      } else if (isPlaying) {
+        start()
+      } else {
+        render()
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
 
     return () => {
       observer?.disconnect()
-      if (animId) cancelAnimationFrame(animId)
+      stop()
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+      }
     }
   }, [isPlaying, activeStyle, activeTheme, height, scheme, frequencyDataRef, timeDomainDataRef])
 

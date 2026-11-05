@@ -358,7 +358,13 @@ export function MetersView({ ctx, height = 132 }: MetersViewProps): ReactElement
     }
 
     let animId = 0
+    let isRunning = false
     const render = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        isRunning = false
+        animId = 0
+        return
+      }
       animId = requestAnimationFrame(render)
       const { mode, palette } = uiStateRef.current
       const lut = lutFor(palette)
@@ -401,10 +407,41 @@ export function MetersView({ ctx, height = 132 }: MetersViewProps): ReactElement
         drawVu(cssWidth, cssHeight, lut)
       }
     }
-    animId = requestAnimationFrame(render)
+
+    const start = () => {
+      if (isRunning) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      isRunning = true
+      animId = requestAnimationFrame(render)
+    }
+
+    const stop = () => {
+      isRunning = false
+      if (animId) {
+        cancelAnimationFrame(animId)
+        animId = 0
+      }
+    }
+
+    start()
+
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        stop()
+      } else {
+        start()
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
 
     return () => {
-      if (animId) cancelAnimationFrame(animId)
+      stop()
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+      }
       observer?.disconnect()
     }
   }, [ctx, height])
