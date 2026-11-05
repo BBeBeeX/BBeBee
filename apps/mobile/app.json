@@ -52,7 +52,8 @@
           ]
         }
       ],
-      ["./plugins/with-audio-engine.js"]
+      ["./plugins/with-audio-engine.js"],
+      ["./plugins/with-cleartext-traffic.js"]
     ]
   }
 }
