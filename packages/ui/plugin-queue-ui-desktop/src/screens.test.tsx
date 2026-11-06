@@ -529,9 +529,9 @@ describe('the queue row menu', () => {
       // `ctx.player` is loaded, so "add to the play queue" is offered; no
       // library and no downloads here, so their items are absent instead of
       // present and throwing.
-      expect(container.textContent).toContain('Add to play queue')
-      expect(container.textContent).not.toContain('Download')
-      expect(container.querySelector('[role="menu"]')).toBeTruthy()
+      expect(document.body.textContent).toContain('Add to play queue')
+      expect(document.body.textContent).not.toContain('Download')
+      expect(document.querySelector('[role="menu"]')).toBeTruthy()
     })
   })
 
@@ -562,8 +562,8 @@ describe('the queue row menu', () => {
       act(() => {
         fireEvent.click(moreBtn)
       })
-      expect(container.textContent).toContain('Add to play queue')
-      expect(container.querySelector('[role="menu"]')).toBeTruthy()
+      expect(document.body.textContent).toContain('Add to play queue')
+      expect(document.querySelector('[role="menu"]')).toBeTruthy()
     })
   })
 })

@@ -73,11 +73,16 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
   const [creatingInFolderId, setCreatingInFolderId] = useState<string | null | undefined>(undefined)
   const [isCreatingTopLevel, setIsCreatingTopLevel] = useState(false)
   const [newPlaylistName, setNewPlaylistName] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const submenuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const wasOpenRef = useRef(props.open)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   // Deliberately hook-free: the kit's tree() tests invoke components as plain
   // functions. Locale changes reach this component because its
   // useI18n-subscribed ancestors re-render it.
@@ -888,7 +893,10 @@ export function SaveToPlaylistPopover(props: SaveToPlaylistPopoverProps): ReactE
       : null,
   )
 
-  return props.portal ? createPortal(popover, document.body) : popover
+  const usePortal = props.portal ?? true
+  return mounted && usePortal && typeof document !== 'undefined'
+    ? createPortal(popover, document.body)
+    : popover
 }
 
 function RowItem({

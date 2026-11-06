@@ -137,9 +137,9 @@ export interface ContextMenuProps extends CommonProps {
   title?: string
   /**
    * Desktop only; the mobile sheet ignores it. Mounts the fixed overlay
-   * through a portal on `document.body`. Needed when the menu lives inside
-   * an ancestor whose `transform`/`overflow` would clip or re-anchor fixed
-   * positioning — the fullscreen play page's hover bottom bar is one.
+   * through a portal on `document.body` (defaults to true on desktop).
+   * Needed when the menu lives inside an ancestor whose `transform`/`overflow`
+   * would clip or re-anchor fixed positioning.
    */
   portal?: boolean
   /**
@@ -187,6 +187,11 @@ export interface SheetProps extends CommonProps {
   onClose: () => void
   title?: string
   children?: unknown
+  /**
+   * Desktop only; mobile modal ignores it. Mounts the dialog overlay through
+   * a portal on `document.body` (defaults to true on desktop).
+   */
+  portal?: boolean
 }
 
 export interface ListProps<T> extends CommonProps {

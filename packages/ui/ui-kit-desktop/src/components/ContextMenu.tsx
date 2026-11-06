@@ -40,9 +40,14 @@ export function ContextMenu(
   const [filter, setFilter] = useState('')
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState('')
+  const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const submenuRef = useRef<HTMLDivElement>(null)
   const p = c()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (props.open) return
@@ -527,8 +532,12 @@ export function ContextMenu(
   )
 
   // A portal escapes ancestors whose `transform`/`overflow` would clip or
-  // re-anchor fixed positioning (the fullscreen play page's hover bottom bar).
-  return props.portal ? createPortal(menu, document.body) : menu
+  // re-anchor fixed positioning (sidebar navigation panes, fullscreen play page,
+  // scrollable detail lists, etc.).
+  const usePortal = props.portal ?? true
+  return mounted && usePortal && typeof document !== 'undefined'
+    ? createPortal(menu, document.body)
+    : menu
 }
 
 function renderMenuIcon(icon: React.ReactNode | string | undefined): React.ReactNode {

@@ -1,5 +1,6 @@
-import { createElement as h } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
+import { createPortal } from 'react-dom'
 import type { Context } from 'cordis'
 import type { Collection, Playlist } from '@BBeBee/protocol'
 import { Button, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -70,7 +71,12 @@ export function LibraryModals({
   onConfirmDelete,
 }: LibraryModalsProps): ReactElement {
   const { t } = useI18n(ctx)
-  return h(
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const content = h(
     'div',
     null,
     // Create Playlist Modal
@@ -222,4 +228,8 @@ export function LibraryModals({
       onConfirm: onConfirmDelete,
     }),
   )
+  if (mounted && typeof document !== 'undefined') {
+    return createPortal(content, document.body)
+  }
+  return content
 }

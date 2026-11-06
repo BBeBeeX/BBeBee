@@ -11,9 +11,9 @@
  * neither.
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { act, fireEvent, render, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, within } from '@testing-library/react'
 import { TEST_ROW_HEIGHT as ROW, withListLayout as withLayout } from './testing.js'
 import { createElement as h } from 'react'
 import type { Context } from 'cordis'
@@ -572,6 +572,10 @@ describe('JsonTree', () => {
 
 
 describe('ContextMenu', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   const items = [
     {
       id: 'add',
@@ -599,7 +603,7 @@ describe('ContextMenu', () => {
   it('renders rows and reports a press, then closes', () => {
     const onSelect = vi.fn()
     const onClose = vi.fn()
-    const { container } = render(
+    const { baseElement } = render(
       h(ContextMenu, {
         open: true,
         onClose,
@@ -609,7 +613,7 @@ describe('ContextMenu', () => {
         items: [{ id: 'queue', label: 'Add to play queue', onSelect }],
       }),
     )
-    const row = Array.from(container.querySelectorAll('[role="menuitem"]')).find(
+    const row = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find(
       (node) => node.textContent === 'Add to play queue',
     ) as HTMLElement
     expect(row).toBeTruthy()
@@ -619,34 +623,34 @@ describe('ContextMenu', () => {
   })
 
   it('opens a submenu with a filter, a create row and the list', () => {
-    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
-    const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find(
+    const { baseElement } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
+    const add = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find(
       (node) => node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
     fireEvent.click(add)
 
-    expect(container.textContent).toContain('New playlist')
-    expect(container.textContent).toContain('Road trip')
-    expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
+    expect(baseElement.textContent).toContain('New playlist')
+    expect(baseElement.textContent).toContain('Road trip')
+    expect(baseElement.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
   })
 
   it('filters the submenu rows as the user types', () => {
-    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
+    const { baseElement } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
     fireEvent.click(
-      Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+      Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
         node.textContent?.startsWith('Add to playlist'),
       ) as HTMLElement,
     )
 
-    const field = container.querySelector('[data-testid="context-menu-filter"]') as HTMLInputElement
+    const field = baseElement.querySelector('[data-testid="context-menu-filter"]') as HTMLInputElement
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
     act(() => {
       setter.call(field, 'late')
       field.dispatchEvent(new Event('input', { bubbles: true }))
     })
 
-    expect(container.textContent).toContain('Late night')
-    expect(container.textContent).not.toContain('Road trip')
+    expect(baseElement.textContent).toContain('Late night')
+    expect(baseElement.textContent).not.toContain('Road trip')
   })
 
   it('switches search filter to create field at top when clicking create new playlist in submenu', () => {
@@ -664,23 +668,23 @@ describe('ContextMenu', () => {
         },
       },
     ]
-    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items: testItems }))
+    const { baseElement } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items: testItems }))
     fireEvent.click(
-      Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+      Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
         node.textContent?.startsWith('Add to playlist'),
       ) as HTMLElement,
     )
-    expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
-    const createBtn = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+    expect(baseElement.querySelector('[data-testid="context-menu-filter"]')).toBeTruthy()
+    const createBtn = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
       node.textContent?.includes('New playlist'),
     ) as HTMLElement
     fireEvent.click(createBtn)
 
     // Now the search filter is replaced with the create input field at the top position
-    expect(container.querySelector('[data-testid="context-menu-filter"]')).toBeNull()
-    const createInput = container.querySelector('[data-testid="context-menu-create-name"]') as HTMLInputElement
+    expect(baseElement.querySelector('[data-testid="context-menu-filter"]')).toBeNull()
+    const createInput = baseElement.querySelector('[data-testid="context-menu-create-name"]') as HTMLInputElement
     expect(createInput).toBeTruthy()
-    const confirmBtn = container.querySelector('[data-testid="context-menu-create-confirm"]') as HTMLElement
+    const confirmBtn = baseElement.querySelector('[data-testid="context-menu-create-confirm"]') as HTMLElement
     expect(confirmBtn).toBeTruthy()
 
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
@@ -693,31 +697,31 @@ describe('ContextMenu', () => {
   })
 
   it('opens a submenu on hover without clicking, and closes when hovering another item', () => {
-    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
-    const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+    const { baseElement } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 0, y: 0, items }))
+    const add = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
       node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
-    const queue = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+    const queue = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
       node.textContent?.startsWith('Add to play queue'),
     ) as HTMLElement
 
-    expect(container.textContent).not.toContain('Road trip')
+    expect(baseElement.textContent).not.toContain('Road trip')
 
     // Hovering over "Add to playlist" displays the submenu
     fireEvent.mouseEnter(add)
-    expect(container.textContent).toContain('Road trip')
+    expect(baseElement.textContent).toContain('Road trip')
 
     // Hovering over "Add to play queue" (which has no submenu) closes it
     fireEvent.mouseEnter(queue)
-    expect(container.textContent).not.toContain('Road trip')
+    expect(baseElement.textContent).not.toContain('Road trip')
   })
 
   it('constrains submenu position and maxHeight so it stays within viewport boundaries', () => {
     window.innerHeight = 600
     window.innerWidth = 800
 
-    const { container } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 100, y: 500, items }))
-    const add = Array.from(container.querySelectorAll('[role="menuitem"]')).find((node) =>
+    const { baseElement } = render(h(ContextMenu, { open: true, onClose: () => {}, x: 100, y: 500, items }))
+    const add = Array.from(baseElement.querySelectorAll('[role="menuitem"]')).find((node) =>
       node.textContent?.startsWith('Add to playlist'),
     ) as HTMLElement
 
@@ -734,7 +738,7 @@ describe('ContextMenu', () => {
     })
 
     fireEvent.mouseEnter(add)
-    const menus = container.querySelectorAll('[role="menu"]')
+    const menus = baseElement.querySelectorAll('[role="menu"]')
     expect(menus.length).toBe(2)
     const submenuEl = menus[1] as HTMLElement
     const top = Number.parseFloat(submenuEl.style.top)
@@ -753,6 +757,10 @@ describe('ContextMenu', () => {
 })
 
 describe('SaveToPlaylistPopover', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it('hides the list row for create playlist and shows top create bar with confirm button when clicked', () => {
     const onCreate = vi.fn()
     const { getByTestId } = render(

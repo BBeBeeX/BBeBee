@@ -1,5 +1,6 @@
-import { createElement as h } from 'react'
+import { createElement as h, Fragment, useEffect, useState } from 'react'
 import type { ReactElement, RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import type { Context } from 'cordis'
 
@@ -10,6 +11,7 @@ export interface LibraryCreateDropdownProps {
   createMenuRef?: RefObject<HTMLDivElement | null>
   isCollapsed?: boolean
   collapsedMenuPos?: { top: number; left: number } | null
+  createMenuAnchor?: { top: number; left: number; right: number; bottom: number } | null
   onOpenCreatePlaylist: () => void
   onOpenCreateCollection: () => void
   onOpenImportShare?: () => void
@@ -22,7 +24,7 @@ export function LibraryCreateButton({
 }: {
   ctx: Context
   isCreateMenuOpen: boolean
-  onClick: () => void
+  onClick: (e: React.MouseEvent<HTMLElement>) => void
 }): ReactElement {
   const { t } = useI18n(ctx)
   return h(
@@ -78,34 +80,83 @@ export function LibraryCreateMenu({
   createMenuRef,
   isCollapsed = false,
   collapsedMenuPos,
+  createMenuAnchor,
   onOpenCreatePlaylist,
   onOpenCreateCollection,
   onOpenImportShare,
 }: LibraryCreateDropdownProps): ReactElement | null {
   const { t } = useI18n(ctx)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   if (!isCreateMenuOpen) return null
 
-  return h(
-    'div',
-    {
-      ref: createMenuRef,
-      style: {
-        position: isCollapsed ? 'fixed' : 'absolute',
-        top: isCollapsed ? (collapsedMenuPos?.top ?? 54) : 38,
-        left: isCollapsed ? (collapsedMenuPos?.left ?? 80) : undefined,
-        right: isCollapsed ? undefined : 0,
-        width: 240,
-        backgroundColor: 'var(--bb-bg-overlay, var(--surface-2, #282828))',
-        border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-        borderRadius: 8,
-        padding: '6px 0',
-        boxShadow: 'var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.7))',
-        zIndex: 10000,
-        display: 'flex',
-        flexDirection: 'column',
-        userSelect: 'none',
+  const width = 240
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 768
+
+  let top = isCollapsed ? (collapsedMenuPos?.top ?? 54) : 54
+  let left = isCollapsed ? (collapsedMenuPos?.left ?? 80) : 80
+
+  if (isCollapsed) {
+    top = collapsedMenuPos?.top ?? createMenuAnchor?.top ?? 54
+    left = collapsedMenuPos?.left ?? (createMenuAnchor ? createMenuAnchor.right + 12 : 80)
+  } else if (createMenuAnchor) {
+    top = createMenuAnchor.bottom + 6
+    if (createMenuAnchor.right - width >= 8) {
+      left = createMenuAnchor.right - width
+    } else {
+      left = Math.max(8, createMenuAnchor.left)
+    }
+  }
+
+  left = Math.max(8, Math.min(left, viewportWidth - width - 8))
+  if (top + 220 > viewportHeight) {
+    top = Math.max(8, viewportHeight - 220 - 8)
+  }
+
+  const menu = h(
+    Fragment,
+    null,
+    h('div', {
+      'data-testid': 'create-menu-backdrop',
+      onClick: (e: React.MouseEvent) => {
+        e.stopPropagation()
+        setIsCreateMenuOpen(false)
       },
-    },
+      onContextMenu: (e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsCreateMenuOpen(false)
+      },
+      style: {
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'transparent',
+      },
+    }),
+    h(
+      'div',
+      {
+        ref: createMenuRef,
+        style: {
+          position: 'fixed',
+          top,
+          left,
+          width,
+          backgroundColor: 'var(--bb-bg-overlay, var(--surface-2, #282828))',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+          borderRadius: 8,
+          padding: '6px 0',
+          boxShadow: 'var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.7))',
+          zIndex: 10000,
+          display: 'flex',
+          flexDirection: 'column',
+          userSelect: 'none',
+        },
+      },
     h(
       'button',
       {
@@ -262,5 +313,11 @@ export function LibraryCreateMenu({
         h('div', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, marginTop: 2 } }, t('library:libraryCreateDropdown.readAShareCardOr')),
       ),
     ),
+  ),
   )
+
+  if (mounted && typeof document !== 'undefined') {
+    return createPortal(menu, document.body)
+  }
+  return menu
 }

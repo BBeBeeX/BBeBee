@@ -90,6 +90,7 @@ export function LibraryScreen({
   const [folderItemsMap, setFolderItemsMap] = useState<Map<string, UnifiedItem[]>>(new Map())
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [collapsedMenuPos, setCollapsedMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const [createMenuAnchor, setCreateMenuAnchor] = useState<{ top: number; left: number; right: number; bottom: number } | null>(null)
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false)
   const [showCreateCollectionModal, setShowCreateCollectionModal] = useState(false)
   const createMenuRef = useRef<HTMLDivElement>(null)
@@ -720,7 +721,13 @@ export function LibraryScreen({
     return h(LibraryCreateButton, {
       ctx,
       isCreateMenuOpen,
-      onClick: () => setIsCreateMenuOpen((prev) => !prev),
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        if (!isCreateMenuOpen && e.currentTarget) {
+          const rect = e.currentTarget.getBoundingClientRect()
+          setCreateMenuAnchor({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom })
+        }
+        setIsCreateMenuOpen((prev) => !prev)
+      },
     })
   }
 
@@ -737,7 +744,13 @@ export function LibraryScreen({
           'data-testid': 'create-dropdown-trigger',
           'aria-label': t('library:libraryCreateDropdown.create'),
           title: t('library:libraryCreateDropdown.create'),
-          onClick: () => setIsCreateMenuOpen((prev) => !prev),
+          onClick: (e: React.MouseEvent<HTMLElement>) => {
+            if (!isCreateMenuOpen && e.currentTarget) {
+              const rect = e.currentTarget.getBoundingClientRect()
+              setCreateMenuAnchor({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom })
+            }
+            setIsCreateMenuOpen((prev) => !prev)
+          },
           style: {
             width: 28,
             height: 28,
@@ -851,6 +864,7 @@ export function LibraryScreen({
       createMenuRef,
       isCollapsed,
       collapsedMenuPos,
+      createMenuAnchor,
       onOpenCreatePlaylist: () => {
         setIsCreateMenuOpen(false)
         setShowCreatePlaylistModal(true)

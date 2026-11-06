@@ -1,12 +1,19 @@
-import { createElement as h, useRef, type ReactNode } from 'react'
+import { createElement as h, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { SheetProps } from '@BBeBee/ui-core'
 import { common } from '../theme.js'
 
 export function Sheet(props: SheetProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   if (!props.open) return null
-  return h(
+  const content = h(
     'div',
     {
       ...common(props),
@@ -52,4 +59,9 @@ export function Sheet(props: SheetProps) {
       props.children as ReactNode,
     ),
   )
+
+  const usePortal = props.portal ?? true
+  return mounted && usePortal && typeof document !== 'undefined'
+    ? createPortal(content, document.body)
+    : content
 }
