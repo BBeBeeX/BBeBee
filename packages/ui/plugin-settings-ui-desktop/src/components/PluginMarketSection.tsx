@@ -418,7 +418,7 @@ export function PluginMarketSection({ ctx }: PluginMarketSectionProps): ReactEle
                       installed: installedById.get(entry.id),
                       update: updateById.get(entry.id),
                       busyKind: busy[entry.id] ?? null,
-                      canUninstall: Boolean(pm()?.uninstall),
+                      canUninstall: Boolean(pm()?.uninstall) && installedById.get(entry.id)?.builtin !== true,
                       onShowDetails: () => setDetailEntry(entry),
                       onInstall: () => void handleInstall(entry),
                       onUpdate: () => void handleUpdate(entry.id),
@@ -711,6 +711,24 @@ function MarketRow({
                 },
               },
               t('settings:pluginMarket.installedVersion', { version: installed.version }),
+            )
+          : null,
+        installed?.builtin === true
+          ? h(
+              'span',
+              {
+                'data-testid': `market-builtin-${entry.id}`,
+                title: t('settings:pluginMarket.builtInHint'),
+                style: {
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '1px 7px',
+                  borderRadius: 9,
+                  background: 'rgba(95, 135, 255, 0.15)',
+                  color: '#5F87FF',
+                },
+              },
+              t('settings:pluginMarket.builtIn'),
             )
           : null,
         installed?.delisted

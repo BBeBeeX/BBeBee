@@ -93,6 +93,12 @@ export interface RegistryEntryCardProps {
   latestVersion?: string
   /** Uninstall affordance; absent renders nothing extra. */
   uninstall?: RegistryEntryCardUninstall
+  /**
+   * True when the installed plugin copy ships with the app — renders the
+   * built-in chip. The screen withholds the uninstall affordance for
+   * these; absent for other kinds and for user-installed copies.
+   */
+  builtin?: boolean
   /** Enablement state for installed plugin / lyric source. */
   itemEnabled?: boolean
   /** Toggle enablement callback for plugin / lyric source. */
@@ -233,6 +239,7 @@ export function RegistryEntryCard({
   titleVersion,
   latestVersion,
   uninstall,
+  builtin,
   itemEnabled,
   onToggleEnabled,
   themeActive,
@@ -303,7 +310,7 @@ export function RegistryEntryCard({
       isPlugin && entry.npm
         ? h('span', { style: { ...CHIP, flexShrink: 0 } }, entry.npm)
         : null,
-      isBuiltinEntry(entry) ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
+      isBuiltinEntry(entry) || builtin === true ? h('span', { style: builtinChipStyle }, t('registry:registryEntry.builtIn')) : null,
       // Status badge for installed extensions: in-use (使用中) vs disabled (已停用)
       isInstalledExtension && (isTheme ? themeActive !== undefined : effectiveEnabled !== undefined)
         ? h(

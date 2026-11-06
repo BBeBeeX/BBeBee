@@ -616,6 +616,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
       stats: statsFor(entry),
       titleVersion,
       latestVersion,
+      builtin: pluginInfo?.builtin,
       itemEnabled: isPlugin
         ? (pluginInfo?.enabled ?? true)
         : isLyric
@@ -632,13 +633,19 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
             : undefined,
       themeActive: isTheme ? themeState.currentId === entry.id : undefined,
       onApplyTheme: isTheme ? () => void handleApplyTheme(entry.id) : undefined,
-      uninstall: isInstalled
-        ? {
-            available: true,
-            busy: uninstallingId === entry.id,
-            onConfirm: () => void handleUninstall(entry),
-          }
-        : undefined,
+      // Builtin plugin copies cannot be uninstalled — there are no
+      // user-side files to delete and the next boot re-registers them —
+      // so the button is withheld here (the card shows the built-in
+      // chip instead). On mobile every plugin is builtin: no dynamic
+      // loading, no lifecycle bridge.
+      uninstall:
+        isInstalled && pluginInfo?.builtin !== true
+          ? {
+              available: true,
+              busy: uninstallingId === entry.id,
+              onConfirm: () => void handleUninstall(entry),
+            }
+          : undefined,
       onAction: () =>
         void beginInstall(
           entry,

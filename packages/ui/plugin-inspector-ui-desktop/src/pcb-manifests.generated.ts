@@ -1610,6 +1610,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "dependencies": [],
     "systemId": "layer-4",
     "moduleId": "playback",
+    "platforms": [
+      "mobile"
+    ],
     "entry": {
       "main": "./dist/index.js"
     },
@@ -1635,6 +1638,9 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     "dependencies": [],
     "systemId": "layer-4",
     "moduleId": "playback",
+    "platforms": [
+      "mobile"
+    ],
     "entry": {
       "main": "./dist/index.js"
     },

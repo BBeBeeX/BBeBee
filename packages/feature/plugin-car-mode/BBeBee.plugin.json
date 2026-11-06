@@ -10,6 +10,9 @@
   "dependencies": [],
   "systemId": "layer-4",
   "moduleId": "playback",
+  "platforms": [
+    "mobile"
+  ],
   "entry": { "main": "./dist/index.js" },
   "capabilities": [],
   "contributes": { "services": ["carMode"] },

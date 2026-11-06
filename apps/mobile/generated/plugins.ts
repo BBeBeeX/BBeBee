@@ -101,7 +101,7 @@ export const bundled: PluginRegistry = {
   },
   "@bbebee/plugin-car-mode": {
     load: () => import('@bbebee/plugin-car-mode'),
-    manifest: {"id":"@bbebee/plugin-car-mode","name":"@bbebee/plugin-car-mode","displayName":"Car Mode","description":"ctx.carMode — driving-optimized mode state, triggers and auto-detection.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"playback","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["carMode"]},"effect":"carMode"},
+    manifest: {"id":"@bbebee/plugin-car-mode","name":"@bbebee/plugin-car-mode","displayName":"Car Mode","description":"ctx.carMode — driving-optimized mode state, triggers and auto-detection.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"playback","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["carMode"]},"effect":"carMode"},
     builtin: true,
   },
   "@bbebee/plugin-desktop-taskbar": {

@@ -64,6 +64,12 @@ export interface RegistryEntryCardProps {
   latestVersion?: string
   /** Uninstall affordance; absent renders nothing extra. */
   uninstall?: RegistryEntryCardUninstall
+  /**
+   * True when the installed plugin copy ships with the app — renders the
+   * built-in chip. The screen withholds the uninstall affordance for
+   * these; absent for other kinds and for user-installed copies.
+   */
+  builtin?: boolean
   /** Enablement state for the installed extension kinds. */
   itemEnabled?: boolean
   /** Toggle enablement for plugin / lyric source / music source. */
@@ -106,6 +112,7 @@ export function RegistryEntryCard({
   titleVersion,
   latestVersion,
   uninstall,
+  builtin,
   itemEnabled,
   onToggleEnabled,
   themeActive,
@@ -188,7 +195,7 @@ export function RegistryEntryCard({
             h(Text, { variant: 'xs', tone: 'muted', children: entry.npm }),
           )
         : null,
-      isBuiltinEntry(entry)
+      isBuiltinEntry(entry) || builtin === true
         ? h(
             native.View as never,
             {

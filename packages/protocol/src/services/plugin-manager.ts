@@ -69,6 +69,16 @@ export interface PluginInfo {
    * it refuses the install as spoofing.
    */
   provenanceVerified?: boolean
+  /**
+   * True when this copy ships with the app: its manifest was registered
+   * from the bundled allowlist at boot, and no persisted installed
+   * record (`npm:installed`) covers it — npm installs and local imports
+   * both stamp one. A builtin copy cannot be uninstalled: there are no
+   * user-side files to delete and the next boot re-registers it, so UIs
+   * hide the uninstall affordance for it and show the built-in badge
+   * instead. Absent/false for user-installed copies.
+   */
+  builtin?: boolean
 }
 
 export interface PluginLifecycleBridge {

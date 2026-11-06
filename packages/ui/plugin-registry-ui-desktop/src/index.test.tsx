@@ -815,9 +815,12 @@ describe('RegistryScreen', () => {
 
     const checkbox = getByTestId('registry-overwrite-checkbox')
     fireEvent.click(checkbox)
-    expect(acceptBtn.disabled).toBe(false)
+    // Re-query the button afterwards: the Sheet portals on mount and the
+    // click's re-render replaces the button's DOM node, so the pre-click
+    // reference goes stale (same race as the block-override test).
+    expect((getByTestId('registry-confirm-accept') as HTMLButtonElement).disabled).toBe(false)
 
-    fireEvent.click(acceptBtn)
+    fireEvent.click(getByTestId('registry-confirm-accept'))
     await waitFor(() => expect(calls).toContain('install:music-new:true:overwrite'))
   })
 
@@ -1420,6 +1423,38 @@ describe('RegistryScreen installed tab', () => {
     fireEvent.click(getByTestId('registry-uninstall-confirm-plugin-ok'))
     await waitFor(() => expect(calls).toContain('uninstall-plugin:plugin-ok'))
     await waitFor(() => expect(queryByTestId('registry-entry-plugin-ok')).toBeNull())
+  })
+
+  it('hides the uninstall button and shows the built-in chip for a builtin plugin', async () => {
+    const { ctx } = await harness({
+      installedPlugins: [
+        {
+          id: 'plugin-ok',
+          name: 'plugin-ok',
+          displayName: 'OK Plugin',
+          version: '1.0.0',
+          systemId: 'layer-5',
+          enabled: true,
+          state: 'ACTIVE',
+          waitingFor: [],
+          dependencies: [],
+          dependents: [],
+          builtin: true,
+        },
+      ],
+    })
+    const { getByTestId, findByTestId, queryByTestId } = render(h(RegistryScreen, { ctx }))
+    await findByTestId('registry-entry-music-new')
+
+    fireEvent.click(getByTestId('registry-tab-installed'))
+    const entry = await findByTestId('registry-entry-plugin-ok')
+
+    // Built-in chip instead of an uninstall affordance.
+    expect(entry.textContent).toContain('Built-in')
+    expect(queryByTestId('registry-uninstall-plugin-ok')).toBeNull()
+
+    // The entry is still manageable: the enablement toggle stays.
+    expect(getByTestId('registry-action-plugin-ok').textContent).toContain('Disable')
   })
 })
 

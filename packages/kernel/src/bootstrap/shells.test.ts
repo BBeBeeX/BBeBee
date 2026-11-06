@@ -62,6 +62,18 @@ const SHELLS: Shell[] = [
 const DESKTOP_ONLY_FEATURES: readonly string[] = ['@bbebee/plugin-desktop-lyrics']
 
 /**
+ * The mirror image: features one shell may lack because they are
+ * platform-inherent the other way — car mode is a driving mode whose
+ * triggers (charging, docking) do not exist on a desktop, so its feature
+ * package declares `platforms: ["mobile"]` in its manifest and the parity
+ * check below excuses it. Same bargain as above: the dedicated check after
+ * the shell tests fails unless the manifest itself declares the
+ * restriction, so a feature cannot leave the desktop shell by adding an
+ * id here alone.
+ */
+const MOBILE_ONLY_FEATURES: readonly string[] = ['@bbebee/plugin-car-mode']
+
+/**
  * Every workspace package, by directory name → absolute path.
  *
  * Packages live at `packages/<layer>/<package>` (docs/09 §1), so a name alone
@@ -238,11 +250,14 @@ describe.each(SHELLS)('the $name shell', (shell) => {
 
     // Desktop has the inspector's view package and mobile does not, which is a
     // *view*, not a feature — both shells enable `plugin-inspector` itself.
-    // A platform-inherent feature (DESKTOP_ONLY_FEATURES) is excused — but
-    // only because its manifest declares the restriction, which the dedicated
-    // check after this describe enforces.
+    // A platform-inherent feature (DESKTOP_ONLY_FEATURES / MOBILE_ONLY_FEATURES)
+    // is excused — but only because its manifest declares the restriction,
+    // which the dedicated checks after this describe enforce.
     const missing = [...theirs].filter(
-      (id) => !mine.has(id) && !DESKTOP_ONLY_FEATURES.includes(id),
+      (id) =>
+        !mine.has(id) &&
+        !DESKTOP_ONLY_FEATURES.includes(id) &&
+        !MOBILE_ONLY_FEATURES.includes(id),
     )
     expect(
       missing,
@@ -264,6 +279,23 @@ describe('a desktop-only feature exception', () => {
       unbacked,
       'listed in DESKTOP_ONLY_FEATURES but the manifest does not declare ' +
         `"platforms": ["desktop"]:\n  ${unbacked.join('\n  ')}`,
+    ).toEqual([])
+  })
+})
+
+describe('a mobile-only feature exception', () => {
+  it('is backed by a manifest that declares the restriction', async () => {
+    const all = await manifests()
+    const unbacked = MOBILE_ONLY_FEATURES.filter((id) => {
+      const platforms = all.get(id)?.platforms
+      // No `platforms` at all means the feature runs everywhere, and the
+      // parity gate above would be right to refuse the excuse.
+      return !platforms || platforms.includes('desktop')
+    })
+    expect(
+      unbacked,
+      'listed in MOBILE_ONLY_FEATURES but the manifest does not declare ' +
+        `"platforms": ["mobile"]:\n  ${unbacked.join('\n  ')}`,
     ).toEqual([])
   })
 })

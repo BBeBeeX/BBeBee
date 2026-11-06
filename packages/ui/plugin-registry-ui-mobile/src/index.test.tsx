@@ -34,6 +34,7 @@ import registryCatalogue from '../../../feature/plugin-i18n/src/locales/registry
 import appCatalogue from '../../../feature/plugin-i18n/src/locales/en.json'
 import plugin, { RegistryScreen, RegistrySettingsCard } from './index.js'
 import { InstallConfirmSheet } from './components/InstallConfirmSheet.js'
+import { RegistryEntryCard } from './components/RegistryEntryCard.js'
 
 afterEach(cleanup)
 
@@ -721,6 +722,35 @@ describe('RegistryScreen on mobile', () => {
 
     await waitFor(() => expect(calls).toContain('remove-source:rec-https://b.example'))
     await waitFor(() => expect(calls).toContain('remove-lock:music-current'))
+  })
+
+  // The mobile registry screen has no plugin tab (KIND_TABS is
+  // music-source/lyric-source/theme only — plugins are not installable
+  // on mobile), so the builtin-plugin card is exercised directly: the
+  // screen withholds the uninstall prop for builtin copies, and the
+  // card shows the built-in chip instead.
+  it('shows the built-in chip and no uninstall button for a builtin plugin card', async () => {
+    const { root } = await makeHarness()
+    const entry: RegistryEntry = {
+      id: 'plugin-ok',
+      kind: 'plugin',
+      name: 'OK Plugin',
+      npm: '@bbebee/plugin-ok',
+    }
+    const { findByTestId, queryByTestId } = render(
+      h(RegistryEntryCard, {
+        ctx: root,
+        entry,
+        actionState: { state: 'installed', installedVersion: '1.0.0' },
+        builtin: true,
+        itemEnabled: true,
+        onToggleEnabled: () => {},
+        onAction: () => {},
+      }),
+    )
+    const card = await findByTestId('registry-entry-plugin-ok')
+    expect(card.textContent).toContain('Built-in')
+    expect(queryByTestId('registry-uninstall-plugin-ok')).toBeNull()
   })
 
   it('shows the offline-cache hint when the service reports a cache fallback', async () => {

@@ -843,6 +843,10 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
   }
 
   private async saveInstalledRecords(records: Record<string, InstalledNpmPluginRecord>): Promise<void> {
+    // Keep the in-memory mirror exact alongside the persisted map: installs,
+    // uninstalls and local imports all land here, and `list()` reads the
+    // mirror synchronously to tell builtin copies apart.
+    this.installedNpmIds = new Set(Object.keys(records))
     await ownService<StoreService>(this.own, this.ownCtx, 'store')?.set('npm:installed', records)
   }
 
@@ -2260,6 +2264,20 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
     }
   }
 
+  /**
+   * True when a manifest's copy ships with the app: no persisted installed
+   * record (`npm:installed`) covers its id or name. npm installs and local
+   * imports both stamp a record; the bundled allowlist registers the rest
+   * at boot. `installedNpmIds` is kept exact by `saveInstalledRecords` /
+   * `loadInstalledRecords`.
+   */
+  private isBuiltinCopy(manifest: PluginManifest): boolean {
+    return (
+      !this.installedNpmIds.has(manifest.id) &&
+      !(manifest.name ? this.installedNpmIds.has(manifest.name) : false)
+    )
+  }
+
   list(): readonly PluginInfo[] {
     let snapshot: InspectorSnapshotData | null = null
     try {
@@ -2393,6 +2411,7 @@ export class PluginManagerPlugin extends Service implements PluginManagerService
           ...(this.delistedIds.has(manifest.id) ? { delisted: true } : {}),
           ...(this.blockedIds.has(manifest.id) ? { blocked: this.blockedIds.get(manifest.id) } : {}),
           ...(this.provenanceVerifiedIds.has(manifest.id) ? { provenanceVerified: true } : {}),
+          ...(this.isBuiltinCopy(manifest) ? { builtin: true } : {}),
         },
         rawDependencies: depsSet,
       })

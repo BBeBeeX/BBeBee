@@ -1183,7 +1183,12 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                   const isMusic = entry.kind === 'music-source'
                   const isExtension = isPlugin || isLyric || isTheme || isMusic
 
-                  const canUninstall = uninstallBase && (onInstalledTab || (isInstalled && isExtension))
+                  // Builtin plugin copies cannot be uninstalled — there are
+                  // no user-side files to delete and the next boot
+                  // re-registers them — so the button is withheld here
+                  // (the card shows the built-in chip instead).
+                  const canUninstall =
+                    uninstallBase && pluginInfo?.builtin !== true && (onInstalledTab || (isInstalled && isExtension))
 
                   // Latest available version: the index version for the kinds
                   // that carry one, npm latest for plugins. The title version
@@ -1210,6 +1215,7 @@ export function RegistryScreen({ ctx }: { ctx: Context }): ReactElement {
                     onToggleFavorite: () => toggleFavorite(entry.id),
                     titleVersion,
                     latestVersion,
+                    builtin: pluginInfo?.builtin,
                     itemEnabled: isPlugin
                       ? (pluginInfo?.enabled ?? true)
                       : isLyric
