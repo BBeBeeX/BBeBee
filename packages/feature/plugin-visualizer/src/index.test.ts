@@ -432,6 +432,11 @@ describe('plugin-visualizer stereo integration', () => {
 
     const plugin = new VisualizerPlugin(mockCtx)
     await plugin[VisualizerPlugin.init]()
+    // Consumer-driven polling (upstream OOM fix): the lazy mpv impl
+    // only polls while a consumer is attached — without one no frame
+    // is ever fed and channels stays 1. The attach wires the consumer
+    // when the analyser lands (attachAnalyserAsync, mpv branch).
+    const detachConsumer = plugin.attachConsumer()
     // attachAnalyserAsync is fire-and-forget, and the NativeMpvImpl
     // poller runs every 16 ms: wait for the analyser, then for a poll.
     for (let i = 0; i < 100 && !(plugin.currentAnalyser instanceof NativeMpvImpl); i++) {
@@ -457,6 +462,7 @@ describe('plugin-visualizer stereo integration', () => {
     plugin.getRightFrequencyData(rightFreq)
     expect(leftFreq[0]).toBeGreaterThan(0)
     expect(leftFreq[0]).toBeGreaterThan(rightFreq[0]!)
+    detachConsumer()
     ;(plugin as unknown as { detachAnalyser(): void }).detachAnalyser()
   })
 })
