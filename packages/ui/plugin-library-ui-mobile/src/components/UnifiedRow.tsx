@@ -40,6 +40,7 @@ export function UnifiedRow({
   ctx,
   item,
   isChild,
+  layout = 'list',
 }: {
   ctx: Context
   item: UnifiedItem
@@ -47,10 +48,97 @@ export function UnifiedRow({
   isExpanded?: boolean
   onToggleExpand?: () => void
   isChild?: boolean
+  layout?: 'list' | 'grid'
 }): ReactElement {
   const native = nativePrimitives()
   const isFav = item.kind === 'favorite'
   const isArt = item.kind === 'artist'
+
+  if (layout === 'grid') {
+    return h(
+      native.Pressable as never,
+      {
+        accessibilityRole: 'button',
+        accessibilityLabel: item.title,
+        testID: `unified-row-${item.id}`,
+        onPress: () => item.onOpen(),
+        onLongPress: () => item.onMore(),
+        style: {
+          flex: 1,
+          minWidth: 140,
+          maxWidth: '50%',
+          flexDirection: 'column',
+          gap: 8,
+          marginBottom: 16,
+          padding: 4,
+          borderRadius: 12,
+        },
+      },
+      h(
+        native.View as never,
+        {
+          style: {
+            width: '100%',
+            aspectRatio: 1,
+            borderRadius: isArt ? 9999 : 12,
+            overflow: 'hidden',
+            backgroundColor: isFav ? undefined : c().bg.raised,
+          },
+        },
+        isFav
+          ? h(
+              native.View as never,
+              {
+                style: {
+                  width: '100%',
+                  height: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#8e8ee5',
+                },
+              },
+              tablerIcon('heart-filled', { size: 40, color: '#FFFFFF' }) ??
+                h(Text, { style: { color: '#FFFFFF', fontSize: 32 } }, '♥'),
+            )
+          : item.kind === 'collection'
+            ? h(
+                native.View as never,
+                {
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: c().bg.overlay,
+                  },
+                },
+                tablerIcon('folder', { size: 40, color: c().text.secondary }) ??
+                  h(Text, { style: { fontSize: 32 } }, '📁'),
+              )
+            : h(CachedArtwork, {
+                ctx,
+                artwork: item.artwork,
+                seed: item.artworkSeed,
+                size: 160,
+                radius: isArt ? 9999 : 12,
+              }),
+      ),
+      h(
+        native.View as never,
+        { style: { gap: 2, paddingHorizontal: 2 } },
+        h(Text, { numberOfLines: 1, style: { fontSize: 14, fontWeight: '600' }, children: item.title }),
+        h(
+          native.View as never,
+          { style: { flexDirection: 'row', alignItems: 'center', gap: tokens.space[1] } },
+          item.pinned
+            ? tablerIcon('pin', { size: 12, color: c().accent.base }) ??
+              h(Text, { style: { fontSize: 11 } }, '📌')
+            : null,
+          h(Text, { variant: 'sm', tone: 'muted', numberOfLines: 1, style: { fontSize: 12 }, children: item.subtitle }),
+        ),
+      ),
+    )
+  }
 
   return h(
     native.Pressable as never,

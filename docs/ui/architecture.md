@@ -475,11 +475,19 @@ Two model details worth pinning: `TrackMenuOptions.lyrics` (the lyric lines a sc
   - `add-to-playlist`: "Add to other playlists". Uses `collectAllFolderTracks` for recursive, duplicate-free gathering across nested playlists, albums and subfolders (see the spec at [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification) (L2)).
   - `enqueue`: Plays all aggregated tracks across the folder hierarchy.
 
-#### Library Presentation Modes
-Layout metrics and folder interactions are specified in [design-system.md §8](design-system.md#8-library-sidebar-modes--context-menu-design) (L3):
+#### Library Presentation Modes & Display Formats
+Layout metrics, display formats, and folder interactions are specified in [design-system.md §8](design-system.md#8-library-sidebar-modes--context-menu-design) (L3):
 - **Collapsed mode** (72px rail): minimalist icon list; entering a folder shows a `chevron-left` return button below the top brand logo.
 - **Sidebar mode** (260–340px): inline expandable folders, dedicated folder detail view; playlists inside folders are automatically hidden from the root list (`containedPlaylistUrns`) and restored when moved to root.
 - **Expanded mode** (full-canvas): high-density 3-column table view with top breadcrumb navigation (`Music library < folder name`).
+- **Display Formats (List vs. Tiled/Grid)**:
+  - Supports `viewMode` (`'list' | 'tiled'`). In list mode, items render as single-row list components (`UnifiedLibraryRow` on desktop; `UnifiedRow` on mobile). In tiled mode, items render as responsive cards (`UnifiedLibraryCard` auto-fill grid on desktop; `UnifiedRow` with `layout="grid"` 2-column flex-wrap on mobile).
+- **Sorting & Directions**:
+  - Controlled by headless `useLibraryView(ctx)` with `sortUnifiedItems(items, mode, order)`.
+  - Supports sort modes (`creator`, `recent-added`, `recent-played`, `alphabetical`) and directions (`sortOrder: 'asc' | 'desc'`). Pinned entities (`pinned: true`) strictly stay at the top.
+- **Platform Menu Conventions**:
+  - **Desktop**: Single first-level menu displaying all sort keys, asc/desc toggles, and view modes simultaneously using section headings (`heading: true`) and dividers.
+  - **Mobile**: Two-level hierarchy with top-level "Display" and "Sort" items carrying current-selection subtitles (`item.description`), drilling down into second-level submenus with custom header chrome and option checkmarks.
 
 ### Detail screens, sorting & media views
 

@@ -850,6 +850,57 @@ describe('LibraryScreen', () => {
       expect(container.textContent).toContain('Road trip')
     })
   })
+
+  it('switches sort order between ascending and descending and switches view mode between list and tiled', async () => {
+    const { ctx } = await harness()
+    await withListLayout(async () => {
+      const { getByTestId, getByText, queryByTestId } = render(h(LibraryScreen, { ctx }))
+      await act(async () => {
+        await tick()
+      })
+
+      // Default is list mode
+      expect(getByTestId('playlists-list')).toBeTruthy()
+      expect(queryByTestId('playlists-grid')).toBeNull()
+
+      // Open sort/display menu
+      const sortTrigger = getByTestId('library-sort-trigger')
+      await act(async () => {
+        sortTrigger.click()
+        await tick()
+      })
+
+      // Check menu items
+      expect(getByText('Sort by')).toBeTruthy()
+      expect(getByText('Ascending')).toBeTruthy()
+      expect(getByText('Descending')).toBeTruthy()
+      expect(getByText('View mode')).toBeTruthy()
+      expect(getByText('List')).toBeTruthy()
+      expect(getByText('Tiled')).toBeTruthy()
+
+      // Switch to tiled
+      await act(async () => {
+        getByText('Tiled').click()
+        await tick()
+      })
+
+      expect(queryByTestId('playlists-list')).toBeNull()
+      expect(getByTestId('playlists-grid')).toBeTruthy()
+
+      // Switch back to list
+      await act(async () => {
+        sortTrigger.click()
+        await tick()
+      })
+      await act(async () => {
+        getByText('List').click()
+        await tick()
+      })
+
+      expect(getByTestId('playlists-list')).toBeTruthy()
+      expect(queryByTestId('playlists-grid')).toBeNull()
+    })
+  })
 })
 
 describe('collectAllFolderTracks', () => {

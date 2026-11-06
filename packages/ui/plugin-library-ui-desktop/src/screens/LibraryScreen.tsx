@@ -14,6 +14,7 @@ import { serviceOf } from '@BBeBee/ui-core'
 import { ContextMenu, EmptyState, List, Text, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useAddToCollection, useCollectionMenu, usePlaylistMenu } from '@BBeBee/ui-menus'
 import { UnifiedLibraryRow, type UnifiedItem } from '../components/UnifiedLibraryRow.js'
+import { UnifiedLibraryCard } from '../components/UnifiedLibraryCard.js'
 import { LibraryCreateButton, LibraryCreateMenu } from '../components/LibraryCreateDropdown.js'
 import { LibraryToolbar } from '../components/LibraryToolbar.js'
 import { LibraryModals } from '../components/LibraryModals.js'
@@ -127,6 +128,10 @@ export function LibraryScreen({
     setSearchQuery,
     sortMode,
     setSortMode,
+    sortOrder,
+    setSortOrder,
+    viewMode,
+    setViewMode,
     filterAndSort,
   } = view
 
@@ -650,6 +655,11 @@ export function LibraryScreen({
 
   const sortMenuItems: MenuItemSpec[] = [
     {
+      id: 'sort-heading',
+      label: t('library:favorites.sortBy'),
+      heading: true,
+    },
+    {
       id: 'creator',
       label: t('library:library.creator'),
       icon: sortMode === 'creator' ? tablerIcon('check', { size: 18 }) : undefined,
@@ -671,7 +681,38 @@ export function LibraryScreen({
       id: 'alphabetical',
       label: t('library:library.alphabetical'),
       icon: sortMode === 'alphabetical' ? tablerIcon('check', { size: 18 }) : undefined,
+      divider: true,
       onSelect: () => setSortMode('alphabetical'),
+    },
+    {
+      id: 'order-asc',
+      label: t('library:library.ascending'),
+      icon: sortOrder === 'asc' ? tablerIcon('check', { size: 18 }) : undefined,
+      onSelect: () => setSortOrder('asc'),
+    },
+    {
+      id: 'order-desc',
+      label: t('library:library.descending'),
+      icon: sortOrder === 'desc' ? tablerIcon('check', { size: 18 }) : undefined,
+      divider: true,
+      onSelect: () => setSortOrder('desc'),
+    },
+    {
+      id: 'view-heading',
+      label: t('library:library.viewMode'),
+      heading: true,
+    },
+    {
+      id: 'view-list',
+      label: t('library:library.list'),
+      icon: viewMode === 'list' ? tablerIcon('check', { size: 18 }) : undefined,
+      onSelect: () => setViewMode('list'),
+    },
+    {
+      id: 'view-tiled',
+      label: t('library:library.tiled'),
+      icon: viewMode === 'tiled' ? tablerIcon('check', { size: 18 }) : undefined,
+      onSelect: () => setViewMode('tiled'),
     },
   ]
 
@@ -930,7 +971,6 @@ export function LibraryScreen({
         x: sortMenuAnchor?.x ?? 0,
         y: sortMenuAnchor?.y ?? 0,
         items: sortMenuItems,
-        title: t('library:favorites.sortBy'),
       }),
     )
   }
@@ -968,6 +1008,8 @@ export function LibraryScreen({
       searchQuery,
       setSearchQuery,
       sortMode,
+      sortOrder,
+      viewMode,
       setSortMenuAnchor,
       activeFilter,
       setActiveFilter,
@@ -994,6 +1036,8 @@ export function LibraryScreen({
       searchQuery,
       setSearchQuery,
       sortMode,
+      sortOrder,
+      viewMode,
       setSortMenuAnchor,
       filteredFolderItems,
       modals: renderModals(),
@@ -1112,6 +1156,8 @@ export function LibraryScreen({
       searchQuery,
       setSearchQuery,
       sortMode,
+      sortOrder,
+      viewMode,
       setSortMenuAnchor,
       hasArtists: artistItems.length > 0,
       createSlot: renderToolbarCreate(),
@@ -1126,8 +1172,28 @@ export function LibraryScreen({
             title: t('library:library.nothingFound'),
             description: t('library:library.importAMusicSourceScan'),
           })
-        : h(
-            List<
+        : viewMode === 'tiled'
+          ? h(
+              'div',
+              {
+                'data-testid': 'playlists-grid',
+                style: {
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: 16,
+                  padding: '8px 12px 24px 12px',
+                },
+              },
+              filteredItems.map((item) =>
+                h(UnifiedLibraryCard, {
+                  key: item.id,
+                  ctx,
+                  item,
+                }),
+              ),
+            )
+          : h(
+              List<
               UnifiedItem & {
                 isFolder?: boolean
                 isExpanded?: boolean

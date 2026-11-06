@@ -6,6 +6,8 @@ import { TextField, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 
 export type LibraryFilterKey = 'all' | 'playlist' | 'album' | 'artist' | 'downloaded'
 export type LibrarySortMode = 'creator' | 'recent-added' | 'recent-played' | 'alphabetical'
+export type LibrarySortOrder = 'asc' | 'desc'
+export type LibraryViewMode = 'list' | 'tiled'
 
 /**
  * Filter buttons: stable keys plus the i18n key for each label.
@@ -36,6 +38,8 @@ export interface LibraryToolbarProps {
   searchQuery: string
   setSearchQuery: (query: string) => void
   sortMode: LibrarySortMode
+  sortOrder?: LibrarySortOrder
+  viewMode?: LibraryViewMode
   setSortMenuAnchor: (anchor: MenuAnchor | undefined) => void
   /** The artist chip only makes sense when the library actually holds artists. */
   hasArtists?: boolean
@@ -52,6 +56,8 @@ export function LibraryToolbar({
   searchQuery,
   setSearchQuery,
   sortMode,
+  sortOrder: _sortOrder,
+  viewMode,
   setSortMenuAnchor,
   hasArtists = true,
   createSlot,
@@ -170,6 +176,7 @@ export function LibraryToolbar({
           'button',
           {
             type: 'button',
+            'data-testid': 'library-sort-trigger',
             onClick: (e: { clientX: number; clientY: number }) =>
               setSortMenuAnchor({ x: e.clientX, y: e.clientY }),
             style: {
@@ -185,7 +192,7 @@ export function LibraryToolbar({
             },
           },
           searchOpen ? null : h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
-          tablerIcon('list', { size: 20 }),
+          tablerIcon(viewMode === 'tiled' ? 'layout-grid' : 'list', { size: 20 }),
         ),
     ),
   )

@@ -101,10 +101,34 @@ describe('sortUnifiedItems', () => {
     const sorted = sortUnifiedItems(items, 'recent-added')
     expect(sorted.map((i) => i.title)).toEqual(['Newest', 'Middle', 'Old'])
   })
+
+  it('supports ascending and descending order explicitly', () => {
+    const items: LibraryItemSortable[] = [
+      { title: 'Alpha', kind: 'playlist', addedAt: 10 },
+      { title: 'Beta', kind: 'playlist', addedAt: 20 },
+      { title: 'Gamma', kind: 'playlist', addedAt: 30 },
+    ]
+
+    // AddedAt ascending (oldest first)
+    const ascAdded = sortUnifiedItems(items, 'recent-added', 'asc')
+    expect(ascAdded.map((i) => i.title)).toEqual(['Alpha', 'Beta', 'Gamma'])
+
+    // AddedAt descending (newest first)
+    const descAdded = sortUnifiedItems(items, 'recent-added', 'desc')
+    expect(descAdded.map((i) => i.title)).toEqual(['Gamma', 'Beta', 'Alpha'])
+
+    // Alphabetical ascending (A -> Z)
+    const ascAlpha = sortUnifiedItems(items, 'alphabetical', 'asc')
+    expect(ascAlpha.map((i) => i.title)).toEqual(['Alpha', 'Beta', 'Gamma'])
+
+    // Alphabetical descending (Z -> A)
+    const descAlpha = sortUnifiedItems(items, 'alphabetical', 'desc')
+    expect(descAlpha.map((i) => i.title)).toEqual(['Gamma', 'Beta', 'Alpha'])
+  })
 })
 
 describe('useLibraryView', () => {
-  it('initializes state and provides folder toggle and filterAndSort', async () => {
+  it('initializes state and provides folder toggle, viewMode, sortOrder, and filterAndSort', async () => {
     const ctx = new Context()
     await ctx.plugin(LibraryStub)
     await tick()
@@ -113,6 +137,14 @@ describe('useLibraryView', () => {
 
     expect(result.current.activeFilter).toBe('all')
     expect(result.current.sortMode).toBe('creator')
+    expect(result.current.sortOrder).toBe('desc')
+    expect(result.current.viewMode).toBe('list')
+
+    // View mode switch
+    act(() => {
+      result.current.setViewMode('tiled')
+    })
+    expect(result.current.viewMode).toBe('tiled')
 
     // Folder toggle
     expect(result.current.expandedFolderIds.has('col-1')).toBe(false)
@@ -125,15 +157,22 @@ describe('useLibraryView', () => {
     })
     expect(result.current.expandedFolderIds.has('col-1')).toBe(false)
 
-    // Filter and sort integration
+    // Filter and sort integration with asc/desc
     const sampleItems: LibraryItemSortable[] = [
       { title: 'Track B', kind: 'playlist', addedAt: 10 },
       { title: 'Track A', kind: 'playlist', addedAt: 20 },
     ]
     act(() => {
       result.current.setSortMode('alphabetical')
+      result.current.setSortOrder('asc')
     })
-    const sorted = result.current.filterAndSort(sampleItems)
-    expect(sorted.map((i) => i.title)).toEqual(['Track A', 'Track B'])
+    const sortedAsc = result.current.filterAndSort(sampleItems)
+    expect(sortedAsc.map((i) => i.title)).toEqual(['Track A', 'Track B'])
+
+    act(() => {
+      result.current.setSortOrder('desc')
+    })
+    const sortedDesc = result.current.filterAndSort(sampleItems)
+    expect(sortedDesc.map((i) => i.title)).toEqual(['Track B', 'Track A'])
   })
 })

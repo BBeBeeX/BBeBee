@@ -44,6 +44,12 @@ const MENU_ICON_GLYPHS: Record<string, string> = {
   checkbox: '☑',
   list: '☰',
   'layout-list': '☰',
+  'arrows-sort': '⇅',
+  'arrows-up-down': '⇅',
+  'chevron-down': '∨',
+  'chevron-right': '›',
+  'layout-grid': '⊞',
+  check: '✓',
 }
 
 function menuIconGlyph(icon: ReactNode): ReactNode {
@@ -75,6 +81,8 @@ function MenuRow({
 }): ReactElement {
   const native = nativePrimitives()
   const iconGlyph = item.icon ? menuIconGlyph(item.icon) : null
+  const hasDesc = Boolean(item.description)
+  const isBack = item.id === '__back'
   return h(
     native.Pressable as never,
     {
@@ -88,9 +96,9 @@ function MenuRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: isDropdown ? tokens.space[2] + 2 : tokens.space[3],
-        minHeight: isDropdown ? 38 : tokens.size.touchTarget,
+        minHeight: isDropdown ? (hasDesc ? 44 : 38) : (hasDesc ? 54 : tokens.size.touchTarget),
         paddingHorizontal: isDropdown ? tokens.space[3] : tokens.space[2],
-        paddingVertical: isDropdown ? 6 : 0,
+        paddingVertical: isDropdown ? (hasDesc ? 6 : 6) : 0,
         borderRadius: isDropdown ? 8 : 0,
         opacity: item.disabled ? 0.45 : 1,
       },
@@ -108,15 +116,30 @@ function MenuRow({
         : null,
     h(
       native.View as never,
-      { style: { flex: 1 } },
+      { style: { flex: 1, justifyContent: 'center' } },
       h(Text, {
         variant: isDropdown ? 'sm' : 'md',
         tone: item.tone === 'danger' ? 'error' : 'default',
         numberOfLines: 1,
+        style: hasDesc ? { fontWeight: '600' } : undefined,
         children: item.label,
       }),
+      hasDesc
+        ? h(Text, {
+            variant: 'xs',
+            tone: 'muted',
+            numberOfLines: 1,
+            style: { marginTop: 2, fontSize: 11 },
+            children: item.description,
+          })
+        : null,
     ),
-    item.submenu ? h(Text, { tone: 'muted', style: { marginLeft: 'auto' }, children: '\u203a' }) : null,
+    isBack
+      ? (tablerIcon('chevron-down', { size: 18, color: c().text.secondary }) ??
+          h(Text, { tone: 'muted', style: { marginLeft: 'auto', fontSize: 14 }, children: '∨' }))
+      : item.submenu
+        ? h(Text, { tone: 'muted', style: { marginLeft: 'auto', fontSize: 16 }, children: '\u203a' })
+        : null,
   )
 }
 
@@ -228,7 +251,14 @@ export function ContextMenu(
     ? [
         h(MenuRow, {
           key: '__back',
-          item: { id: '__back', label: `\u2039 ${submenu.title ?? t('app:common.back', 'Back')}` },
+          item: {
+            id: '__back',
+            label: submenu.subtitle
+              ? (submenu.title ?? t('app:common.back', 'Back'))
+              : `\u2039 ${submenu.title ?? t('app:common.back', 'Back')}`,
+            description: submenu.subtitle,
+            icon: submenu.icon,
+          },
           isDropdown,
           onActivate: () => {
             defer(() => {
@@ -239,12 +269,10 @@ export function ContextMenu(
             })
           },
         }),
-        isDropdown
-          ? h(native.View as never, {
-              key: '__back_div',
-              style: { height: 1, backgroundColor: p.border.subtle, marginVertical: tokens.space[1] },
-            })
-          : null,
+        h(native.View as never, {
+          key: '__back_div',
+          style: { height: 1, backgroundColor: p.border.subtle, marginVertical: tokens.space[1] },
+        }),
         submenu.searchPlaceholder && creating && submenu.create
           ? h(
               native.View as never,
@@ -357,14 +385,30 @@ export function ContextMenu(
                   h(Text, { variant: 'sm', tone: 'muted', children: submenu.emptyLabel ?? t('app:common.contextMenu.noMatches', 'No matches') }),
                 ),
               ]
-            : visible.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }))
+            : visible.flatMap((item) => [
+                h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }),
+                item.divider
+                  ? h(native.View as never, {
+                      key: `${item.id}-div`,
+                      style: { height: 1, backgroundColor: p.border.subtle, marginVertical: tokens.space[1] },
+                    })
+                  : null,
+              ]).filter((n): n is NonNullable<typeof n> => n !== null)
 
           return isCreateBottom
             ? [...itemRows, ...(createRow ? [createRow] : [])]
             : [...(createRow ? [createRow] : []), ...itemRows]
         })(),
       ]
-    : props.items.map((item) => h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }))
+    : props.items.flatMap((item) => [
+        h(MenuRow, { key: item.id, item, onActivate: activate, isDropdown }),
+        item.divider
+          ? h(native.View as never, {
+              key: `${item.id}-div`,
+              style: { height: 1, backgroundColor: p.border.subtle, marginVertical: tokens.space[1] },
+            })
+          : null,
+      ]).filter((n): n is NonNullable<typeof n> => n !== null)
 
   if (isDropdown) {
     const dropdownInner = h(

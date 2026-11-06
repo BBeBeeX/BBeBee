@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { render, fireEvent, act, renderHook } from '@testing-library/react'
 import { Context, Service } from 'cordis'
 import type { MiniPlayerData, MiniPlayerServiceState } from '@BBeBee/protocol'
+import { useMiniPlayerData } from '@bbebee/plugin-mini-player/hooks'
 import pluginMiniPlayerUi, { MiniPlayerFloating, MiniPlayerIsland, MiniPlayerButton } from './index.js'
 
 class UiStub extends Service {
@@ -162,5 +164,90 @@ describe('plugin-mini-player-ui-desktop', () => {
 
     const html = renderToStaticMarkup(h(MiniPlayerButton, { ctx }))
     expect(html).toContain('Open mini player / Dynamic Island')
+  })
+
+  it('useMiniPlayerData does not retain previous cover when cover is empty', () => {
+    let onDataCb: ((data: unknown) => void) | undefined
+    ;(globalThis as any).window.BBeBee = {
+      miniPlayer: {
+        getData: async () => undefined,
+        onData: (cb: (data: unknown) => void) => {
+          onDataCb = cb
+          return () => {}
+        },
+      },
+    }
+
+    const { result } = renderHook(() => useMiniPlayerData())
+
+    // 1. Initial track has cover
+    act(() => {
+      onDataCb?.({
+        trackUrn: 'bbebee:track:1',
+        title: 'Track 1',
+        artworkUri: 'bbebee-file:///path/to/cover.jpg',
+      })
+    })
+    expect(result.current.data.artworkUri).toBe('bbebee-file:///path/to/cover.jpg')
+
+    // 2. Next track with empty cover string
+    act(() => {
+      onDataCb?.({
+        trackUrn: 'bbebee:track:2',
+        title: 'Track 2',
+        artworkUri: '',
+      })
+    })
+    expect(result.current.data.artworkUri).toBeUndefined()
+
+    // 3. Update without artworkUri key
+    act(() => {
+      onDataCb?.({
+        trackUrn: 'bbebee:track:3',
+        title: 'Track 3',
+      })
+    })
+    expect(result.current.data.artworkUri).toBeUndefined()
+  })
+
+  it('MiniPlayerIsland suppresses double click collapse within 500ms of expanding', () => {
+    let collapseCount = 0
+    const onCollapse = () => {
+      collapseCount++
+    }
+
+    const { container, rerender } = render(
+      h(MiniPlayerIsland, {
+        data: mockData,
+        isExpanded: false,
+        onAction: () => {},
+        onExpand: () => {},
+        onCollapse,
+        onDetach: () => {},
+        onRestoreMain: () => {},
+        onClose: () => {},
+      }),
+    )
+
+    // Expand to island card
+    rerender(
+      h(MiniPlayerIsland, {
+        data: mockData,
+        isExpanded: true,
+        onAction: () => {},
+        onExpand: () => {},
+        onCollapse,
+        onDetach: () => {},
+        onRestoreMain: () => {},
+        onClose: () => {},
+      }),
+    )
+
+    const card = container.querySelector('[title="Double-click to collapse the island"]')
+    expect(card).toBeTruthy()
+
+    // Immediate double click within 500ms should be ignored
+    fireEvent.doubleClick(card!)
+    expect(collapseCount).toBe(0)
   })
 })

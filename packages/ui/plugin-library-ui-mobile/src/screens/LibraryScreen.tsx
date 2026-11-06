@@ -81,6 +81,10 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     setSearchQuery,
     sortMode,
     setSortMode,
+    sortOrder,
+    setSortOrder,
+    viewMode,
+    setViewMode,
     creatorName,
     expandedFolderIds,
     toggleFolderExpanded,
@@ -645,6 +649,9 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
   }
 
   const libraryHeaderMenuItems = useMemo<MenuItemSpec[]>(() => {
+    const sortDescText = `${t(SORT_LABEL_KEYS[sortMode])} (${sortOrder === 'asc' ? t('library:library.ascending') : t('library:library.descending')})`
+    const viewDescText = viewMode === 'tiled' ? t('library:library.tiled') : t('library:library.list')
+
     return [
       {
         id: 'create-menu-playlist',
@@ -662,24 +669,69 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
         id: 'create-menu-import-share',
         label: t('library:libraryCreateDropdown.importShare'),
         icon: 'upload',
+        divider: true,
         onSelect: () => handleImportShare(),
+      },
+      {
+        id: 'menu-view-mode',
+        label: t('library:library.display'),
+        description: viewDescText,
+        icon: 'layout-grid',
+        submenu: {
+          title: t('library:library.display'),
+          subtitle: viewDescText,
+          icon: 'layout-grid',
+          items: [
+            {
+              id: 'view-mode-list',
+              label: t('library:library.list'),
+              icon: viewMode === 'list' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setViewMode('list'),
+            },
+            {
+              id: 'view-mode-tiled',
+              label: t('library:library.tiled'),
+              icon: viewMode === 'tiled' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setViewMode('tiled'),
+            },
+          ],
+        },
       },
       {
         id: 'menu-sort',
         label: t('library:favorites.sortBy'),
-        icon: 'shuffle',
+        description: sortDescText,
+        icon: 'arrows-sort',
+        divider: true,
         submenu: {
           title: t('library:favorites.sortBy'),
-          items: (['creator', 'recent-added', 'recent-played', 'alphabetical'] as const).map((mode) => ({
-            id: `sort-option-${mode}`,
-            label: t(SORT_LABEL_KEYS[mode]),
-            icon: sortMode === mode ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
-            onSelect: () => setSortMode(mode),
-          })),
+          subtitle: sortDescText,
+          icon: 'arrows-sort',
+          items: [
+            ...((['recent-added', 'creator', 'recent-played', 'alphabetical'] as const).map((mode, index, arr) => ({
+              id: `sort-option-${mode}`,
+              label: t(SORT_LABEL_KEYS[mode]),
+              icon: sortMode === mode ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              divider: index === arr.length - 1,
+              onSelect: () => setSortMode(mode),
+            }))),
+            {
+              id: 'sort-order-asc',
+              label: t('library:library.ascending'),
+              icon: sortOrder === 'asc' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortOrder('asc'),
+            },
+            {
+              id: 'sort-order-desc',
+              label: t('library:library.descending'),
+              icon: sortOrder === 'desc' ? (tablerIcon('check', { size: 18 }) ?? '✓') : undefined,
+              onSelect: () => setSortOrder('desc'),
+            },
+          ],
         },
       },
     ]
-  }, [handleImportShare, sortMode, t])
+  }, [handleImportShare, sortMode, sortOrder, viewMode, t])
 
   const hasArtists = artistItems.length > 0
   const visibleChips = FILTER_CHIPS.filter(({ key }) => key !== 'artist' || hasArtists)
@@ -736,30 +788,67 @@ export function LibraryScreen({ ctx }: { ctx: Context }): ReactElement {
     h(
       native.View as never,
       { style: { flex: 1, minHeight: 0 } },
-      h(List<UnifiedItem & { isFolder?: boolean; isExpanded?: boolean; onToggleExpand?: () => void; isChild?: boolean }>, {
-        testID: 'playlists-list',
-        items: displayItems,
-        estimatedItemSize: 76,
-        keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
-        empty: isInitialLoading
-          ? h(EmptyState, {
-              icon: 'music',
-              title: t('app:common.loading') || 'Loading...',
-            })
-          : h(EmptyState, {
-              icon: 'music',
-              title: t('library:library.nothingFound'),
-              description: t('library:library.importAMusicSourceScan'),
-            }),
+      viewMode === 'tiled'
+        ? displayItems.length === 0
+          ? isInitialLoading
+            ? h(EmptyState, {
+                icon: 'music',
+                title: t('app:common.loading') || 'Loading...',
+              })
+            : h(EmptyState, {
+                icon: 'music',
+                title: t('library:library.nothingFound'),
+                description: t('library:library.importAMusicSourceScan'),
+              })
+          : h(
+              native.ScrollView as never,
+              {
+                testID: 'playlists-grid',
+                contentContainerStyle: {
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: tokens.space[3],
+                  paddingBottom: 32,
+                },
+              },
+              displayItems.map((item, index) =>
+                h(UnifiedRow, {
+                  key: item.isChild ? `${item.id}:child:${index}` : `${item.id}:${index}`,
+                  ctx,
+                  item,
+                  isChild: item.isChild,
+                  layout: 'grid',
+                }),
+              ),
+            )
+        : h(
+            List<UnifiedItem & { isFolder?: boolean; isExpanded?: boolean; onToggleExpand?: () => void; isChild?: boolean }>,
+            {
+              testID: 'playlists-list',
+              items: displayItems,
+              estimatedItemSize: 76,
+              keyExtractor: (item) => (item.isChild ? `${item.id}:child` : item.id),
+              empty: isInitialLoading
+                ? h(EmptyState, {
+                    icon: 'music',
+                    title: t('app:common.loading') || 'Loading...',
+                  })
+                : h(EmptyState, {
+                    icon: 'music',
+                    title: t('library:library.nothingFound'),
+                    description: t('library:library.importAMusicSourceScan'),
+                  }),
 
-        renderItem: (item) =>
-          h(UnifiedRow, {
-            key: item.isChild ? `${item.id}:child` : item.id,
-            ctx,
-            item,
-            isChild: item.isChild,
-          }),
-      }),
+              renderItem: (item) =>
+                h(UnifiedRow, {
+                  key: item.isChild ? `${item.id}:child` : item.id,
+                  ctx,
+                  item,
+                  isChild: item.isChild,
+                  layout: 'list',
+                }),
+            },
+          ),
     ),
     // Header Menu — Right-click style dropdown anchored at top-right
     h(ContextMenu, {

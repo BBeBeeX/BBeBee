@@ -118,6 +118,7 @@ pub fn get_or_create_mini_player_window(
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
+    .maximizable(false)
     .initialization_script(include_str!("../gen/shim.js"))
     .visible(false);
 

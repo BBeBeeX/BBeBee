@@ -74,6 +74,8 @@ export type MoreHandler = (anchor?: MenuAnchor) => void
 export interface MenuItemSpec {
   id: string
   label: string
+  /** An optional secondary line beneath the label. */
+  description?: string
   /** A leading glyph or element. The label is the accessible name. */
   icon?: string | ReactNode
   disabled?: boolean
@@ -95,6 +97,10 @@ export interface MenuItemSpec {
 
 export interface SubmenuSpec {
   title?: string
+  /** An optional secondary subtitle rendered beneath the title in the submenu header. */
+  subtitle?: string
+  /** An optional leading icon for the submenu header. */
+  icon?: string | ReactNode
   /** A filter field above the rows. Absent means the list is short enough. */
   searchPlaceholder?: string
   /**

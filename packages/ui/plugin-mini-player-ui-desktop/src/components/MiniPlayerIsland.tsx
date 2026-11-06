@@ -1,4 +1,4 @@
-import { createElement as h, useState } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { MiniPlayerData, MiniPlayerAction } from '@BBeBee/protocol'
 import { useBridgeLocale } from '@BBeBee/ui-kit-desktop'
@@ -32,6 +32,23 @@ export function MiniPlayerIsland({
   const { t } = useBridgeLocale()
   const [hovered, setHovered] = useState(false)
   const isPlaying = data.status === 'playing'
+  const lastExpandedAtRef = useRef(0)
+
+  useEffect(() => {
+    if (isExpanded) {
+      lastExpandedAtRef.current = Date.now()
+    }
+  }, [isExpanded])
+
+  const handleDoubleClickCollapse = (e: { stopPropagation?: () => void }) => {
+    e.stopPropagation?.()
+    // Suppress collapse if triggered within 500ms of expanding (prevents
+    // a double click on the small capsule from expanding then immediately collapsing).
+    if (Date.now() - lastExpandedAtRef.current < 500) {
+      return
+    }
+    onCollapse()
+  }
 
   if (isExpanded) {
     // ── Form 3: Expanded Dynamic Island (400 x 168) ───────────────────────────
@@ -68,7 +85,7 @@ export function MiniPlayerIsland({
             boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2)',
             animation: 'miniPlayerExpand 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           },
-          onDoubleClick: onCollapse,
+          onDoubleClick: handleDoubleClickCollapse,
           title: t('miniPlayer:miniPlayerIsland.doubleClickToCollapseThe'),
         },
         // Top Row: Artwork + Metadata + WaveBars & Actions

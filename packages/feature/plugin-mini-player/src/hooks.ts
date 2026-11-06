@@ -131,7 +131,12 @@ export function useMiniPlayerData(): {
 
     void bridge.getData?.().then((initial) => {
       if (initial && typeof initial === 'object') {
-        setData((prev) => ({ ...prev, ...(initial as Partial<MiniPlayerData>) }))
+        const nextInit = initial as Partial<MiniPlayerData>
+        setData((prev) => ({
+          ...prev,
+          ...nextInit,
+          artworkUri: nextInit.artworkUri ? nextInit.artworkUri : undefined,
+        }))
       }
     })
 
@@ -142,16 +147,33 @@ export function useMiniPlayerData(): {
       if (incoming && typeof incoming === 'object') {
         const next = incoming as Partial<MiniPlayerData>
         setData((prev) => {
+          // Normalize artworkUri: if empty or absent, do not fall back to previous cover
+          const nextArtworkUri = next.artworkUri ? next.artworkUri : undefined
+          const artworkChanged = prev.artworkUri !== nextArtworkUri
+
+          const merged: MiniPlayerData = {
+            ...prev,
+            ...next,
+            artworkUri: nextArtworkUri,
+          }
+
+          // If track changed, ensure album and artwork don't leak from previous track
+          if (next.trackUrn && next.trackUrn !== prev.trackUrn) {
+            merged.album = next.album
+            merged.artworkUri = nextArtworkUri
+          }
+
           // Skip re-render if only position/duration changed — the ProgressBar
           // subscribes directly via bridge.onData and updates via refs, so the
           // React tree doesn't need to re-render at 3Hz (which blocks OS drag).
-          const merged = { ...prev, ...next }
-          let changed = false
-          for (const k of Object.keys(next) as (keyof MiniPlayerData)[]) {
-            if (k === 'positionMs' || k === 'durationMs') continue
-            if (prev[k] !== merged[k]) {
-              changed = true
-              break
+          let changed = artworkChanged
+          if (!changed) {
+            for (const k of Object.keys(next) as (keyof MiniPlayerData)[]) {
+              if (k === 'positionMs' || k === 'durationMs' || k === 'artworkUri') continue
+              if (prev[k] !== merged[k]) {
+                changed = true
+                break
+              }
             }
           }
           return changed ? merged : prev

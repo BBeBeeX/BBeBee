@@ -7,11 +7,14 @@ import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { formatAddedDate, formatPlayedDate } from '@BBeBee/toolkit'
 import { CachedArtwork } from '../CachedArtwork.js'
 import type { UnifiedItem } from '../UnifiedLibraryRow.js'
+import { UnifiedLibraryCard } from '../UnifiedLibraryCard.js'
 import {
   LIBRARY_FILTER_BUTTONS,
   LIBRARY_SORT_LABELS,
   type LibraryFilterKey,
   type LibrarySortMode,
+  type LibrarySortOrder,
+  type LibraryViewMode,
 } from '../LibraryToolbar.js'
 
 export interface ExpandedLibraryViewProps {
@@ -28,6 +31,8 @@ export interface ExpandedLibraryViewProps {
   searchQuery: string
   setSearchQuery: (query: string) => void
   sortMode: LibrarySortMode
+  sortOrder?: LibrarySortOrder
+  viewMode?: LibraryViewMode
   setSortMenuAnchor: (anchor: MenuAnchor | undefined) => void
 
   activeFilter: LibraryFilterKey
@@ -56,6 +61,8 @@ export function ExpandedLibraryView({
   searchQuery,
   setSearchQuery,
   sortMode,
+  sortOrder: _sortOrder,
+  viewMode,
   setSortMenuAnchor,
 
   activeFilter,
@@ -284,143 +291,163 @@ export function ExpandedLibraryView({
           ),
         ),
       ),
-      h(
-        'div',
-        { style: { flex: 1, display: 'flex', flexDirection: 'column' } },
-        h(
-          'div',
-          {
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 16px',
-              borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-              color: 'var(--bb-text-secondary, #A0A0AE)',
-              fontSize: 12,
-              marginBottom: 8,
-            },
-          },
-          h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
-          h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
-          h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
-        ),
-        filteredFolderItems.map((item) => {
-          const isFav = item.kind === 'favorite'
-          const isArt = item.kind === 'artist'
-          return h(
+      viewMode === 'tiled'
+        ? h(
             'div',
             {
-              key: item.id,
-              onClick: () => item.onOpen(),
-              onContextMenu: (e: { preventDefault(): void; clientX?: number; clientY?: number }) => {
-                e.preventDefault()
-                item.onMore({ x: e.clientX ?? 0, y: e.clientY ?? 0 })
-              },
+              'data-testid': 'expanded-folder-items-grid',
               style: {
-                display: 'flex',
-                alignItems: 'center',
-                padding: '8px 16px',
-                borderRadius: 4,
-                cursor: 'pointer',
-                transition: 'background-color 0.15s ease',
-              },
-              onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
-              },
-              onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                gap: 20,
+                padding: '8px 0 32px 0',
               },
             },
-            h(
-              'div',
-              { style: { flex: 2, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 } },
-              h(
-                'div',
-                {
-                  style: {
-                    width: 48,
-                    height: 48,
-                    borderRadius: isArt ? '50%' : 4,
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: isFav ? '#FFFFFF' : undefined,
-                    backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
-                    background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
-                  },
-                },
-                isFav
-                  ? tablerIcon('heart-filled', { size: 24, color: 'currentColor' })
-                  : item.artwork
-                    ? h(CachedArtwork, {
-                        ctx,
-                        artwork: item.artwork,
-                        seed: item.artworkSeed,
-                        size: 48,
-                        radius: isArt ? 24 : 4,
-                      })
-                    : isArt
-                      ? tablerIcon('user', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                      : item.kind === 'local'
-                        ? tablerIcon('folder', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                        : item.kind === 'album'
-                          ? tablerIcon('disc', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                          : tablerIcon('music', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' }),
-              ),
-              h(
-                'div',
-                { style: { minWidth: 0, flex: 1 } },
-                h(
-                  'div',
-                  {
-                    style: {
-                      color: 'var(--bb-text-primary, #FFFFFF)',
-                      fontWeight: 500,
-                      fontSize: 14,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    },
-                  },
-                  item.title,
-                ),
-                h(
-                  'div',
-                  { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
-                  item.pinned
-                    ? h('span', { title: t('library:expandedLibrary.pinned'), style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
-                    : null,
-                  h(
-                    'span',
-                    {
-                      style: {
-                        color: 'var(--bb-text-secondary, #A0A0AE)',
-                        fontSize: 12,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      },
-                    },
-                    item.subtitle,
-                  ),
-                ),
-              ),
-            ),
-            h(
-              'div',
-              { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
-              formatAddedDate(item.addedAt),
-            ),
-            h(
-              'div',
-              { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
-              formatPlayedDate(item.lastPlayedAt),
+            filteredFolderItems.map((item) =>
+              h(UnifiedLibraryCard, {
+                key: item.id,
+                ctx,
+                item,
+              }),
             ),
           )
-        }),
-      ),
+        : h(
+            'div',
+            { style: { flex: 1, display: 'flex', flexDirection: 'column' } },
+            h(
+              'div',
+              {
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                  color: 'var(--bb-text-secondary, #A0A0AE)',
+                  fontSize: 12,
+                  marginBottom: 8,
+                },
+              },
+              h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
+              h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
+              h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
+            ),
+            filteredFolderItems.map((item) => {
+              const isFav = item.kind === 'favorite'
+              const isArt = item.kind === 'artist'
+              return h(
+                'div',
+                {
+                  key: item.id,
+                  onClick: () => item.onOpen(),
+                  onContextMenu: (e: { preventDefault(): void; clientX?: number; clientY?: number }) => {
+                    e.preventDefault()
+                    item.onMore({ x: e.clientX ?? 0, y: e.clientY ?? 0 })
+                  },
+                  style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '8px 16px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  },
+                  onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                    e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
+                  },
+                  onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  },
+                },
+                h(
+                  'div',
+                  { style: { flex: 2, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 } },
+                  h(
+                    'div',
+                    {
+                      style: {
+                        width: 48,
+                        height: 48,
+                        borderRadius: isArt ? '50%' : 4,
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isFav ? '#FFFFFF' : undefined,
+                        backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
+                        background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
+                      },
+                    },
+                    isFav
+                      ? tablerIcon('heart-filled', { size: 24, color: 'currentColor' })
+                      : item.artwork
+                        ? h(CachedArtwork, {
+                            ctx,
+                            artwork: item.artwork,
+                            seed: item.artworkSeed,
+                            size: 48,
+                            radius: isArt ? 24 : 4,
+                          })
+                        : isArt
+                          ? tablerIcon('user', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                          : item.kind === 'local'
+                            ? tablerIcon('folder', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                            : item.kind === 'album'
+                              ? tablerIcon('disc', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                              : tablerIcon('music', { size: 28, color: 'var(--bb-text-secondary, #A0A0A0)' }),
+                  ),
+                  h(
+                    'div',
+                    { style: { minWidth: 0, flex: 1 } },
+                    h(
+                      'div',
+                      {
+                        style: {
+                          color: 'var(--bb-text-primary, #FFFFFF)',
+                          fontWeight: 500,
+                          fontSize: 14,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        },
+                      },
+                      item.title,
+                    ),
+                    h(
+                      'div',
+                      { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
+                      item.pinned
+                        ? h('span', { title: t('library:expandedLibrary.pinned'), style: { display: 'inline-flex', alignItems: 'center', color: 'var(--color-primary, #5F87FF)', marginRight: 2 } }, tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)' }))
+                        : null,
+                      h(
+                        'span',
+                        {
+                          style: {
+                            color: 'var(--bb-text-secondary, #A0A0AE)',
+                            fontSize: 12,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          },
+                        },
+                        item.subtitle,
+                      ),
+                    ),
+                  ),
+                ),
+                h(
+                  'div',
+                  { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
+                  formatAddedDate(item.addedAt),
+                ),
+                h(
+                  'div',
+                  { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
+                  formatPlayedDate(item.lastPlayedAt),
+                ),
+              )
+            }),
+          ),
       modals,
       contextMenus,
     )
@@ -579,118 +606,138 @@ export function ExpandedLibraryView({
             },
           },
           h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
-          tablerIcon('list', { size: 20 }),
+          tablerIcon(viewMode === 'tiled' ? 'layout-grid' : 'list', { size: 20 }),
         ),
       ),
     ),
-    h(
-      'div',
-      { style: { flex: 1, display: 'flex', flexDirection: 'column' } },
-      h(
-        'div',
-        {
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            padding: '8px 16px',
-            borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-            color: 'var(--bb-text-secondary, #A0A0AE)',
-            fontSize: 12,
-            marginBottom: 8,
-          },
-        },
-        h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
-        h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
-        h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
-      ),
-      filteredItems.map((item) => {
-        const isFav = item.kind === 'favorite'
-        const isArt = item.kind === 'artist'
-        return h(
+    viewMode === 'tiled'
+      ? h(
           'div',
           {
-            key: item.id,
-            onClick: () => item.onOpen(),
+            'data-testid': 'expanded-library-grid',
             style: {
-              display: 'flex',
-              alignItems: 'center',
-              padding: '8px 16px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              transition: 'background-color 0.15s ease',
-            },
-            onMouseEnter: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
-            },
-            onMouseLeave: (e: { currentTarget: HTMLElement }) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: 20,
+              padding: '8px 0 32px 0',
             },
           },
-          h(
-            'div',
-            { style: { flex: 2, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 } },
-            h(
-              'div',
-              {
-                style: {
-                  width: 48,
-                  height: 48,
-                  borderRadius: isArt ? '50%' : 4,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: isFav ? '#FFFFFF' : undefined,
-                  backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
-                  background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
-                },
-              },
-              isFav
-                ? tablerIcon('heart-filled', { size: 26, color: 'currentColor' })
-                : item.artwork
-                  ? h(CachedArtwork, {
-                      ctx,
-                      artwork: item.artwork,
-                      seed: item.artworkSeed,
-                      size: 48,
-                      radius: isArt ? 24 : 4,
-                    })
-                  : (isArt
-                      ? tablerIcon('user', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                      : item.kind === 'local'
-                        ? tablerIcon('folder', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                        : item.kind === 'album'
-                          ? tablerIcon('disc', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
-                          : tablerIcon('music', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })),
-            ),
-            h(
-              'div',
-              { style: { minWidth: 0, flex: 1 } },
-              h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.title),
-              h(
-                'div',
-                { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
-                item.pinned
-                  ? tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)', style: { marginRight: 2 } })
-                  : null,
-                h('span', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.subtitle),
-              ),
-            ),
-          ),
-          h(
-            'div',
-            { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
-            formatAddedDate(item.addedAt),
-          ),
-          h(
-            'div',
-            { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
-            formatPlayedDate(item.lastPlayedAt),
+          filteredItems.map((item) =>
+            h(UnifiedLibraryCard, {
+              key: item.id,
+              ctx,
+              item,
+            }),
           ),
         )
-      }),
-    ),
+      : h(
+          'div',
+          { style: { flex: 1, display: 'flex', flexDirection: 'column' } },
+          h(
+            'div',
+            {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 16px',
+                borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                color: 'var(--bb-text-secondary, #A0A0AE)',
+                fontSize: 12,
+                marginBottom: 8,
+              },
+            },
+            h('div', { style: { flex: 2 } }, t('library:expandedLibrary.title')),
+            h('div', { style: { flex: 1 } }, t('library:expandedLibrary.dateAdded')),
+            h('div', { style: { flex: 1, textAlign: 'right' } }, t('library:expandedLibrary.plays')),
+          ),
+          filteredItems.map((item) => {
+            const isFav = item.kind === 'favorite'
+            const isArt = item.kind === 'artist'
+            return h(
+              'div',
+              {
+                key: item.id,
+                onClick: () => item.onOpen(),
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease',
+                },
+                onMouseEnter: (e: { currentTarget: HTMLElement }) => {
+                  e.currentTarget.style.backgroundColor = 'var(--surface-hover, rgba(255, 255, 255, 0.06))'
+                },
+                onMouseLeave: (e: { currentTarget: HTMLElement }) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                },
+              },
+              h(
+                'div',
+                { style: { flex: 2, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 } },
+                h(
+                  'div',
+                  {
+                    style: {
+                      width: 48,
+                      height: 48,
+                      borderRadius: isArt ? '50%' : 4,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isFav ? '#FFFFFF' : undefined,
+                      backgroundColor: isFav ? 'transparent' : 'var(--surface-1, rgba(255, 255, 255, 0.05))',
+                      background: isFav ? 'linear-gradient(135deg, #450af5, #8e8ee5)' : undefined,
+                    },
+                  },
+                  isFav
+                    ? tablerIcon('heart-filled', { size: 26, color: 'currentColor' })
+                    : item.artwork
+                      ? h(CachedArtwork, {
+                          ctx,
+                          artwork: item.artwork,
+                          seed: item.artworkSeed,
+                          size: 48,
+                          radius: isArt ? 24 : 4,
+                        })
+                      : (isArt
+                          ? tablerIcon('user', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                          : item.kind === 'local'
+                            ? tablerIcon('folder', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                            : item.kind === 'album'
+                              ? tablerIcon('disc', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })
+                              : tablerIcon('music', { size: 24, color: 'var(--bb-text-secondary, #A0A0A0)' })),
+                ),
+                h(
+                  'div',
+                  { style: { minWidth: 0, flex: 1 } },
+                  h('div', { style: { color: 'var(--bb-text-primary, #FFFFFF)', fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.title),
+                  h(
+                    'div',
+                    { style: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 } },
+                    item.pinned
+                      ? tablerIcon('pin', { size: 16, color: 'var(--color-primary, #5F87FF)', style: { marginRight: 2 } })
+                      : null,
+                    h('span', { style: { color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.subtitle),
+                  ),
+                ),
+              ),
+              h(
+                'div',
+                { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13 } },
+                formatAddedDate(item.addedAt),
+              ),
+              h(
+                'div',
+                { style: { flex: 1, color: 'var(--bb-text-secondary, #A0A0AE)', fontSize: 13, textAlign: 'right' } },
+                formatPlayedDate(item.lastPlayedAt),
+              ),
+            )
+          }),
+        ),
     modals,
     contextMenus,
   )

@@ -5,7 +5,13 @@ import type { Collection } from '@BBeBee/protocol'
 import type { MenuAnchor } from '@BBeBee/ui-core'
 import { EmptyState, List, TextField, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { UnifiedLibraryRow, type UnifiedItem } from '../UnifiedLibraryRow.js'
-import { LIBRARY_SORT_LABELS, type LibrarySortMode } from '../LibraryToolbar.js'
+import { UnifiedLibraryCard } from '../UnifiedLibraryCard.js'
+import {
+  LIBRARY_SORT_LABELS,
+  type LibrarySortMode,
+  type LibrarySortOrder,
+  type LibraryViewMode,
+} from '../LibraryToolbar.js'
 
 export interface SidebarFolderViewProps {
   ctx: Context
@@ -22,6 +28,8 @@ export interface SidebarFolderViewProps {
   searchQuery: string
   setSearchQuery: (query: string) => void
   sortMode: LibrarySortMode
+  sortOrder?: LibrarySortOrder
+  viewMode?: LibraryViewMode
   setSortMenuAnchor: (anchor: MenuAnchor | undefined) => void
 
   filteredFolderItems: readonly UnifiedItem[]
@@ -44,6 +52,8 @@ export function SidebarFolderView({
   searchQuery,
   setSearchQuery,
   sortMode,
+  sortOrder: _sortOrder,
+  viewMode,
   setSortMenuAnchor,
 
   filteredFolderItems,
@@ -264,7 +274,7 @@ export function SidebarFolderView({
           },
         },
         h('span', null, t(LIBRARY_SORT_LABELS[sortMode])),
-        h('span', { style: { display: 'inline-flex', alignItems: 'center' } }, tablerIcon('list', { size: 20 })),
+        h('span', { style: { display: 'inline-flex', alignItems: 'center' } }, tablerIcon(viewMode === 'tiled' ? 'layout-grid' : 'list', { size: 20 })),
       ),
     ),
     h(
@@ -276,14 +286,34 @@ export function SidebarFolderView({
             title: t('library:sidebarFolder.thisFolderIsEmpty'),
             description: t('library:sidebarFolder.clickCreateToAddA'),
           })
-        : h(List<UnifiedItem>, {
-            testID: 'folder-items-list',
-            items: filteredFolderItems,
-            estimatedItemSize: 64,
-            keyExtractor: (item) => item.id,
-            empty: h(EmptyState, { title: t('library:sidebarFolder.noItemsYet') }),
-            renderItem: (item) => h(UnifiedLibraryRow, { key: item.id, ctx, item }),
-          }),
+        : viewMode === 'tiled'
+          ? h(
+              'div',
+              {
+                'data-testid': 'folder-items-grid',
+                style: {
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                  gap: 12,
+                  padding: '4px 0 16px 0',
+                },
+              },
+              filteredFolderItems.map((item) =>
+                h(UnifiedLibraryCard, {
+                  key: item.id,
+                  ctx,
+                  item,
+                }),
+              ),
+            )
+          : h(List<UnifiedItem>, {
+              testID: 'folder-items-list',
+              items: filteredFolderItems,
+              estimatedItemSize: 64,
+              keyExtractor: (item) => item.id,
+              empty: h(EmptyState, { title: t('library:sidebarFolder.noItemsYet') }),
+              renderItem: (item) => h(UnifiedLibraryRow, { key: item.id, ctx, item }),
+            }),
     ),
     modals,
     contextMenus,

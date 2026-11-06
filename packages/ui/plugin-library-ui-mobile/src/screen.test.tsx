@@ -365,6 +365,74 @@ describe('LibraryScreen on mobile', () => {
     })
     expect(ui.calls).toContain(`library.playlist:{"urn":"${PLAYLIST_URN}"}`)
   })
+
+  it('supports switching view mode between list and tiled, and sort modes via header submenus', async () => {
+    const { ctx } = await harness()
+    const { getByTestId, queryByTestId } = render(h(LibraryScreen, { ctx }))
+    await act(async () => {
+      await tick()
+    })
+
+    // Initially list mode
+    expect(getByTestId('playlists-list')).toBeTruthy()
+    expect(queryByTestId('playlists-grid')).toBeNull()
+
+    // Open header menu
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+
+    // Both Display and Sort items exist in main menu with descriptions
+    const viewItem = getByTestId('menu-view-mode')
+    expect(viewItem).toBeTruthy()
+    expect(viewItem.textContent).toContain('Display')
+    expect(viewItem.textContent).toContain('List')
+
+    const sortItem = getByTestId('menu-sort')
+    expect(sortItem).toBeTruthy()
+    expect(sortItem.textContent).toContain('Sort by')
+
+    // Click Display item to enter submenu
+    await act(async () => {
+      viewItem.click()
+      await tick()
+    })
+
+    // In submenu, select Tiled
+    const tiledOption = getByTestId('view-mode-tiled')
+    expect(tiledOption).toBeTruthy()
+    await act(async () => {
+      tiledOption.click()
+      await tick()
+    })
+
+    // Tiled view should now be rendered
+    expect(queryByTestId('playlists-list')).toBeNull()
+    expect(getByTestId('playlists-grid')).toBeTruthy()
+
+    // Re-open header menu, enter Sort submenu
+    await act(async () => {
+      ctx.emit('library/open-header-menu')
+      await tick()
+    })
+    await act(async () => {
+      getByTestId('menu-sort').click()
+      await tick()
+    })
+
+    // Verify sort options including asc/desc
+    expect(getByTestId('sort-option-recent-added')).toBeTruthy()
+    expect(getByTestId('sort-option-alphabetical')).toBeTruthy()
+    expect(getByTestId('sort-order-asc')).toBeTruthy()
+    expect(getByTestId('sort-order-desc')).toBeTruthy()
+
+    // Select Ascending
+    await act(async () => {
+      getByTestId('sort-order-asc').click()
+      await tick()
+    })
+  })
 })
 
 /** A testID lookup that reads the host components' `data-testid` attribute. */

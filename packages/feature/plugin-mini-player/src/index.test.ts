@@ -59,4 +59,39 @@ describe('plugin-mini-player', () => {
     await ctx.miniPlayer.close()
     expect(ctx.miniPlayer.state.visible).toBe(false)
   })
+
+  it('sends empty artworkUri string when cover is null/undefined', async () => {
+    let lastData: any = null
+    const fakeBridge = {
+      updateData: (data: any) => {
+        lastData = data
+      },
+    }
+    ;(globalThis as any).window = {
+      BBeBee: { miniPlayer: fakeBridge },
+    }
+
+    const { ctx } = await createHarness()
+    const player = ctx.player as any
+
+    // 1. Play track with cover
+    player.transport = {
+      ...player.transport,
+      trackUrn: 'bbebee:track:1',
+      nowPlaying: { title: 'Track 1', artworkUri: 'file:///path/to/cover.jpg' },
+    }
+    ctx.emit('player/track-changed', player.transport)
+    expect(lastData?.artworkUri).toBe('bbebee-file:///path/to/cover.jpg')
+
+    // 2. Play track without cover
+    player.transport = {
+      ...player.transport,
+      trackUrn: 'bbebee:track:2',
+      nowPlaying: { title: 'Track 2' },
+    }
+    ctx.emit('player/track-changed', player.transport)
+    expect(lastData?.artworkUri).toBe('')
+
+    delete (globalThis as any).window
+  })
 })

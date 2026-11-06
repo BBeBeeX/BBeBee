@@ -20,6 +20,10 @@ export type LibraryFilterKey = 'all' | 'playlist' | 'album' | 'artist' | 'downlo
 
 export type LibrarySortMode = 'creator' | 'recent-added' | 'recent-played' | 'alphabetical'
 
+export type LibrarySortOrder = 'asc' | 'desc'
+
+export type LibraryViewMode = 'list' | 'tiled'
+
 export interface LibraryItemSortable {
   readonly title: string
   readonly subtitle?: string
@@ -62,27 +66,36 @@ export function filterUnifiedItems<T extends LibraryItemSortable>(
 }
 
 /**
- * Sort unified library items: pinned items always first, then by the selected mode.
+ * Sort unified library items: pinned items always first, then by the selected mode and order.
  */
 export function sortUnifiedItems<T extends LibraryItemSortable>(
   items: readonly T[],
   sortMode: LibrarySortMode,
+  sortOrder?: LibrarySortOrder,
 ): T[] {
+  const effectiveOrder: LibrarySortOrder =
+    sortOrder ?? (sortMode === 'alphabetical' || sortMode === 'creator' ? 'asc' : 'desc')
+
   return [...items].sort((a, b) => {
     const aPinned = Boolean(a.pinned)
     const bPinned = Boolean(b.pinned)
     if (aPinned !== bPinned) return aPinned ? -1 : 1
 
     if (sortMode === 'alphabetical') {
-      return a.title.localeCompare(b.title, 'zh-Hans-CN')
-    }
-    if (sortMode === 'recent-played') {
-      return (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0)
+      const cmp = a.title.localeCompare(b.title, 'zh-Hans-CN')
+      return effectiveOrder === 'asc' ? cmp : -cmp
     }
     if (sortMode === 'creator') {
-      return (a.creator ?? '').localeCompare(b.creator ?? '', 'zh-Hans-CN')
+      const cmp = (a.creator ?? '').localeCompare(b.creator ?? '', 'zh-Hans-CN')
+      return effectiveOrder === 'asc' ? cmp : -cmp
     }
-    return (b.addedAt ?? 0) - (a.addedAt ?? 0)
+    if (sortMode === 'recent-played') {
+      const cmp = (b.lastPlayedAt ?? 0) - (a.lastPlayedAt ?? 0)
+      return effectiveOrder === 'desc' ? cmp : -cmp
+    }
+    // recent-added
+    const cmp = (b.addedAt ?? 0) - (a.addedAt ?? 0)
+    return effectiveOrder === 'desc' ? cmp : -cmp
   })
 }
 
@@ -134,13 +147,17 @@ export interface LibraryViewState {
   readonly pinnedUrns: Set<string>
   readonly isItemPinned: (item: { id?: string; urn?: string }) => boolean
 
-  // Filter & Search & Sort
+  // Filter & Search & Sort & View Mode
   readonly activeFilter: LibraryFilterKey
   readonly setActiveFilter: (filter: LibraryFilterKey) => void
   readonly searchQuery: string
   readonly setSearchQuery: (query: string) => void
   readonly sortMode: LibrarySortMode
   readonly setSortMode: (mode: LibrarySortMode) => void
+  readonly sortOrder: LibrarySortOrder
+  readonly setSortOrder: (order: LibrarySortOrder) => void
+  readonly viewMode: LibraryViewMode
+  readonly setViewMode: (mode: LibraryViewMode) => void
 
   // Folder Expansion
   readonly expandedFolderIds: Set<string>
@@ -160,6 +177,8 @@ export function useLibraryView(
   options?: {
     defaultFilter?: LibraryFilterKey
     defaultSortMode?: LibrarySortMode
+    defaultSortOrder?: LibrarySortOrder
+    defaultViewMode?: LibraryViewMode
   },
 ): LibraryViewState {
   const [generation, setGeneration] = useLibraryDebouncedGeneration(ctx, 750)
@@ -198,6 +217,8 @@ export function useLibraryView(
   const [activeFilter, setActiveFilter] = useState<LibraryFilterKey>(options?.defaultFilter ?? 'all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState<LibrarySortMode>(options?.defaultSortMode ?? 'creator')
+  const [sortOrder, setSortOrder] = useState<LibrarySortOrder>(options?.defaultSortOrder ?? 'desc')
+  const [viewMode, setViewMode] = useState<LibraryViewMode>(options?.defaultViewMode ?? 'list')
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set())
 
   const toggleFolderExpanded = useCallback((folderId: string) => {
@@ -212,9 +233,9 @@ export function useLibraryView(
   const filterAndSort = useCallback(
     <T extends LibraryItemSortable>(items: readonly T[]): T[] => {
       const filtered = filterUnifiedItems(items, activeFilter, searchQuery)
-      return sortUnifiedItems(filtered, sortMode)
+      return sortUnifiedItems(filtered, sortMode, sortOrder)
     },
-    [activeFilter, searchQuery, sortMode],
+    [activeFilter, searchQuery, sortMode, sortOrder],
   )
 
   const favoritesCount = savedTrackEntries.data?.length ?? 0
@@ -244,6 +265,10 @@ export function useLibraryView(
     setSearchQuery,
     sortMode,
     setSortMode,
+    sortOrder,
+    setSortOrder,
+    viewMode,
+    setViewMode,
 
     expandedFolderIds,
     toggleFolderExpanded,

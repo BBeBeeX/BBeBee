@@ -174,6 +174,18 @@ contributions — a plugin's section disappears when the plugin does.
 
 > Layout modes and menu visual spec: see [docs/ui/design-system.md §8](../docs/ui/design-system.md#8-library-sidebar-modes--context-menu-design) (L3).
 
+### Library Presentation & Sorting Standards
+- **Unified Library Presentation & Grid Mode**:
+  - The unified music library supports dynamic view mode switching via `viewMode` (`'list' | 'tiled'`).
+  - In list mode (`'list'`), items render as single-row list components (`UnifiedLibraryRow` on desktop; `UnifiedRow` with `layout="list"` on mobile).
+  - In tiled mode (`'tiled'`), items render as cards (`UnifiedLibraryCard` responsive grid on desktop; `UnifiedRow` with `layout="grid"` in a 2-column flex-wrap container on mobile).
+- **Unified Library Sorting & Direction Invariant**:
+  - Library sorting supports four criteria (`creator`, `recent-added`, `recent-played`, `alphabetical`) and directional ordering (`sortOrder: 'asc' | 'desc'`).
+  - **Pinned Item Invariant**: Pinned items (`pinned: true`) must **strictly remain at the top** of the library list or grid, preceding unpinned items regardless of the chosen sort mode or ascending/descending order.
+- **Cross-Platform Library Menu Invariants**:
+  - **Desktop Single First-Level Menu**: All sort options, ascending/descending controls, and view modes (list/tiled) must be listed simultaneously within the primary first-level menu. Sections must be grouped using flush-left section labels (`heading: true`) and dividers (`divider: true`), with active checkmark indicators.
+  - **Mobile Hierarchical Submenu with Subtitles**: The header menu must present separate top-level rows for "Display" and "Sort", each displaying a subtitle (`item.description`) reflecting the current selection. Selecting either option must navigate into a dedicated second-level submenu containing category header chrome (icon, title, subtitle, and collapse chevron `∨`), divider, and checkmark options.
+
 ### Context Menu Design Standards
 - **Folder (Collection) Semantics**: Folders are directory containers for collection-level entities (playlists, albums, artists, child folders). Folders **never** contain individual tracks; individual tracks belong to playlists and albums. Track context menus only offer "Add to playlist" (`add-to-playlist`), never "Add to collection / Move to folder" (`add-to-collection`).
 - **Recursive Track Gathering**: When adding a folder's contents to other playlists ("Add to another playlist") or playing a folder, `collectAllFolderTracks` (exported from `@bbebee/plugin-library/hooks`) recursively scans all nested playlist tracks, nested album tracks, and all descendant subfolders without duplicates (folders do not contain direct tracks).

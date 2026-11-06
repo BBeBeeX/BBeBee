@@ -554,12 +554,35 @@ Domain behaviours that stay with their owners even after the move:
 
 Folder/collection semantics and recursive track gathering are normative in [rules/ui.md §6](../../rules/ui.md#6-library-sidebars--context-menus-specification) (L2).
 
-### 8.1 Library Layout Modes
-- **Collapsed Mode (72px)**: Minimal compact rail showing icon tiles. Folders render dedicated folder outline SVG icons. Entering a folder reveals a `chevron-left` return button beneath the top logo to return to the root library.
-- **Sidebar Mode (260–340px)**: Standard library navigation. Folders feature inline expand/collapse via rotating chevron indicators (`chevron-down` / `chevron-right`), indenting children by 28px left padding. Clicking the folder row navigates into the folder details screen (`chevron-left <folder name>`).
-- **Expanded Mode (Full Canvas)**: High-density 3-column table view with breadcrumbs (`Music library < folder name`), interactive search, and responsive sizing.
+### 8.1 Library Layout Modes & Display Formats
+- **Presentation Modes (Collapsed, Sidebar, Expanded)**:
+  - **Collapsed Mode (72px)**: Minimal compact rail showing icon tiles. Folders render dedicated folder outline SVG icons. Entering a folder reveals a `chevron-left` return button beneath the top logo to return to the root library.
+  - **Sidebar Mode (260–340px)**: Standard library navigation. Folders feature inline expand/collapse via rotating chevron indicators (`chevron-down` / `chevron-right`), indenting children by 28px left padding. Clicking the folder row navigates into the folder details screen (`chevron-left <folder name>`).
+  - **Expanded Mode (Full Canvas)**: High-density 3-column table view with breadcrumbs (`Music library < folder name`), interactive search, and responsive sizing.
+- **Display Formats (List vs. Tiled/Grid)**:
+  - Supports dynamic view mode switching (`viewMode: 'list' | 'tiled'`).
+  - **Desktop**: In list mode, items render as high-density single rows (`UnifiedLibraryRow`). In tiled mode, items render as structured card tiles (`UnifiedLibraryCard`) in a responsive auto-fill grid (`repeat(auto-fill, minmax(140px, 1fr))` in sidebar and folder views; `minmax(160px, 1fr)` in expanded view). Cards provide 1:1 square artwork (circular for artists, gradient for Favorites, folder icon for collections), a hover play overlay button, pin badge, title, and subtitle.
+  - **Mobile**: In list mode, items render via virtualized `List` of `UnifiedRow`. In tiled mode, items render as a 2-column flex-wrap grid (`UnifiedRow` with `layout="grid"` inside `ScrollView`), featuring 1:1 artwork cards with title, pin flag, and subtitle underneath.
+- **Sorting Criteria & Direction**:
+  - Sort keys: `creator`, `recent-added`, `recent-played`, `alphabetical`.
+  - Direction: `sortOrder: 'asc' | 'desc'`, with natural defaults (ascending for alphabetical/creator, descending for timestamps).
+  - **Pinned Item Invariant**: Pinned items (`pinned: true`) strictly remain grouped at the top of the collection regardless of the active sort mode or ascending/descending direction.
 
 ### 8.2 Context Menu Design Standards
+- **Platform-Specific Library Menu Architectures**:
+  - **Desktop (Single First-Level Menu)**:
+    - All sorting and presentation options are presented simultaneously within a **single first-level context menu**.
+    - Sections are grouped with flush-left section labels (`heading: true`) for `library:favorites.sortBy` and `library:library.viewMode`.
+    - Items within a section use `divider: true` on the final element to separate groups cleanly.
+    - Active selections display a `tablerIcon('check')` indicator.
+    - The toolbar sort button icon dynamically adapts to the current view mode (`list` icon in list mode; `layout-grid` icon in tiled mode).
+  - **Mobile (Hierarchical Submenus with Header Chrome)**:
+    - The header menu splits options into separate entries: "Display" (`menu-view-mode`) and "Sort" (`menu-sort`).
+    - Top-level rows declare `item.description` subtitles displaying the current selection (e.g. `List` / `Tiled`, and `Recently added (Descending)`), with trailing navigation chevrons (`>`).
+    - Activating either option navigates into a dedicated **second-level submenu**:
+      - Submenu header displays the category icon (`icon`), bold title (`title`), selection subtitle (`subtitle`), and a right-aligned collapse chevron `∨` (or back arrow) to return to the parent menu.
+      - A hairline divider separates the header from the option rows.
+      - Items display active checkmarks (`✓`) and dividers separating option groups (e.g. sort keys separated from ascending/descending toggles).
 - **Track menus on player surfaces**: the bottom bar's cover and the fullscreen play page both
   right-click to the same track menu model (`trackMenuItems`); the play page passes the playing
   queue entry's id (`state.currentItemId`, queue-row fallback by `trackUrn`) so Remove from queue
