@@ -1389,7 +1389,7 @@ describe('SettingsScreen', () => {
   
   it('renders plugins partition, filters by query, expands card details, and toggles enablement', async () => {
     const { ctx, calls } = await harness()
-    const { container, findByText, getByText, getAllByText, getByPlaceholderText, queryByText } = render(h(SettingsScreen, { ctx }))
+    const { container, findByText, getByText, getAllByText, getByPlaceholderText, getByTestId, queryByText } = render(h(SettingsScreen, { ctx }))
 
     const pluginsTab = await findByText('Plugins')
     fireEvent.click(pluginsTab)
@@ -1448,8 +1448,9 @@ describe('SettingsScreen', () => {
     expect(await findByText('Confirm disabling plugin')).toBeTruthy()
     expect(getAllByText(/Settings center/).length).toBeGreaterThanOrEqual(2)
 
-    // Confirm disable
-    const confirmBtn = container.querySelector('[data-testid="confirm-disable-plugin-btn"]') as HTMLButtonElement
+    // Confirm disable — the Sheet portals to document.body, so the button
+    // lives outside `container`; query the document instead.
+    const confirmBtn = getByTestId('confirm-disable-plugin-btn') as HTMLButtonElement
     expect(confirmBtn).toBeTruthy()
     fireEvent.click(confirmBtn)
 

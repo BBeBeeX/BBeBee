@@ -881,12 +881,14 @@ describe('RegistryScreen', () => {
     const acceptBtn = getByTestId('registry-confirm-accept') as HTMLButtonElement
     expect(acceptBtn.disabled).toBe(true)
 
-    // Check override checkbox to unblock
+    // Check override checkbox to unblock. Re-query the button afterwards:
+    // the Sheet portals on mount and the click's re-render replaces the
+    // button's DOM node, so the pre-click reference goes stale.
     const checkbox = getByTestId('registry-block-override-checkbox')
     fireEvent.click(checkbox)
-    expect(acceptBtn.disabled).toBe(false)
+    expect((getByTestId('registry-confirm-accept') as HTMLButtonElement).disabled).toBe(false)
 
-    fireEvent.click(acceptBtn)
+    fireEvent.click(getByTestId('registry-confirm-accept'))
     await waitFor(() => expect(calls).toContain('install:plugin-ok:true'))
   })
 })
@@ -1424,8 +1426,11 @@ describe('RegistryScreen installed tab', () => {
 /* ── RegistryScreen: task center ─────────────────────────────────────────── */
 
 /** The rendered task rows' testids, in the order the drawer lists them. */
-function taskIds(screen: HTMLElement): Array<string | null> {
-  return Array.from(screen.querySelectorAll('[data-testid^="registry-task-item-"]')).map((el) =>
+function taskIds(): Array<string | null> {
+  // The drawer rows live in the kit Sheet's portal under document.body,
+  // not inside the registry-screen element — scoping the query to the
+  // screen misses every row.
+  return Array.from(document.querySelectorAll('[data-testid^="registry-task-item-"]')).map((el) =>
     el.getAttribute('data-testid'),
   )
 }
@@ -1460,7 +1465,7 @@ describe('RegistryScreen task center', () => {
     expect(drawer.closest('[role="dialog"]')?.textContent).toContain('Tasks')
 
     // Newest → oldest, exactly the service snapshot's order.
-    expect(taskIds(getByTestId('registry-screen'))).toEqual([
+    expect(taskIds()).toEqual([
       'registry-task-item-task-running',
       'registry-task-item-task-pending',
       'registry-task-item-task-success',
@@ -1502,7 +1507,7 @@ describe('RegistryScreen task center', () => {
 
     // The stub really removed the finished records and emitted the snapshot;
     // only the pending row survives.
-    await waitFor(() => expect(taskIds(getByTestId('registry-screen'))).toEqual(['registry-task-item-task-pending']))
+    await waitFor(() => expect(taskIds()).toEqual(['registry-task-item-task-pending']))
   })
 
   it('degrades quietly when the optional task methods are absent', async () => {
