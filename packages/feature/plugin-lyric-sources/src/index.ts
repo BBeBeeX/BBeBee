@@ -316,6 +316,21 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
     this.ownCtx.logger.info(`lyricSources: reordered sources (${sourceIds.join(', ')})`)
   }
 
+  /**
+   * Whether one lyric source's requests route through the configured proxy.
+   *
+   * The same per-source opt-in map the music sources use — a lyric source's
+   * id is just another key in `proxy.sourceRules` — read live per execution
+   * so a settings flip lands on the next search without a restart. The
+   * `httpFetch` host fn a script sees is built per execution, so the decision
+   * rides into the sandbox as a plain flag.
+   */
+  private useProxyFor(sourceId: string): boolean {
+    const proxy = this.settingsService?.getSync().proxy
+    if (!proxy?.enabled) return false
+    return proxy.sourceRules[sourceId] === true
+  }
+
   async searchLyrics(query: LyricSearchQuery): Promise<Lyrics | undefined> {
     /*
      * The master switch gates only *lookup*, not `testSource`: a user turning
@@ -337,6 +352,7 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
         const raw = await executeLyricSource(source, query, {
           js: this.jsService,
           http: this.httpService,
+          useProxy: this.useProxyFor(source.id),
         })
         const lyrics = normalizeToLyrics(raw)
         if (lyrics && lyrics.content.trim()) {
@@ -370,6 +386,7 @@ export class LyricSourcesPlugin extends Service implements LyricSourcesService {
       const raw = await executeLyricSource(source, query, {
         js: this.jsService,
         http: this.httpService,
+        useProxy: this.useProxyFor(source.id),
       })
       const durationMs = Date.now() - start
       const lyrics = normalizeToLyrics(raw)

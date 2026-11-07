@@ -11,10 +11,10 @@
  * page — they are dynamic, and a page per unknown id buys nothing.
  */
 
-import { createElement as h, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { DownloadRegion, FsService, ProxySettings, ScannerService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
+import type { DownloadRegion, FsService, LyricSourceDefinition, LyricSourcesService, ProxySettings, ScannerService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
@@ -202,6 +202,24 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const { items: audioSources, testConnection, testAll } = useAudioSourcesStatus(ctx)
   const thirdPartySources = useSources(ctx).filter((s) => s.id !== 'local')
 
+  // Third-party lyric sources — they join the music sources in the per-source
+  // proxy list (one `sourceRules` map keyed by source id).
+  const [lyricSourcesList, setLyricSourcesList] = useState<readonly LyricSourceDefinition[]>(() => {
+    const s = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+    return s?.getSources ? [...s.getSources()] : []
+  })
+  useEffect(() => {
+    const refresh = () => {
+      const s = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+      setLyricSourcesList(s?.getSources ? [...s.getSources()] : [])
+    }
+    refresh()
+    const off = ctx.on('lyric-sources/changed', refresh)
+    return () => {
+      off?.()
+    }
+  }, [ctx])
+
   const connectedCount = audioSources.filter(
     (item) => item.enabled && (isLocalSource(item.record) || item.authStatus.state === 'authenticated' || item.ping?.status === 'ok'),
   ).length
@@ -335,31 +353,56 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
             }).BBeBee
           : undefined
       )
+      const proxyConfig = {
+        protocol: proxy.protocol,
+        host: proxy.host,
+        port: proxy.port,
+        username: proxy.username,
+        password: proxy.password,
+      }
       if (bridge?.proxy?.test) {
-        const res = await bridge.proxy.test({
-          protocol: proxy.protocol,
-          host: proxy.host,
-          port: proxy.port,
-          username: proxy.username,
-          password: proxy.password,
-        })
-        setProxyTestResult(res)
-      } else {
-        const start = Date.now()
-        const ctrl = new AbortController()
-        const tId = setTimeout(() => ctrl.abort(), 5000)
+        setProxyTestResult(await bridge.proxy.test(proxyConfig))
+        return
+      }
+      // No desktop window bridge here — probe through the native proxy
+      // transport when this build carries it, so the button tests *the
+      // proxy* and not merely the direct route. (Typed structurally: a UI
+      // package does not import the platform core to name this seam.)
+      const proxyTransport = (globalThis as {
+        bbebeeProxyHttp?: (url: string, init: RequestInit) => Promise<Response>
+      }).bbebeeProxyHttp
+      const start = Date.now()
+      if (proxyTransport) {
         try {
-          await fetch('https://www.google.com/generate_204', {
-            method: 'HEAD',
-            signal: ctrl.signal,
-            mode: 'no-cors',
-          })
-          clearTimeout(tId)
-          setProxyTestResult({ ok: true, latencyMs: Date.now() - start })
+          const response = await proxyTransport('https://www.gstatic.com/generate_204', {
+            method: 'GET',
+            proxy: proxyConfig,
+          } as RequestInit)
+          if (response.status < 400) {
+            setProxyTestResult({ ok: true, latencyMs: Date.now() - start })
+          } else {
+            setProxyTestResult({ ok: false, error: `probe answered HTTP ${response.status}` })
+          }
         } catch (err: unknown) {
-          clearTimeout(tId)
           setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
         }
+        return
+      }
+      // Last resort without a native proxy module: a direct probe, which says
+      // the network is up but cannot vouch for the proxy.
+      const ctrl = new AbortController()
+      const tId = setTimeout(() => ctrl.abort(), 5000)
+      try {
+        await fetch('https://www.google.com/generate_204', {
+          method: 'HEAD',
+          signal: ctrl.signal,
+          mode: 'no-cors',
+        })
+        clearTimeout(tId)
+        setProxyTestResult({ ok: true, latencyMs: Date.now() - start })
+      } catch (err: unknown) {
+        clearTimeout(tId)
+        setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
       }
     } catch (err: unknown) {
       setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
@@ -599,22 +642,42 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                         },
                         h(Text, { variant: 'sm', tone: 'accent', children: t('settings:network.perSourceProxyRouting') }),
                         h(Text, { variant: 'xs', tone: 'muted', children: t('settings:network.perSourceProxyRoutingDesc') }),
-                        ...(thirdPartySources.length > 0
-                          ? thirdPartySources.map((s) =>
-                              renderRow(
-                                s.name || s.id,
-                                s.group ? `${s.group} · ${s.sourceUrl}` : s.sourceUrl,
-                                h(SwitchRow, {
-                                  checked: proxy.sourceRules[s.id] ?? false,
-                                  accessibilityLabel: t('settings:network.enableProxyFor', { name: s.name || s.id }),
-                                  onChange: (checked) => {
-                                    const nextRules = { ...proxy.sourceRules, [s.id]: checked }
-                                    void update({ proxy: { ...proxy, sourceRules: nextRules } })
-                                  },
-                                  liquid: liquidGlass,
-                                }),
+                        ...(thirdPartySources.length > 0 || lyricSourcesList.length > 0
+                          ? [
+                              // Music sources first, then lyric sources — one
+                              // `sourceRules` map keyed by source id, the same
+                              // map the desktop settings screen edits.
+                              ...thirdPartySources.map((s) =>
+                                renderRow(
+                                  s.name || s.id,
+                                  s.group ? `${s.group} · ${s.sourceUrl}` : s.sourceUrl,
+                                  h(SwitchRow, {
+                                    checked: proxy.sourceRules[s.id] ?? false,
+                                    accessibilityLabel: t('settings:network.enableProxyFor', { name: s.name || s.id }),
+                                    onChange: (checked) => {
+                                      const nextRules = { ...proxy.sourceRules, [s.id]: checked }
+                                      void update({ proxy: { ...proxy, sourceRules: nextRules } })
+                                    },
+                                    liquid: liquidGlass,
+                                  }),
+                                ),
                               ),
-                            )
+                              ...lyricSourcesList.map((s) =>
+                                renderRow(
+                                  s.name || s.id,
+                                  s.description ?? t('settings:network.lyricSourceKind'),
+                                  h(SwitchRow, {
+                                    checked: proxy.sourceRules[s.id] ?? false,
+                                    accessibilityLabel: t('settings:network.enableProxyFor', { name: s.name || s.id }),
+                                    onChange: (checked) => {
+                                      const nextRules = { ...proxy.sourceRules, [s.id]: checked }
+                                      void update({ proxy: { ...proxy, sourceRules: nextRules } })
+                                    },
+                                    liquid: liquidGlass,
+                                  }),
+                                ),
+                              ),
+                            ]
                           : [
                               h(Text, {
                                 key: 'no-sources',

@@ -23,6 +23,7 @@ import type {
   TransportState,
 } from '../entities/playback.js'
 import type { StreamHandle } from '../entities/media.js'
+import type { HttpProxyConfig } from './settings.js'
 
 /* ── ctx.audio ──────────────────────────────────────────────────────────── */
 
@@ -56,6 +57,17 @@ export interface LoadOptions {
   headers?: Record<string, string>
   signal?: AbortSignal
   onBuffered?: (seconds: number) => void
+  /**
+   * Route the *stream fetch itself* through the proxy configured in settings.
+   *
+   * The track's URL was resolved by its source — this flag says the bytes
+   * behind that URL should follow the same route. Only engines that fetch
+   * streams themselves can honour it (libmpv reads its `http-proxy` property
+   * per load); an engine that cannot simply plays direct. The proxy *config*
+   * is pushed to the audio service by the composition root, the same way
+   * `ctx.http.setProxy` receives it.
+   */
+  proxy?: boolean
 }
 
 export interface OutputDevice {
@@ -128,9 +140,18 @@ export interface AudioService {
    * source for the same file — on a single-core engine `load` is a
    * `loadfile replace`, which kills the track that is still sounding.
    */
-  preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void>
+  preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string>; proxy?: boolean }): Promise<void>
   /** Outcome of the most recent `preloadNext`, for gapless diagnostics. */
   readonly lastPreloadStatus?: { uri: string; ok: boolean; at: number }
+  /**
+   * The proxy streams marked `proxy` are fetched through; `null` means direct.
+   *
+   * Optional: an engine that cannot proxy a stream (or a build without the
+   * native proxy seam) omits it, and the flag is honestly declined. The
+   * composition root pushes the config on boot and every `settings/changed`,
+   * exactly like `ctx.http.setProxy`.
+   */
+  setProxyConfig?(config: HttpProxyConfig | null): void
 
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable
   onRouteChange(cb: (e: RouteChangeEvent) => void): Disposable

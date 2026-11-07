@@ -1126,7 +1126,9 @@ describe('SettingsScreen', () => {
     expect(getByText('Enable network proxy')).toBeTruthy()
     expect(getByText('Proxy protocol')).toBeTruthy()
     expect(getByText('Server host & port')).toBeTruthy()
-    expect(getByText('Per-source proxy routing for third-party music sources')).toBeTruthy()
+    expect(getByText('Per-source proxy routing for third-party music and lyric sources')).toBeTruthy()
+    // Lyric sources join the per-source list — the harness's stub carries one.
+    expect(getByText('LRCLIB (default lyric source)')).toBeTruthy()
 
     const testBtn = getByText('Test Google connection')
     expect(testBtn).toBeTruthy()

@@ -626,12 +626,22 @@ export function bridgeFetch(bridge: BridgeApi = requireBridge()): typeof fetch |
     const redirect = init.redirect ?? source?.redirect
     const signal = init.signal ?? source?.signal
 
+    /*
+     * The per-request proxy handoff (non-standard `RequestInit` field, set by
+     * `core-http-desktop` when the caller marked the request `useProxy`): the
+     * stored config object on transports that proxy in-process, `true` on a
+     * bare marker. Either way the wire gets only the *boolean* — the host
+     * applies its own config, so what the caller knows must never cross.
+     */
+    const proxy = Boolean((init as RequestInit & { proxy?: unknown }).proxy)
+
     const wire: BridgeHttpRequest = {
       url,
       method,
       headers,
       ...(bodyBytes && bodyBytes.byteLength > 0 ? { body: bytesToBase64(bodyBytes) } : {}),
       ...(redirect ? { redirect } : {}),
+      ...(proxy ? { proxy: true } : {}),
     }
 
     const head = unwrapBridgeResult<BridgeHttpHead>(await open(wire))

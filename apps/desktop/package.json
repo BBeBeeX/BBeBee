@@ -92,7 +92,9 @@
     "@tauri-apps/plugin-opener": "^2.0.0",
     "cordis": "4.0.0-rc.9",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "socks": "^2.8.7",
+    "undici": "^7.16.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.3",

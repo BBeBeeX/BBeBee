@@ -13,6 +13,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import readline from 'node:readline'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { fetch as undiciFetch } from 'undici'
+import type { RequestInit as UndiciRequestInit } from 'undici'
 import {
   createHost,
   type Host,
@@ -22,9 +24,11 @@ import {
   type SystemHost,
 } from '@bbebee/core-desktop-bridge/main'
 import { CH } from '@bbebee/core-desktop-bridge/protocol'
+import { httpProxyUrl } from '@BBeBee/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
 import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
+import { ProxyRegistry, normalizeProxyConfig, probeProxy } from './proxy.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
 // Strictly isolate standard output for NDJSON JSON-RPC messages only.
@@ -109,6 +113,9 @@ export async function createSidecar(): Promise<SidecarContext> {
   const audioHost = createAudioHost(audioLogger)
   const userDataDir = resolveSystemPath('userData')
   const protocolManager = new ProtocolManager()
+  // Holds the proxy config pushed from settings and turns it into the
+  // undici dispatcher marked requests are routed through (see `proxy:set`).
+  const proxyRegistry = new ProxyRegistry()
 
   const wakeLocks = new Map<number, string>()
   const registeredHotkeys = new Set<string>()
@@ -163,6 +170,22 @@ export async function createSidecar(): Promise<SidecarContext> {
     resolvePath: (kind) => resolveSystemPath(kind),
     databaseFileName: process.env['BBEBEE_DB_NAME'] ?? 'BBeBee.db',
     httpFetch: async (input, init) => {
+      /*
+       * Two transports: a request marked `proxy` (the non-standard init field
+       * `ctx.http` sets for requests the settings routed to a proxy) goes
+       * through the configured proxy via undici's dispatcher; everything else
+       * is Node's own fetch. The config the marker resolves against is *this*
+       * side's — pushed through `proxy:set` — so a marked request with no
+       * stored config simply goes direct.
+       */
+      const dispatcher = proxyRegistry.dispatcher
+      if ((init as { proxy?: boolean })['proxy'] === true && dispatcher) {
+        const res = await undiciFetch(String(input), {
+          ...(init as RequestInit),
+          dispatcher,
+        } as unknown as UndiciRequestInit)
+        return res as unknown as HttpFetchResponse
+      }
       const res = await globalThis.fetch(input, init as RequestInit)
       return res as unknown as HttpFetchResponse
     },
@@ -288,15 +311,33 @@ export async function createSidecar(): Promise<SidecarContext> {
     return { ok: false, message: 'Plugin directory not found', deleted: [] }
   })
 
-  // Proxy test and set
-  ipc.handle('proxy:test', async (_event, config: { protocol?: string; host?: string; port?: number }) => {
-    if (!config?.host || !config?.port) {
-      return { ok: false, error: 'Proxy server address or port cannot be empty' }
-    }
-    return { ok: true, latencyMs: 15 }
-  })
+  // Proxy test and set — the enforcement point of the settings-side proxy.
+  // The renderer only *marks* requests; this side holds the config, the
+  // dispatcher, and the audio engine's environment.
+  ipc.handle(
+    'proxy:test',
+    async (
+      _event,
+      config: { protocol?: string; host?: string; port?: number; username?: string; password?: string },
+    ) => {
+      const normalized = normalizeProxyConfig(config)
+      if (!normalized) {
+        return { ok: false, error: 'Proxy server address or port cannot be empty' }
+      }
+      return probeProxy(normalized)
+    },
+  )
 
-  ipc.handle('proxy:set', async () => {})
+  ipc.handle('proxy:set', async (_event, config: unknown) => {
+    const stored = proxyRegistry.set(config)
+    // Streams are fetched by the audio engine's own process, whose
+    // environment is fixed at spawn: push the URL down and let the
+    // supervisor decide whether a (signature-guarded) restart is warranted.
+    // Only http(s) proxies — ffmpeg reads no SOCKS proxy from the environment.
+    const url = stored && stored.protocol !== 'socks5' ? (httpProxyUrl(stored) ?? null) : null
+    audioHost.supervisor.setProxyEnv(url)
+    return { ok: true }
+  })
 
   // Stream headers
   ipc.handle('stream:set-headers', async () => {})
@@ -334,6 +375,7 @@ export async function createSidecar(): Promise<SidecarContext> {
   ipc.handle('sidecar:ping', async () => 'pong')
 
   const shutdown = async () => {
+    proxyRegistry.dispose()
     try {
       await audioHost.supervisor.shutdown()
     } catch {

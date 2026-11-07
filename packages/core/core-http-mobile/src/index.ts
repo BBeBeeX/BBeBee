@@ -30,17 +30,38 @@
 
 import { fetch as expoFetch } from 'expo/fetch'
 import type { Context } from 'cordis'
+import type { HttpRequest } from '@BBeBee/protocol'
 import type {} from '@BBeBee/protocol'
 import { HttpNode, jarStore, type HttpNodeConfig } from '@bbebee/core-http-desktop'
+
+/**
+ * A transport that dials through the proxy configured in settings.
+ *
+ * Supplied by the app (a thin adapter over the native `BbebeeHttpProxy` Expo
+ * module) rather than imported here, for the same dependency direction the
+ * audio engine takes: `packages/core` never reaches into `apps/mobile`, the
+ * shell hands the platform piece over. The request shape is plain `fetch` —
+ * the proxy *config* is not part of a call; `setProxy` stores it and this
+ * transport reads it at request time.
+ */
+export type HttpProxyTransport = (url: string, init: RequestInit) => Promise<Response>
 
 export type HttpRnConfig = Omit<HttpNodeConfig, 'fetch'> & {
   /** Overrides the transport. Tests, and nothing else. */
   fetch?: typeof fetch
+  /**
+   * The proxy-capable transport, when this build carries the native module.
+   * Used only for requests marked `useProxy`; a build without it (or a
+   * marked request with no proxy configured) goes direct through
+   * `expo/fetch`, which cannot proxy.
+   */
+  proxyTransport?: HttpProxyTransport
 }
 
 export class HttpRn extends HttpNode {
   /** True only when the transport is the real expo one (not a test override). */
   private readonly isExpoTransport: boolean
+  private readonly proxyTransport: HttpProxyTransport | undefined
   /** The "expo shape changed" warning is logged once per instance, not per response. */
   private warnedMissingRawHeaders = false
 
@@ -55,6 +76,23 @@ export class HttpRn extends HttpNode {
       userAgent: config.userAgent ?? 'BBeBee/0.1 (mobile)',
     })
     this.isExpoTransport = config.fetch === undefined
+    this.proxyTransport = config.proxyTransport
+  }
+
+  /**
+   * The per-request transport choice.
+   *
+   * A request the settings marked `useProxy` gets the native proxy client —
+   * but only when both halves exist: the transport this build carries, and
+   * the config the composition root pushed through `setProxy`. Missing
+   * either, the request falls through to `expo/fetch` and goes direct: the
+   * flag is a wish, and this is the place that honestly cannot grant it.
+   */
+  protected override fetchFor(req: HttpRequest): typeof fetch {
+    if (req.useProxy && this.proxyTransport && this.proxyConfig) {
+      return this.proxyTransport as unknown as typeof fetch
+    }
+    return super.fetchFor(req)
   }
 
   /**

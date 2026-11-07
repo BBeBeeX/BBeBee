@@ -32,6 +32,7 @@ import type {
   DownloadRequest,
   FsService,
   HttpLogEntry,
+  HttpProxyConfig,
   HttpRequest,
   HttpResponse,
   HttpRequestLog,
@@ -222,6 +223,18 @@ export class HttpNode extends Service {
   }
   /** What `setUserAgent('')` restores — the UA this platform was built with. */
   private readonly fallbackUserAgent: string
+  /**
+   * The proxy a request marked `useProxy` is routed through.
+   *
+   * Stored for the transport that consumes it in-process (the mobile native
+   * client). On desktop this copy is deliberately inert — the request's
+   * marker travels to the sidecar over the bridge, and the *sidecar* holds
+   * the config (pushed there through its own `proxy:set` channel), because
+   * the sidecar is where the socket opens and its undici dispatcher with it.
+   * `protected` so the mobile subclass can decide whether a marked request
+   * has a config to honor.
+   */
+  protected proxyConfig: HttpProxyConfig | null = null
   readonly cookies: CookieJarService
   private readonly jars: MemoryJars
   private readonly journal = new HttpJournal()
@@ -258,6 +271,19 @@ export class HttpNode extends Service {
   setUserAgent(userAgent: string): void {
     const trimmed = typeof userAgent === 'string' ? userAgent.trim() : ''
     this.config.userAgent = trimmed.length > 0 ? trimmed : this.fallbackUserAgent
+  }
+
+  /**
+   * Set the proxy a request marked `useProxy` is routed through; `null` clears.
+   *
+   * Lives in `ctx.settings` like the UA, pushed by the composition root on
+   * boot and every `settings/changed`. On desktop this copy is a store only —
+   * the marked request carries its flag over the bridge and the *sidecar*
+   * applies its own copy, because that is where the socket opens. On mobile
+   * the subclass consumes this copy in `fetchFor`.
+   */
+  setProxy(config: HttpProxyConfig | null): void {
+    this.proxyConfig = config && config.host && config.port ? { ...config } : null
   }
 
   async [Service.init]() {
@@ -440,6 +466,20 @@ export class HttpNode extends Service {
     }
   }
 
+  /**
+   * The transport for one request, chosen per request.
+   *
+   * Default is the configured seam. The mobile subclass overrides this to
+   * swap in its native proxy client for a request the settings marked
+   * `useProxy`; desktop keeps the default, because there the marker rides
+   * inside the init over the bridge to the sidecar, where the proxy
+   * dispatcher actually lives.
+   */
+  protected fetchFor(req: HttpRequest): typeof fetch {
+    void req
+    return this.config.fetch
+  }
+
   private async followRedirects(
     req: HttpRequest,
     controller: AbortController,
@@ -499,14 +539,26 @@ export class HttpNode extends Service {
       }
       let response: Response
       try {
-        response = await this.config.fetch(url, {
+        /*
+         * The `proxy` field is not standard `RequestInit` — it is this
+         * client's per-request proxy handoff: the config `setProxy` stored,
+         * attached only when the caller marked the request `useProxy`. A
+         * transport that does not implement proxying (the renderer's webview
+         * fetch) ignores unknown init fields and the request goes direct;
+         * the desktop bridge reduces it to a boolean marker for the wire
+         * (the sidecar holds its own copy — the config itself never
+         * crosses), and the mobile subclass passes it to the native client.
+         */
+        const init = {
           method: req.method ?? 'GET',
           headers: requestHeaders,
           ...(req.body !== undefined ? { body: req.body as BodyInit } : {}),
           // Always manual: following internally would skip the check above.
           redirect: 'manual',
           signal: controller.signal,
-        })
+          ...(req.useProxy && this.proxyConfig ? { proxy: this.proxyConfig } : {}),
+        } as RequestInit
+        response = await this.fetchFor(req)(url, init)
       } catch (error) {
         // A transport failure is a log entry too — the user reading the
         // journal should see the request that never got a response and why.

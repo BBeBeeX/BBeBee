@@ -53,9 +53,15 @@ export interface GlobalShortcutsSettings {
   keybindings: ShortcutKeybindings
 }
 
-export interface ProxySettings {
-  /** Whether network proxy is enabled. */
-  enabled: boolean
+/**
+ * The connection details of a configured proxy, without any policy around it.
+ *
+ * This is the shape a transport actually dials (the desktop sidecar's
+ * dispatcher, the mobile native fetch) — `ProxySettings` is this plus the
+ * user's *policy* (master switch, per-source routing), which stays in the
+ * settings layer where the decision is made.
+ */
+export interface HttpProxyConfig {
   /** Proxy protocol type. */
   protocol: 'http' | 'https' | 'socks5'
   /** Proxy server host. */
@@ -66,8 +72,32 @@ export interface ProxySettings {
   username?: string
   /** Optional proxy authentication password. */
   password?: string
+}
+
+export interface ProxySettings extends HttpProxyConfig {
+  /** Whether network proxy is enabled. */
+  enabled: boolean
   /** Per-source proxy enable toggle (sourceId -> boolean). */
   sourceRules: Record<string, boolean>
+}
+
+/**
+ * The proxy as a URL a network engine understands (`http://[user:pass@]host:port`).
+ *
+ * Consumers: the audio engine's `http-proxy` (mpv/libmpv) and anything else
+ * that takes a proxy as one string. Returns `undefined` for a config that is
+ * not dialable (no host or port) so callers can treat "no proxy" and "broken
+ * config" the same way — direct. Credentials are percent-encoded; a caller
+ * that logs the result redacts it like any other credential.
+ */
+export function httpProxyUrl(config: HttpProxyConfig | null | undefined): string | undefined {
+  if (!config || !config.host || !config.port) return undefined
+  const scheme = config.protocol === 'socks5' ? 'socks5' : 'http'
+  const auth =
+    config.username || config.password
+      ? `${encodeURIComponent(config.username ?? '')}:${encodeURIComponent(config.password ?? '')}@`
+      : ''
+  return `${scheme}://${auth}${config.host}:${config.port}`
 }
 
 export type VisualizerStyle = 'bars' | 'wave' | 'circle' | 'particles'

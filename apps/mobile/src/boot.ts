@@ -57,7 +57,7 @@ import { LifecycleExpo } from '@bbebee/core-lifecycle-mobile'
 import { LiveActivityIos } from '@bbebee/core-live-activity-mobile'
 import { JsSandboxMobile } from '@bbebee/core-js-mobile'
 import { CodecRn } from '@bbebee/core-codec-mobile'
-import { HttpRn } from '@bbebee/core-http-mobile'
+import { HttpRn, type HttpProxyTransport } from '@bbebee/core-http-mobile'
 import { AudioMpv } from '@bbebee/core-audio-mpv'
 import {
   MobileAudioService,
@@ -88,6 +88,14 @@ import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins'
  */
 import '../modules/audio-engine/index.js'
 
+/*
+ * The native proxy HTTP transport, if this build carries it: installs
+ * `globalThis.bbebeeProxyHttp` for `HttpRn` to serve requests the settings
+ * marked `useProxy`. Same side-effect-before-consumer rule as the audio
+ * binding above.
+ */
+import '../modules/http-proxy/index.js'
+
 /**
  * Metro defines this in every bundle; it is `false` in a release build.
  *
@@ -95,6 +103,17 @@ import '../modules/audio-engine/index.js'
  * does not depend on which React Native types happen to be in scope.
  */
 declare const __DEV__: boolean
+
+/**
+ * The proxy transport the native module installed, typed for `HttpRn`.
+ *
+ * `undefined` on a build without the module: the service then routes marked
+ * requests direct through `expo/fetch`, which cannot proxy — the honest
+ * degrade, never a boot failure.
+ */
+function getProxyTransport(): HttpProxyTransport | undefined {
+  return (globalThis as { bbebeeProxyHttp?: HttpProxyTransport }).bbebeeProxyHttp
+}
 
 /*
  * Hermes' `TextDecoder` is UTF-8-only. Two tag paths need more: a Latin-1
@@ -514,7 +533,17 @@ export async function boot(): Promise<App> {
       // neither WebAssembly nor eval for the desktop QuickJS build.
       JsSandboxMobile,
       CodecRn,
-      HttpRn,
+      // The proxy-capable transport (`globalThis.bbebeeProxyHttp`, installed
+      // by the import above) rides into the HTTP service here: a request
+      // marked `useProxy` is served by the native proxy client; a build
+      // without the native module leaves the seam unset and such requests go
+      // direct through `expo/fetch`.
+      [
+        HttpRn,
+        {
+          ...(getProxyTransport() ? { proxyTransport: getProxyTransport() } : {}),
+        },
+      ],
       /*
        * `ctx.audio` — the mobile audio engine:
        * @bbebee/core-audio-mpv over the in-process libmpv JNI/JSI bridge.
@@ -582,13 +611,15 @@ export async function boot(): Promise<App> {
 
   /*
    * The configured settings, applied once they exist and kept in step from
-   * then on. The mobile slice of desktop's `wireSettingsSync`: the header and
-   * the audio-output preferences have the same meaning on both shells, while
-   * `closeToTray`, `glass.window`, `proxy` and `audioOutputEngine` are
-   * desktop-only concepts (a tray, window material, an OS proxy and a second
-   * engine do not exist on this platform — mobile's `switchEngine` is a
-   * documented no-op). Same contract as desktop: an empty value restores the
-   * built-in default, and a source document's own `header` rule still wins.
+   * then on. The mobile slice of desktop's `wireSettingsSync`: the header,
+   * the audio-output preferences and the proxy config have the same meaning
+   * on both shells (the proxy reaches sources and lyric sources through
+   * `ctx.http` and streams through `ctx.audio`, exactly like desktop), while
+   * `closeToTray`, `glass.window` and `audioOutputEngine` are desktop-only
+   * concepts (a tray, window material and a second engine do not exist on
+   * this platform — mobile's `switchEngine` is a documented no-op). Same
+   * contract as desktop: an empty value restores the built-in default, and a
+   * source document's own `header` rule still wins.
    * ⚠️ `http`/`audio` must be in the inject list — the scoped proxy refuses
    * anything not listed, and a throw in a `settings/changed` listener aborts
    * the synchronous emit for everyone after it.
@@ -597,6 +628,39 @@ export async function boot(): Promise<App> {
     const sync = (s: AppSettings | undefined) => {
       if (!s) return
       if (s.userAgent !== undefined) scoped.http?.setUserAgent?.(s.userAgent)
+      /*
+       * The configured proxy: `ctx.http.setProxy` is what a request marked
+       * `useProxy` (a source the per-source switches routed through the
+       * proxy) resolves against, and `ctx.audio.setProxyConfig` the stream
+       * flag the player passes on load. `null` when the master switch is off
+       * — cleared, not stale. Per-source decisions live with the callers that
+       * know the source id; this applier only carries the config.
+       */
+      if (s.proxy) {
+        const proxy = s.proxy
+        scoped.http?.setProxy?.(
+          proxy.enabled
+            ? {
+                protocol: proxy.protocol,
+                host: proxy.host,
+                port: proxy.port,
+                ...(proxy.username ? { username: proxy.username } : {}),
+                ...(proxy.password ? { password: proxy.password } : {}),
+              }
+            : null,
+        )
+        scoped.audio?.setProxyConfig?.(
+          proxy.enabled
+            ? {
+                protocol: proxy.protocol,
+                host: proxy.host,
+                port: proxy.port,
+                ...(proxy.username ? { username: proxy.username } : {}),
+                ...(proxy.password ? { password: proxy.password } : {}),
+              }
+            : null,
+        )
+      }
       if (s.audioOutputDeviceId) {
         void scoped.audio?.setOutputDevice?.(s.audioOutputDeviceId).catch((err) => {
           app.ctx.logger.warn(`boot: applying audio output device failed: ${String(err)}`)

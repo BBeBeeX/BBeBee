@@ -95,8 +95,23 @@ export interface DownloadRequest extends HttpRequest {
 | Arbitrary headers | ✅ `Origin`, `Referer`, `User-Agent`, `Cookie` all settable | ✅ |
 | Cookie jar | RFC 6265 jar in JS (shared), envelope-encrypted at rest via `ctx.secrets` | Same jar, same encryption — one implementation, two transports |
 | `Set-Cookie` capture | `Headers.getSetCookie()` (undici) | `FetchResponse._rawHeaders` (the expo escape hatch, native pairs kept separate); the base fallback is a quote-aware joined-header splitter, since RN's WHATWG `Headers` merges duplicates and has no `getSetCookie` |
-| Proxy | ✅ System or configured | ⚠️ System proxy only |
+| Proxy | ✅ Configured: the sidecar holds the settings proxy (`proxy:set`) as an undici `ProxyAgent`/SOCKS dispatcher and routes every request marked `useProxy` through it | ✅ Configured: requests marked `useProxy` are served by the native `BbebeeHttpProxy` module (OkHttp / NSURLSession with a connection proxy); a build without the module goes direct |
 | Request journal (§2.2) | ✅ In-memory, capped, detail capture switchable | ✅ Inherited from the shared base (the journal tee passes transport-agnostic header records) |
+
+**Proxy routing (both platforms).** The *policy* stays in settings — `proxy.enabled` gates the
+feature, `proxy.sourceRules[sourceId]` is the per-source opt-in switch (`?? false`) that both
+settings UIs render for music sources *and* lyric sources. The *mechanics* are a per-request flag:
+`HttpRequest.useProxy` is set by the layer that knows who is asking (the source runtime wraps its
+scoped http with `proxyMarkedHttp`, the lyric-source sandbox receives a `useProxy` flag per
+execution, the player marks a track's stream when its source opted in), never by the transport.
+The *config* travels through the composition roots on boot and every `settings/changed`
+(`HttpService.setProxy?` — the `setUserAgent` pattern; `AudioService.setProxyConfig?` for streams).
+Marked requests with no dialable config go direct: the flag is a wish the transport may honestly
+decline. Limits: the desktop renderer's webview-fallback fetch (no sidecar) cannot proxy; mobile
+degrades an `https` proxy type to an HTTP CONNECT proxy, and iOS's `allHeaderFields` merges
+repeated `Set-Cookie` names on proxied responses; mpv stream proxying needs an engine build that
+consumes the per-load `proxyUrl` (desktop additionally falls back to spawning the engine with
+`http_proxy` for http/https proxies — process-wide, applied by the sidecar on `proxy:set`).
 
 The cookie jar, download waterfall, per-hop host gate and journal are one implementation
 (`HttpRn extends HttpNode`); only the transport differs, which is why the shared conformance

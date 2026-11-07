@@ -68,6 +68,16 @@ export interface BridgeHttpRequest {
   body?: string
   timeoutMs?: number
   redirect?: 'follow' | 'manual' | 'error'
+  /**
+   * Route through the proxy configured in settings.
+   *
+   * Deliberately a marker, not the config: which proxy and *whether* one is
+   * configured are the host's business (set through `proxy:set`), and a
+   * caller that could name its own proxy would be a caller that could point
+   * its traffic at a machine it controls. The host applies its stored config
+   * or, with none, sends the request direct.
+   */
+  proxy?: boolean
 }
 
 /** What `main` answers before any byte of the body is pulled. */

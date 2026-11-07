@@ -1,0 +1,22 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.httpproxy'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.httpproxy"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // OkHttp ships with React Native's networking stack; pinning the same
+  // artifact family the app already carries keeps this module from pulling a
+  // second, competing copy of the pool into the APK.
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

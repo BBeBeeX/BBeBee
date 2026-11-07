@@ -23,12 +23,14 @@ import type {
   AudioService,
   AudioSourceHandle,
   Disposable,
+  HttpProxyConfig,
   InterruptionEvent,
   LoadOptions,
   OutputDevice,
   RouteChangeEvent,
   Uri,
 } from '@BBeBee/protocol'
+import { httpProxyUrl } from '@BBeBee/protocol'
 import {
   StreamedHandle,
   defaultMediaElementFactory,
@@ -437,6 +439,12 @@ export class AudioMpv extends Service implements AudioService {
   private selectedDeviceId = 'default'
   private readonly interruptions: ContextInterruptionObserver
   private readonly bridge?: BridgeCall
+  /**
+   * The proxy streams marked `proxy` should be fetched through, pushed by the
+   * composition root like `ctx.http.setProxy`. Resolved to a URL per load —
+   * a config that is not dialable degrades to direct, never to a failed load.
+   */
+  private proxyConfig: HttpProxyConfig | null = null
 
   constructor(ctx: Context, config: AudioMpvConfig = {}) {
     super(ctx, 'audio')
@@ -570,12 +578,17 @@ export class AudioMpv extends Service implements AudioService {
     // itself, so there is no external decoder in this engine's chain. Only
     // cloneable fields cross the bridge: the full LoadOptions carries an
     // `onBuffered` function and an `AbortSignal`, which structured clone
-    // rejects ("An object could not be cloned").
+    // rejects ("An object could not be cloned"). The resolved proxy URL rides
+    // with them; an engine that cannot proxy ignores it and plays direct.
     if (bridge) {
       try {
         const result = (await bridge('audio', 'mpvLoad', [
           srcStr,
-          { strategy: opts.strategy, headers: opts.headers },
+          {
+            strategy: opts.strategy,
+            headers: opts.headers,
+            ...(opts.proxy ? { proxyUrl: this.proxyUrlFor(opts) } : {}),
+          },
         ])) as
           | {
               durationMs?: number
@@ -762,7 +775,7 @@ export class AudioMpv extends Service implements AudioService {
     return this.lastPreload
   }
 
-  async preloadNext(src: string | Uri, opts?: { headers?: Record<string, string> }): Promise<void> {
+  async preloadNext(src: string | Uri, opts?: { headers?: Record<string, string>; proxy?: boolean }): Promise<void> {
     const bridge = resolveBridgeCall(this.config.bridgeCall)
     if (!bridge) {
       this.lastPreload = { uri: String(src), ok: false, at: Date.now() }
@@ -772,10 +785,13 @@ export class AudioMpv extends Service implements AudioService {
       // Headers ride along: the appended file is opened by the engine at the
       // playlist boundary, where only these options reach it (main's
       // stream interception covers the media element, not the engine).
+      const proxyUrl = opts?.proxy ? this.proxyUrlFor(opts) : undefined
       await bridge('audio', 'mpvAppend', [
         String(src),
         false,
-        opts?.headers ? { headers: opts.headers } : undefined,
+        opts?.headers || proxyUrl !== undefined
+          ? { ...(opts?.headers ? { headers: opts.headers } : {}), ...(proxyUrl !== undefined ? { proxyUrl } : {}) }
+          : undefined,
       ])
       this.lastPreload = { uri: String(src), ok: true, at: Date.now() }
       this.ctx.logger?.info('mpv: preloaded next track for gapless handoff: %s', String(src))
@@ -795,6 +811,41 @@ export class AudioMpv extends Service implements AudioService {
       this.ctx.logger?.debug?.('mpv: failed to preload next track: %s', String(err))
     }
   }
+
+  /**
+   * Set the proxy streams marked `proxy` are fetched through; `null` clears.
+   *
+   * Called by the composition root on boot and every `settings/changed`, the
+   * same way `ctx.http.setProxy` receives it. The URL is resolved per load —
+   * a settings flip lands on the next track, no engine restart.
+   */
+  setProxyConfig(config: HttpProxyConfig | null): void {
+    this.proxyConfig = config && config.host && config.port ? { ...config } : null
+  }
+
+  /**
+   * The proxy URL for one load, or `undefined` when none applies.
+   *
+   * The engine consumes it as mpv's `http-proxy`. An engine build that cannot
+   * proxy streams ignores the field and plays direct — the flag is a wish the
+   * engine may honestly decline, and this logs it once per session so a user
+   * debugging "why is playback not proxied" finds an answer in the log.
+   */
+  private proxyUrlFor(_opts: { proxy?: boolean }): string | undefined {
+    const url = httpProxyUrl(this.proxyConfig)
+    if (!url) {
+      if (!this.warnedNoProxy) {
+        this.warnedNoProxy = true
+        this.ctx.logger?.warn(
+          'mpv: stream proxy requested but no dialable proxy is configured — playing direct',
+        )
+      }
+      return undefined
+    }
+    return url
+  }
+
+  private warnedNoProxy = false
 
   async listOutputDevices(): Promise<OutputDevice[]> {
     const bridge = resolveBridgeCall(this.config.bridgeCall)

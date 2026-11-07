@@ -186,6 +186,8 @@ export class Player extends Service implements PlayerService {
   private deviceCtx?: Context
   /** The scoped context `ctx.codec` arrived on. See `mediaCtx`. */
   private codecCtx?: Context
+  /** The scoped context `ctx.settings` arrived on — the per-source stream proxy reads it. */
+  private settingsCtx?: Context
   /** The scoped context `ctx.library` arrived on. See `mediaCtx`. */
   private libraryCtx?: Context
   /** The scoped context `ctx.liveActivity` arrived on. See `mediaCtx`. */
@@ -531,6 +533,15 @@ export class Player extends Service implements PlayerService {
       this.codecCtx = scoped
       return () => {
         this.codecCtx = undefined
+      }
+    })
+
+    // Optional: a build without the settings service has no proxy to route
+    // streams through, which degrades to direct playback — never an error.
+    this.ownCtx.inject(['settings'], (scoped) => {
+      this.settingsCtx = scoped
+      return () => {
+        this.settingsCtx = undefined
       }
     })
 
@@ -1119,7 +1130,7 @@ export class Player extends Service implements PlayerService {
       const knownDuration = this.knownDurationMs(entry.item.trackUrn)
       const handle = await this.resolveStream(entry.item.trackUrn)
       if (this.disposed || this.startToken !== token || this.transport.currentItemId !== entry.item.id) return
-      const source = await this.load(handle)
+      const source = await this.load(handle, { useProxy: this.useProxyForUrn(entry.item.trackUrn) })
       const known = await knownDuration
       // Checked again after the second await: a start that begins while this
       // one is in flight has already claimed `currentItemId`, and attaching
@@ -1209,7 +1220,7 @@ export class Player extends Service implements PlayerService {
     }
   }
 
-  private async load(handle: StreamHandle): Promise<AudioSourceHandle> {
+  private async load(handle: StreamHandle, opts: { useProxy?: boolean } = {}): Promise<AudioSourceHandle> {
     if (
       handle.headers &&
       typeof window !== 'undefined' &&
@@ -1223,8 +1234,30 @@ export class Player extends Service implements PlayerService {
     return this.ownCtx.audio.load(handle.target, {
       strategy: this.strategyFor(handle),
       ...(handle.headers ? { headers: handle.headers } : {}),
+      ...(opts.useProxy ? { proxy: true } : {}),
       onBuffered: (seconds) => this.set({ bufferedMs: Math.round(seconds * 1000) }),
     })
+  }
+
+  /**
+   * Whether one track's stream should follow its source through the proxy.
+   *
+   * The URL was resolved by that source, and the same per-source opt-in map
+   * (`proxy.sourceRules`) that routes the source's metadata requests routes
+   * its bytes: a host blocked without the proxy would resolve fine and then
+   * fail to play. Read live per load, like the metadata path. Engines that
+   * cannot proxy a stream simply ignore the flag.
+   */
+  private useProxyForUrn(urn: string): boolean {
+    try {
+      const sourceId = this.ownCtx.sources?.forUrn?.(urn)?.sourceId
+      if (!sourceId) return false
+      const proxy = this.settingsCtx?.settings?.getSync().proxy
+      if (!proxy?.enabled) return false
+      return proxy.sourceRules[sourceId] === true
+    } catch {
+      return false
+    }
   }
 
   /**
@@ -1391,8 +1424,14 @@ export class Player extends Service implements PlayerService {
       // prefetched, and the append is attempted once per track — an append
       // that failed will not fare better on a retry one tick later.
       if (typeof this.ownCtx.audio.preloadNext === 'function') {
+        const useProxy = this.useProxyForUrn(next.item.trackUrn)
         await this.ownCtx.audio
-          .preloadNext(handle.target, handle.headers ? { headers: handle.headers } : undefined)
+          .preloadNext(
+            handle.target,
+            handle.headers || useProxy
+              ? { ...(handle.headers ? { headers: handle.headers } : {}), ...(useProxy ? { proxy: true } : {}) }
+              : undefined,
+          )
           .catch(() => undefined)
         this.enginePreloaded = next.item.id
         this.ownCtx.logger.debug('player: engine preloaded next track %s', next.item.trackUrn)
@@ -1406,6 +1445,7 @@ export class Player extends Service implements PlayerService {
       const source = await this.ownCtx.audio.load(handle.target, {
         strategy: 'buffer',
         ...(handle.headers ? { headers: handle.headers } : {}),
+        ...(this.useProxyForUrn(next.item.trackUrn) ? { proxy: true } : {}),
         signal: abort.signal,
       })
       if (abort.signal.aborted) {

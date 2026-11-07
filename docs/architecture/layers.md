@@ -319,7 +319,9 @@ Two things route through the sidecar / host for reasons worth stating:
 
 - **HTTP.** Not because the webview cannot fetch, but because a webview `fetch` is subject to
   CORS and cannot set `Origin`, `Referer`, `Cookie`, or a custom `User-Agent`. Music backends
-  routinely require all four. Going through the sidecar also gives a real cookie jar and proxy support.
+  routinely require all four. Going through the sidecar also gives a real cookie jar and proxy
+  support — the sidecar holds the configured proxy as an undici dispatcher and routes requests
+  marked `useProxy` through it ([contracts.md §2](../services/contracts.md#2-ctxhttp--outbound-http)).
 - **Local media and external dynamic plugins.** The host registers privileged protocols for local
   media streaming across the sandbox boundary with path containment. Built-in workspace plugins
   are discovered dynamically via Vite glob imports (`getBuiltinPluginRegistry()`), eliminating static

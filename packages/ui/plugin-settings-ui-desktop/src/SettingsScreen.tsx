@@ -9,6 +9,8 @@ import type { Context } from 'cordis'
 import { useI18n } from '@BBeBee/ui-kit-desktop'
 import { serviceOf } from '@BBeBee/ui-core'
 import type {
+  LyricSourceDefinition,
+  LyricSourcesService,
   ProxySettings,
   SourceRecord,
   SourcesService,
@@ -233,6 +235,25 @@ export function SettingsScreen({
   }, [ctx])
 
   const thirdPartySources = sourcesList.filter((s) => s.id !== 'local')
+
+  // Third-party lyric sources — they join the music sources in the per-source
+  // proxy list (one `sourceRules` map keyed by source id).
+  const [lyricSourcesList, setLyricSourcesList] = useState<readonly LyricSourceDefinition[]>(() => {
+    const s = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+    return s?.getSources ? [...s.getSources()] : []
+  })
+
+  useEffect(() => {
+    const refresh = () => {
+      const s = serviceOf<LyricSourcesService>(ctx, 'lyricSources')
+      setLyricSourcesList(s?.getSources ? [...s.getSources()] : [])
+    }
+    refresh()
+    const off1 = ctx.on('lyric-sources/changed', refresh)
+    return () => {
+      off1?.()
+    }
+  }, [ctx])
 
   const proxy: ProxySettings = {
     ...DEFAULT_PROXY_SETTINGS,
@@ -581,6 +602,7 @@ export function SettingsScreen({
             ctx,
             proxy,
             thirdPartySources,
+            thirdPartyLyricSources: lyricSourcesList,
             proxyTesting,
             proxyTestResult,
             onUpdateProxy: (p) => {

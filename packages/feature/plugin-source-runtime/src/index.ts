@@ -32,6 +32,7 @@ import type {
 } from '@BBeBee/protocol'
 import { DocumentSource, type SourceVars } from './source.js'
 import { isInterpretable } from './capabilities.js'
+import { proxyMarkedHttp } from './proxy.js'
 
 /**
  * How long one rotted rule stays "already reported".
@@ -163,6 +164,22 @@ export class SourceRuntime {
   useSettings(settings: SettingsService | undefined): void {
     this.settings = settings
     this.safely('applying the third-party sources switch', () => this.sync())
+  }
+
+  /**
+   * Whether one source's requests route through the configured proxy.
+   *
+   * `proxy.sourceRules` is the per-source opt-in switch in the network
+   * settings (absent means off); the master switch gates the whole feature.
+   * Read live on every request rather than mirrored — a flip in settings
+   * lands on the next request without touching the source's fiber, exactly
+   * like `thirdPartySourcesEnabled` is re-read in `sync` but with a finer
+   * grain.
+   */
+  private proxyEnabledFor(sourceId: string): boolean {
+    const proxy = this.settings?.getSync().proxy
+    if (!proxy?.enabled) return false
+    return proxy.sourceRules[sourceId] === true
   }
 
   /** Start what should be running, stop what should not. */
@@ -330,7 +347,11 @@ export class SourceRuntime {
     })
 
     const source = new DocumentSource(record, {
-      http: sourceCtx.http,
+      // One wrapper, every path: the per-source proxy decision is read live
+      // from settings on each request, so flipping a source's switch in the
+      // network settings lands on its next request — no realm rebuild, no
+      // restart (see `proxyMarkedHttp`).
+      http: proxyMarkedHttp(sourceCtx.http, () => this.proxyEnabledFor(record.id)),
       // Optional: a build with no sandbox runs every document that does not
       // need one, and derives the affected capabilities as absent for the
       // rest rather than offering a button that cannot work.

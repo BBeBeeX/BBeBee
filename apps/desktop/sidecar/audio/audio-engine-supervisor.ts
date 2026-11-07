@@ -98,6 +98,12 @@ export class AudioEngineSupervisor {
   private currentFftSize = 128
   private mpvAvailable = true
   private pcmTapAvailable = true
+  /**
+   * The `http_proxy` URL the worker is spawned with, when streams should go
+   * through the configured proxy. The source that *sets* it lives in the
+   * sidecar's `proxy:set` handler — see `setProxyEnv`.
+   */
+  private proxyEnvUrl: string | null = null
 
   private pendingLoads: Array<{
     uri: string
@@ -257,6 +263,18 @@ export class AudioEngineSupervisor {
         PATH: process.platform === 'win32'
           ? `${exeDir};${process.env['PATH'] || ''}`
           : process.env['PATH'],
+      }
+      /*
+       * Best-effort stream proxying: libavformat (mpv's demuxer) reads
+       * `http_proxy` for its http *and* https protocols when mpv's own
+       * `--http-proxy` is unset, so a spawned-with env dials through the
+       * configured proxy. Process-wide and fixed at spawn — which is why a
+       * change goes through `setProxyEnv`'s restart. Only http(s) proxies:
+       * ffmpeg does not take a SOCKS proxy from the environment.
+       */
+      if (this.proxyEnvUrl) {
+        childEnv['http_proxy'] = this.proxyEnvUrl
+        childEnv['HTTP_PROXY'] = this.proxyEnvUrl
       }
 
       const child = spawn(exePath, [], {
@@ -422,21 +440,9 @@ export class AudioEngineSupervisor {
   private handleWorkerExit(code: number | null, signal: string | null): void {
     this.child = null
 
-    while (this.pendingLoads.length > 0) {
-      const p = this.pendingLoads.shift()!
-      clearTimeout(p.timer)
-      p.reject(new Error(`audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`))
-    }
-    while (this.pendingAppends.length > 0) {
-      const p = this.pendingAppends.shift()!
-      clearTimeout(p.timer)
-      p.reject(new Error(`audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`))
-    }
-    while (this.pendingDeviceQueries.length > 0) {
-      const p = this.pendingDeviceQueries.shift()!
-      clearTimeout(p.timer)
-      p.resolve([{ name: 'auto', description: 'Autoselect audio device' }])
-    }
+    this.failPendingTransfers(
+      `audio-engine process terminated unexpectedly (code: ${code}, signal: ${signal})`,
+    )
 
     if (this.isShuttingDown) return
 
@@ -556,6 +562,57 @@ export class AudioEngineSupervisor {
       running: Boolean(this.child && !this.child.killed),
       mpvAvailable: hasExecutable && this.mpvAvailable,
       pcmTapAvailable: this.pcmTapAvailable,
+    }
+  }
+
+  /**
+   * Set the proxy URL streams are fetched through, or `null` for direct.
+   *
+   * An environment variable is fixed at process spawn, so a live worker has
+   * to be *replaced* for the change to reach mpv — deliberately not through
+   * the crash path (no restart accounting, no crash listeners fired): this is
+   * maintenance, and playback resumes from the same URI. Signature-guarded,
+   * because `proxy:set` arrives on every settings change and most of them do
+   * not touch the proxy at all.
+   */
+  setProxyEnv(proxyUrl: string | null): void {
+    if ((this.proxyEnvUrl ?? null) === (proxyUrl ?? null)) return
+    this.proxyEnvUrl = proxyUrl
+    this.logger?.info?.('audio-engine-supervisor: stream proxy -> %s', proxyUrl ?? 'direct')
+    const child = this.child
+    if (!child || child.killed) return
+    this.child = null
+    // The exit handler would race a respawn of its own and bill this as a
+    // crash; a maintenance restart owns the lifecycle here instead.
+    child.removeAllListeners('exit')
+    this.failPendingTransfers('audio-engine restarting for a proxy change')
+    try {
+      child.kill()
+    } catch {
+      // The worker dying is the point; the next spawn is unaffected.
+    }
+    this.spawnWorker()
+    if (this.currentUri) {
+      void this.load(this.currentUri).catch(() => undefined)
+    }
+  }
+
+  /** Settle every in-flight transfer, the way a worker death does. */
+  private failPendingTransfers(message: string): void {
+    while (this.pendingLoads.length > 0) {
+      const p = this.pendingLoads.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error(message))
+    }
+    while (this.pendingAppends.length > 0) {
+      const p = this.pendingAppends.shift()!
+      clearTimeout(p.timer)
+      p.reject(new Error(message))
+    }
+    while (this.pendingDeviceQueries.length > 0) {
+      const p = this.pendingDeviceQueries.shift()!
+      clearTimeout(p.timer)
+      p.resolve([{ name: 'auto', description: 'Autoselect audio device' }])
     }
   }
 

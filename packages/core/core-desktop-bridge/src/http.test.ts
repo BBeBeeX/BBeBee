@@ -217,6 +217,27 @@ describe('a request crossing to main', () => {
     // the guard that covers that (docs/02 §2).
     expect(h.seen[0]!.init.bypassCustomProtocolHandlers).toBe(true)
   })
+
+  it('reduces the proxy handoff to a marker: the flag crosses, the config does not', async () => {
+    /*
+     * The renderer's `ctx.http` attaches the *config* to the init (so a
+     * transport that proxies in-process can read it); the wire must carry
+     * only the boolean. A caller that could name its own proxy across the
+     * bridge would be a caller that could point its traffic at a machine it
+     * controls — which host to dial is the sidecar's own knowledge, from
+     * `proxy:set`.
+     */
+    const h = await harness(() => new Response('ok'))
+    disposeAll.push(() => h.mainHost.dispose())
+
+    const proxyConfig = { protocol: 'http' as const, host: '127.0.0.1', port: 7890 }
+    await h.fetch('https://music.example/marked', { proxy: proxyConfig } as RequestInit)
+    await h.fetch('https://music.example/plain')
+
+    expect(h.seen[0]!.init.proxy).toBe(true)
+    expect(JSON.stringify(h.seen[0]!.init)).not.toContain('127.0.0.1')
+    expect(h.seen[1]!.init.proxy).toBeUndefined()
+  })
 })
 
 describe('the response coming back', () => {

@@ -188,6 +188,13 @@ export interface HttpFetchInit {
   /** Non-standard opt-out from the app's own custom protocol handlers. */
   bypassCustomProtocolHandlers?: boolean
   /**
+   * Non-standard proxy marker, copied from the wire request: "this one goes
+   * through the proxy configured in settings". The transport (the sidecar)
+   * decides what that means — with no config stored via `proxy:set` the
+   * request goes direct. Absent means always direct.
+   */
+  proxy?: boolean
+  /**
    * How Chromium treats a `Referer` header on this request.
    *
    * Not cosmetic: `net.fetch` maps the header onto the URLRequest's *referrer*,
@@ -671,6 +678,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
         headers: request.headers ?? {},
         ...(request.body ? { body: base64ToBytes(request.body) } : {}),
         ...(request.redirect ? { redirect: request.redirect } : {}),
+        ...(request.proxy ? { proxy: true } : {}),
         signal: abort.signal,
         /*
          * A source that writes `Referer` means it — and Chromium otherwise

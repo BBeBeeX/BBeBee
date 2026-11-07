@@ -1,0 +1,10 @@
+{
+  "platforms": ["android", "ios"],
+  "android": {
+    "modules": ["expo.modules.httpproxy.BbebeeHttpProxyModule"]
+  },
+  "ios": {
+    "modules": ["BbebeeHttpProxyModule"],
+    "podspecPath": "ios/http-proxy.podspec"
+  }
+}

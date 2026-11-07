@@ -9,7 +9,7 @@
  * the return values.
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   buildCodecAdapter,
@@ -308,5 +308,70 @@ describe('buildCodecAdapter', () => {
       supported: true,
       encoders: { libmp3lame: true },
     })
+  })
+})
+
+describe('buildMpvAdapter — stream proxy', () => {
+  it('passes the proxy URL to a loadExProxy when the engine build carries one', async () => {
+    const loadEx = vi.fn(async () => JSON.stringify({ ok: true, durationMs: 1, resumed: false, endedCount: 0 }))
+    const loadExProxy = vi.fn(async () => JSON.stringify({ ok: true, durationMs: 2, resumed: false, endedCount: 0 }))
+    const adapter = buildMpvAdapter({
+      ...fakeNative(),
+      loadEx,
+      loadExProxy,
+    } as unknown as NativeAudioEngine)
+    const result = await adapter.mpvLoad('https://example.org/stream', { proxyUrl: 'http://127.0.0.1:7890' })
+    expect(loadExProxy).toHaveBeenCalledWith('https://example.org/stream', null, 'http://127.0.0.1:7890')
+    expect(loadEx).not.toHaveBeenCalled()
+    expect(result?.durationMs).toBe(2)
+  })
+
+  it('degrades honestly on a build without the proxy seam: direct load, one warning', async () => {
+    const loadEx = vi.fn(async () => JSON.stringify({ ok: true, durationMs: 1, resumed: false, endedCount: 0 }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const adapter = buildMpvAdapter({ ...fakeNative(), loadEx })
+      const result = await adapter.mpvLoad('https://example.org/stream', { proxyUrl: 'http://127.0.0.1:7890' })
+      expect(loadEx).toHaveBeenCalledWith('https://example.org/stream', null)
+      expect(result?.durationMs).toBe(1)
+      // A second proxied load must not repeat the warning: one per session.
+      await adapter.mpvLoad('https://example.org/stream2', { proxyUrl: 'http://127.0.0.1:7890' })
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn.mock.calls[0]?.[0]).toContain('cannot proxy mpv streams')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('does not involve the proxy path when no proxyUrl was requested', async () => {
+    const loadEx = vi.fn(async () => JSON.stringify({ ok: true, durationMs: 1, resumed: false, endedCount: 0 }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const adapter = buildMpvAdapter({ ...fakeNative(), loadEx })
+      await adapter.mpvLoad('https://example.org/stream', { headers: { Referer: 'https://page.example/' } })
+      expect(loadEx).toHaveBeenCalledWith('https://example.org/stream', 'Referer: https://page.example/')
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('routes a proxied append through appendProxy when available, else degrades', async () => {
+    const append = vi.fn(async () => true)
+    const appendProxy = vi.fn(async () => true)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const withSeam = buildMpvAdapter({ ...fakeNative(), append, appendProxy } as unknown as NativeAudioEngine)
+      await withSeam.mpvAppend('https://example.org/next', false, { proxyUrl: 'socks5://h:1080' })
+      expect(appendProxy).toHaveBeenCalledWith('https://example.org/next', null, 'socks5://h:1080')
+      expect(append).not.toHaveBeenCalled()
+
+      const withoutSeam = buildMpvAdapter({ ...fakeNative(), append })
+      await withoutSeam.mpvAppend('https://example.org/next', false, { proxyUrl: 'socks5://h:1080' })
+      expect(append).toHaveBeenCalledWith('https://example.org/next', null)
+      expect(warn).toHaveBeenCalledTimes(1)
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

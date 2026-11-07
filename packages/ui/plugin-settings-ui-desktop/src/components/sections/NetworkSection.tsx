@@ -3,7 +3,12 @@ import type { Context } from 'cordis'
 import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import { DEFAULT_USER_AGENT } from '@BBeBee/protocol'
-import type { DownloadRegion, ProxySettings, SourceRecord } from '@BBeBee/protocol'
+import type {
+  DownloadRegion,
+  LyricSourceDefinition,
+  ProxySettings,
+  SourceRecord,
+} from '@BBeBee/protocol'
 import { downloadEndpointsChangedSinceSessionStart } from '../../download-endpoint-baseline.js'
 import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
 import { NpmAuthTokenRow } from '../NpmAuthTokenRow.js'
@@ -15,6 +20,8 @@ export interface NetworkSectionProps {
   ctx: Context
   proxy: ProxySettings
   thirdPartySources: readonly SourceRecord[]
+  /** Third-party lyric sources — they join the music sources in the per-source proxy list. */
+  thirdPartyLyricSources: readonly LyricSourceDefinition[]
   proxyTesting: boolean
   proxyTestResult: { ok: boolean; latencyMs?: number; error?: string } | null
   onUpdateProxy: (proxy: ProxySettings) => void
@@ -50,6 +57,7 @@ export function NetworkSection({
   ctx,
   proxy,
   thirdPartySources,
+  thirdPartyLyricSources,
   proxyTesting,
   proxyTestResult,
   onUpdateProxy,
@@ -279,27 +287,41 @@ export function NetworkSection({
                   t('settings:network.perSourceProxyRoutingDesc'),
                 ),
               ),
-              thirdPartySources.length > 0
-                ? thirdPartySources.map((s, index, arr) => {
-                    const isEnabled = proxy.sourceRules[s.id] ?? false
-                    return h(SettingsRow, {
-                      ctx,
+              thirdPartySources.length > 0 || thirdPartyLyricSources.length > 0
+                ? (() => {
+                    const musicRows = thirdPartySources.map((s) => ({
                       key: s.id,
                       title: s.name || s.id,
                       description: s.group
                         ? t('settings:network.group', { group: s.group, sourceUrl: s.sourceUrl })
                         : s.sourceUrl,
-                      borderBottom: index < arr.length - 1,
-                      action: h(Switch, {
-                        checked: isEnabled,
-                        accessibilityLabel: t('settings:network.enableProxyFor', { name: s.name || s.id }),
-                        onChange: (checked) => {
-                          const nextRules = { ...proxy.sourceRules, [s.id]: checked }
-                          onUpdateProxy({ ...proxy, sourceRules: nextRules })
-                        },
+                    }))
+                    // Lyric sources join the same `sourceRules` map — a lyric
+                    // source's id is just another key beside the music ones.
+                    const lyricRows = thirdPartyLyricSources.map((s) => ({
+                      key: s.id,
+                      title: s.name || s.id,
+                      description: s.description ?? t('settings:network.lyricSourceKind'),
+                    }))
+                    const rows = [...musicRows, ...lyricRows]
+                    return rows.map((row, index) =>
+                      h(SettingsRow, {
+                        ctx,
+                        key: row.key,
+                        title: row.title,
+                        description: row.description,
+                        borderBottom: index < rows.length - 1,
+                        action: h(Switch, {
+                          checked: proxy.sourceRules[row.key] ?? false,
+                          accessibilityLabel: t('settings:network.enableProxyFor', { name: row.title }),
+                          onChange: (checked) => {
+                            const nextRules = { ...proxy.sourceRules, [row.key]: checked }
+                            onUpdateProxy({ ...proxy, sourceRules: nextRules })
+                          },
+                        }),
                       }),
-                    })
-                  })
+                    )
+                  })()
                 : h(
                     'div',
                     { style: { color: '#8E8E93', fontSize: 13, padding: '8px 0' } },

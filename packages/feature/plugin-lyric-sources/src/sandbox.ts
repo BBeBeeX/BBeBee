@@ -38,6 +38,7 @@ export async function safeHttpFetch(
   },
   httpService?: HttpService,
   allowedHosts?: string[],
+  useProxy?: boolean,
 ): Promise<{
   status: number
   text: () => Promise<string>
@@ -62,6 +63,9 @@ export async function safeHttpFetch(
       headers: options?.headers,
       body: options?.body,
       timeoutMs,
+      // The host decides *which* proxy (from settings, via `setProxy`); this
+      // flag only says this source's requests asked to use one.
+      ...(useProxy ? { useProxy: true } : {}),
     })
     const textData = await resp.text()
     return {
@@ -103,6 +107,16 @@ export async function safeHttpFetch(
 export interface SandboxServices {
   js?: JsService
   http?: HttpService
+  /**
+   * Whether this source's requests route through the proxy configured in
+   * settings.
+   *
+   * Computed by the caller (the registry, which knows the settings and the
+   * source) and handed down once per execution — the sandbox itself sees only
+   * a boolean and cannot steer where its traffic goes beyond the hosts its
+   * `allowedHosts` already allow.
+   */
+  useProxy?: boolean
 }
 
 /**
@@ -153,6 +167,7 @@ export async function executeLyricSource(
           },
           services.http,
           source.allowedHosts,
+          services.useProxy === true,
         )
         return {
           status: result.status,
@@ -311,7 +326,7 @@ export async function executeLyricSource(
 
   // 2. Fallback execution when ctx.js is not present (e.g. testing or environments without native QuickJS)
   const boundHttpFetch = async (url: string, options?: Parameters<typeof safeHttpFetch>[1]) => {
-    const res = await safeHttpFetch(url, options, services.http, source.allowedHosts)
+    const res = await safeHttpFetch(url, options, services.http, source.allowedHosts, services.useProxy === true)
     return {
       status: res.status,
       text: res.text,
