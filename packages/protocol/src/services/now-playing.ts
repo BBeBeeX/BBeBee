@@ -110,6 +110,31 @@ export interface SandboxPlayerSnapshot {
   isLoved: boolean
 }
 
+/**
+ * Cheap per-frame playback fields the host pushes to the sandbox via
+ * `NOW_PLAYING_TICK` at a throttled cadence (~100 ms; instant on
+ * `isPlaying`/`activeIndex` changes). The full `NOW_PLAYING_SNAPSHOT` — which
+ * embeds the whole lyric document — is re-sent only when static content
+ * actually changes. The injected SDK merges ticks into the latest snapshot, so
+ * skins keep reading one stable object through `window.BBeBeePlayer`. Without
+ * the split, a full snapshot per frame structured-clones tens of KB at 60 Hz,
+ * which a throttled sandbox iframe cannot always drain — every queued clone
+ * was retained until the renderer OOM'd.
+ */
+export interface SandboxPlayerTick {
+  /** Current playback position in milliseconds. */
+  positionMs: number
+  /** Current active lyric line index. */
+  activeIndex: number
+  /** Whether playback is currently active. */
+  isPlaying: boolean
+}
+
+/** Host → sandbox message envelope (the sandbox → host direction is {@link SandboxPlayerAction}). */
+export type SandboxHostMessage =
+  | { type: 'NOW_PLAYING_SNAPSHOT'; payload: SandboxPlayerSnapshot }
+  | { type: 'NOW_PLAYING_TICK'; payload: SandboxPlayerTick }
+
 /** Strictly whitelisted actions that a sandboxed player plugin may dispatch. */
 export type SandboxPlayerAction =
   | { type: 'action:play' }

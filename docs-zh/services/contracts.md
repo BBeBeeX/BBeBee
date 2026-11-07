@@ -880,8 +880,8 @@ export interface NowPlayingService {
 | 持久化 | `ctx.store` 的 key `now_playing_style` | `ctx.store` 的 key `now_playing_style` |
 | 沙箱隔离 | 隔离的 iframe，具有限制性 `sandbox="allow-scripts"`，仅通过 `postMessage` 交换数据 | 隔离的 WebView，仅通过 `postMessage` 交换数据 |
 
-- **安全沙箱协议**：沙箱化全屏样式在隔离 iframe/WebView 中运行。宿主通过 postMessage（`{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }`）广播播放快照；沙箱仅被允许派发白名单内的控制动作（`SandboxPlayerAction`）。本地封面路径（`file://`）会自动重写为 `bbebee-file://` 协议，规避 Chromium 本地资源跨源阻断。
-- **客户端 SDK 注入（`window.BBeBeePlayer`）**：沙箱环境自动注入轻量 SDK，提供 `onSnapshot(callback)`（兼容别名 `onStateChange`，返回注销函数）、`getState()` 以及白名单动作派发器（`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`），沙箱就绪时派发 `{ type: 'BBEBEE_SANDBOX_READY' }`。
+- **安全沙箱协议**：沙箱化全屏样式在隔离 iframe/WebView 中运行。宿主仅在静态内容变化（曲目、歌词文档、时长、收藏态）或握手/加载时推送完整快照 postMessage（`{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }`）；易变字段（位置、活动行、播放态）以约 100 ms 节流的 `{ type: 'NOW_PLAYING_TICK', payload: SandboxPlayerTick }` 单独下发（`isPlaying`/`activeIndex` 变化时立即发送）。拆分是硬性约束：逐帧推送完整快照会以 60 Hz 结构化克隆整份歌词文档，节流的沙箱 iframe 可能来不及消费，积压的克隆最终把渲染进程撑到 OOM（Chromium `0xE0000008`）。沙箱仅被允许派发白名单内的控制动作（`SandboxPlayerAction`）。本地封面路径（`file://`）会自动重写为 `bbebee-file://` 协议，规避 Chromium 本地资源跨源阻断。
+- **客户端 SDK 注入（`window.BBeBeePlayer`）**：沙箱环境自动注入轻量 SDK，提供 `onSnapshot(callback)`（兼容别名 `onStateChange`，返回注销函数）、`getState()` 以及白名单动作派发器（`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`）。SDK 会把 `NOW_PLAYING_TICK` 合并进最新快照，皮肤始终从 `onSnapshot`/`getState` 读到单一稳定对象；沙箱就绪时派发 `{ type: 'BBEBEE_SANDBOX_READY' }`。
 - **零特权执行**：第三方播放器外观绝无 DOM 遍历权限、无直接音频硬件访问权，也无法接触底层凭据。
 
 ---

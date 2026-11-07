@@ -188,6 +188,16 @@ interface CachedPageItem {
   params?: Record<string, unknown>
 }
 
+/** A captured scroll offset, keyed by the element's position in the page container's DOM order. */
+interface ScrollRecord {
+  index: number
+  top: number
+  left: number
+}
+
+/** Bounded scroll-restoration history: keys include route params, so they are unbounded without a cap. */
+const SCROLL_HISTORY_LIMIT = 50
+
 function getPageKey(id: string, params?: Record<string, unknown>): string {
   if (!params || Object.keys(params).length === 0) {
     return id
@@ -756,7 +766,11 @@ export function Shell({ ctx }: { ctx: Context }) {
     }
   }, [currentKey, currentId, currentParams])
 
-  const scrollPositionsRef = useRef<Map<string, { el: HTMLElement; top: number; left: number }[]>>(new Map())
+  // Scroll offsets are captured as positions in the container's DOM order,
+  // never as live element references: pages evicted from `cachedPages` (cap
+  // 20) unmount, and element refs pinned those detached DOM subtrees forever.
+  // The map itself is LRU-capped for the same reason.
+  const scrollPositionsRef = useRef<Map<string, ScrollRecord[]>>(new Map())
   const pageContainerRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const prevKeyRef = useRef<string>(currentKey)
 
@@ -765,29 +779,46 @@ export function Shell({ ctx }: { ctx: Context }) {
     if (prevKey && prevKey !== currentKey) {
       const prevContainer = pageContainerRefs.current.get(prevKey)
       if (prevContainer) {
-        const records: { el: HTMLElement; top: number; left: number }[] = []
+        // Index 0 is the container itself; `querySelectorAll('*')` order after
+        // it. Restore walks the freshly mounted container in the same order and
+        // applies offsets to the matching indices.
+        const records: ScrollRecord[] = []
         if (prevContainer.scrollTop > 0 || prevContainer.scrollLeft > 0) {
-          records.push({ el: prevContainer, top: prevContainer.scrollTop, left: prevContainer.scrollLeft })
+          records.push({ index: 0, top: prevContainer.scrollTop, left: prevContainer.scrollLeft })
         }
         const scrollables = prevContainer.querySelectorAll<HTMLElement>('*')
         for (let i = 0; i < scrollables.length; i++) {
           const el = scrollables[i]
           if (el && (el.scrollTop > 0 || el.scrollLeft > 0)) {
-            records.push({ el, top: el.scrollTop, left: el.scrollLeft })
+            records.push({ index: i + 1, top: el.scrollTop, left: el.scrollLeft })
           }
         }
-        scrollPositionsRef.current.set(prevKey, records)
+        const positions = scrollPositionsRef.current
+        positions.delete(prevKey)
+        positions.set(prevKey, records)
+        if (positions.size > SCROLL_HISTORY_LIMIT) {
+          const oldestKey = positions.keys().next().value
+          if (oldestKey !== undefined) {
+            positions.delete(oldestKey)
+          }
+        }
       }
     }
 
     if (currentKey) {
       const records = scrollPositionsRef.current.get(currentKey)
       if (records && records.length > 0) {
+        // Consume the entry: a later return re-captures from the live page.
+        scrollPositionsRef.current.delete(currentKey)
         requestAnimationFrame(() => {
+          const container = pageContainerRefs.current.get(currentKey)
+          if (!container) return
+          const scrollables = container.querySelectorAll<HTMLElement>('*')
           for (const rec of records) {
-            if (rec.el && rec.el.isConnected) {
-              rec.el.scrollTop = rec.top
-              rec.el.scrollLeft = rec.left
+            const el = rec.index === 0 ? container : scrollables[rec.index - 1]
+            if (el && el.isConnected) {
+              el.scrollTop = rec.top
+              el.scrollLeft = rec.left
             }
           }
         })

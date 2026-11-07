@@ -16,6 +16,7 @@ import type {
   SandboxPlayerAction,
   SandboxPlayerLyricLine,
   SandboxPlayerSnapshot,
+  SandboxPlayerTick,
 } from '@BBeBee/protocol'
 import { serviceOf } from '@BBeBee/ui-core'
 import { toServableFileUrl } from '@BBeBee/toolkit'
@@ -29,6 +30,13 @@ import type { NowPlayingLayoutProps } from './index.js'
 export interface SandboxedLayoutProps extends NowPlayingLayoutProps {
   meta: NowPlayingStyleMeta
 }
+
+/**
+ * Cadence of `NOW_PLAYING_TICK` posts. ~10 Hz keeps a skin's progress bar and
+ * lyric highlight visually smooth while cutting the per-frame message rate by
+ * 6×; play/pause and lyric-line flips bypass the throttle entirely.
+ */
+export const SANDBOX_TICK_INTERVAL_MS = 100
 
 export function SandboxedLayout({
   ctx,
@@ -132,7 +140,18 @@ export function SandboxedLayout({
   const durationMs = Math.round(duration ?? state.durationMs ?? 0)
   const positionMs = Math.round(displayPosition ?? state.positionMs ?? 0)
 
+  // Volatile playback fields, kept in a ref so both senders read the freshest
+  // values: the rare full snapshot bakes them in for accuracy, and the
+  // throttled tick carries them alone. `displayPosition` changes every frame
+  // while playing, so anything derived from it must not rebuild the heavy
+  // snapshot object.
+  const tickRef = useRef<SandboxPlayerTick>({ positionMs, activeIndex, isPlaying })
+  tickRef.current = { positionMs, activeIndex, isPlaying }
+
+  // Only static content (track identity, lyrics document, duration, loved
+  // state) changes this object's identity — it is re-sent only when it does.
   const snapshot: SandboxPlayerSnapshot = useMemo(() => {
+    const tick = tickRef.current
     return {
       cover: coverUrl,
       coverThemeColor,
@@ -141,26 +160,14 @@ export function SandboxedLayout({
       album,
       lyrics: {
         lines: lyricLines,
-        activeIndex,
+        activeIndex: tick.activeIndex,
       },
-      positionMs,
+      positionMs: tick.positionMs,
       durationMs,
-      isPlaying,
+      isPlaying: tick.isPlaying,
       isLoved,
     }
-  }, [
-    coverUrl,
-    coverThemeColor,
-    title,
-    artist,
-    album,
-    lyricLines,
-    activeIndex,
-    positionMs,
-    durationMs,
-    isPlaying,
-    isLoved,
-  ])
+  }, [coverUrl, coverThemeColor, title, artist, album, lyricLines, durationMs, isLoved])
 
   // 5. Unidirectional snapshot broadcast to iframe
   const snapshotRef = useRef(snapshot)
@@ -169,15 +176,55 @@ export function SandboxedLayout({
   const sendSnapshot = useCallback(() => {
     const iframe = iframeRef.current
     if (typeof iframe?.contentWindow?.postMessage === 'function') {
+      // Bake the freshest volatile fields in so the sandbox never paints a
+      // stale position while the next tick is still throttled away.
+      const tick = tickRef.current
+      const base = snapshotRef.current
       iframe.contentWindow.postMessage(
         {
           type: 'NOW_PLAYING_SNAPSHOT',
-          payload: snapshotRef.current,
+          payload: {
+            ...base,
+            positionMs: tick.positionMs,
+            isPlaying: tick.isPlaying,
+            lyrics: { ...base.lyrics, activeIndex: tick.activeIndex },
+          },
         },
         '*',
       )
     }
   }, [])
+
+  // Volatile fields ride a cheap throttled tick (~10 Hz) instead of a full
+  // snapshot per frame: a full snapshot re-ships the whole lyric document —
+  // tens of KB structured-cloned at 60 Hz — which the sandboxed iframe cannot
+  // always drain; every queued clone was retained until the renderer OOM'd
+  // (the exact failure mode the visualizer's 16 ms IPC polling had before its
+  // consumer-driven fix). Play/pause and lyric-line changes bypass the
+  // throttle so state flips and highlighting stay instant; at ~100 bytes a
+  // tick, even a backed-up queue is negligible.
+  const lastTickSentAtRef = useRef<number | undefined>(undefined)
+  const lastSentTickRef = useRef<SandboxPlayerTick | null>(null)
+
+  useEffect(() => {
+    const iframe = iframeRef.current
+    const win = iframe?.contentWindow
+    if (typeof win?.postMessage !== 'function') return
+    const last = lastSentTickRef.current
+    const isInstant =
+      last === null || isPlaying !== last.isPlaying || activeIndex !== last.activeIndex
+    const now = Date.now()
+    if (
+      !isInstant &&
+      lastTickSentAtRef.current !== undefined &&
+      now - lastTickSentAtRef.current < SANDBOX_TICK_INTERVAL_MS
+    ) {
+      return
+    }
+    lastTickSentAtRef.current = now
+    lastSentTickRef.current = { positionMs, activeIndex, isPlaying }
+    win.postMessage({ type: 'NOW_PLAYING_TICK', payload: { positionMs, activeIndex, isPlaying } }, '*')
+  }, [positionMs, activeIndex, isPlaying])
 
   useEffect(() => {
     sendSnapshot()

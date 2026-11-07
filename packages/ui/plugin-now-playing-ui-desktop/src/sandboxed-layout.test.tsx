@@ -2,6 +2,7 @@
 import { createElement as h } from 'react'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import vm from 'node:vm'
 import { Context, Service } from 'cordis'
 import type { NowPlayingStyleMeta, QueueItem, Track, TransportState } from '@BBeBee/protocol'
 import { NowPlayingPlugin } from '@bbebee/plugin-now-playing'
@@ -11,6 +12,7 @@ import type { NowPlayingLayoutProps } from './styles/index.js'
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -163,6 +165,60 @@ describe('buildSandboxedHtml', () => {
     expect(result).toContain('<!DOCTYPE html>')
     expect(result).toContain('<div id="minimal-player">Minimal</div>')
     expect(result).toContain('window.BBeBeePlayer')
+  })
+
+  it('merges NOW_PLAYING_TICK into the latest snapshot so skins read one stable shape', () => {
+    const html = buildSandboxedHtml('<div>Player</div>')
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1]
+    expect(script).toBeTruthy()
+
+    const listeners = new Map<string, (e: { data?: unknown }) => void>()
+    const fakeWindow = {
+      addEventListener: (type: string, fn: (e: { data?: unknown }) => void) => {
+        listeners.set(type, fn)
+      },
+      parent: { postMessage: vi.fn() },
+    }
+    vm.runInNewContext(script!, { window: fakeWindow, console })
+    const sdk = (fakeWindow as { BBeBeePlayer?: {
+      getState: () => unknown
+      onSnapshot: (fn: (s: unknown) => void) => () => void
+    } }).BBeBeePlayer
+    expect(sdk).toBeTruthy()
+
+    const seen: unknown[] = []
+    sdk!.onSnapshot((s) => seen.push(s))
+    const message = listeners.get('message')!
+    expect(message).toBeTruthy()
+
+    // A tick arriving before any snapshot is ignored, not fabricated.
+    message({ data: { type: 'NOW_PLAYING_TICK', payload: { positionMs: 1, activeIndex: 0, isPlaying: true } } })
+    expect(sdk!.getState()).toBeNull()
+
+    const snapshot = {
+      cover: null,
+      coverThemeColor: null,
+      title: 'Starman',
+      artist: 'David Bowie',
+      lyrics: { lines: [{ timeMs: 0, text: 'First line' }], activeIndex: 0 },
+      positionMs: 0,
+      durationMs: 180000,
+      isPlaying: true,
+      isLoved: false,
+    }
+    message({ data: { type: 'NOW_PLAYING_SNAPSHOT', payload: snapshot } })
+    expect(sdk!.getState()).toBe(snapshot)
+    expect(seen).toHaveLength(1)
+
+    message({ data: { type: 'NOW_PLAYING_TICK', payload: { positionMs: 42000, activeIndex: 1, isPlaying: false } } })
+    const merged = sdk!.getState() as typeof snapshot
+    expect(merged.positionMs).toBe(42000)
+    expect(merged.isPlaying).toBe(false)
+    expect(merged.title).toBe('Starman')
+    expect(merged.lyrics.activeIndex).toBe(1)
+    // The heavy lyric document is shared by reference — never re-cloned per tick.
+    expect(merged.lyrics.lines).toBe(snapshot.lyrics.lines)
+    expect(seen).toHaveLength(2)
   })
 })
 
@@ -420,6 +476,84 @@ describe('SandboxedLayout', () => {
     // The rendered html should be the updated v1.2.0 template, not the old htmlContent
     expect(iframe.getAttribute('srcdoc')).toContain('SANDBOX PLUGIN')
     expect(iframe.getAttribute('srcdoc')).not.toContain('<div>Old Template</div>')
+  })
+
+  it('throttles per-frame position updates into NOW_PLAYING_TICK and only re-sends the full snapshot on static changes', async () => {
+    const { ctx } = await harness()
+    vi.useFakeTimers()
+    try {
+      const meta: NowPlayingStyleMeta = {
+        id: 'test-sandbox',
+        name: 'Test Sandbox',
+        description: 'Test sandbox layout',
+        icon: 'sparkles',
+        type: 'sandboxed',
+        htmlContent: '<div>Player</div>',
+      }
+
+      const propsFor = (displayPosition: number, overrides?: Partial<TransportState>) =>
+        ({
+          ctx,
+          state: { ...IDLE, ...overrides },
+          position: displayPosition,
+          displayPosition,
+          duration: 180000,
+          can: DEFAULT_CAN,
+          seekingPosition: undefined,
+          onSeekChange: () => {},
+          onSeekCommit: () => {},
+          PanelComponent: null,
+          VisualizerComponent: null,
+          meta,
+        }) as NowPlayingLayoutProps & { meta: NowPlayingStyleMeta }
+
+      const { container, rerender } = render(h(SandboxedLayout, propsFor(30000)))
+      const iframe = container.querySelector('[data-testid="sandbox-iframe"]') as HTMLIFrameElement
+      const postMessage = vi.fn()
+      Object.defineProperty(iframe, 'contentWindow', { value: { postMessage }, writable: true })
+
+      // The load event ships one full snapshot with the freshest volatile fields.
+      fireEvent.load(iframe)
+      expect(postMessage).toHaveBeenCalledTimes(1)
+      const first = postMessage.mock.calls[0]?.[0]
+      expect(first.type).toBe('NOW_PLAYING_SNAPSHOT')
+      expect(first.payload.positionMs).toBe(30000)
+
+      // A position advance inside the throttle window sends nothing — this is
+      // the 60 Hz churn that used to re-ship the whole lyric document.
+      rerender(h(SandboxedLayout, propsFor(30100)))
+      expect(postMessage).toHaveBeenCalledTimes(1)
+
+      // Past the window: exactly one cheap tick, no lyric document in it.
+      vi.setSystemTime(Date.now() + 150)
+      rerender(h(SandboxedLayout, propsFor(30500)))
+      expect(postMessage).toHaveBeenCalledTimes(2)
+      const tick = postMessage.mock.calls[1]?.[0]
+      expect(tick.type).toBe('NOW_PLAYING_TICK')
+      expect(tick.payload).toEqual({ positionMs: 30500, activeIndex: 1, isPlaying: true })
+
+      // Play/pause flips bypass the throttle immediately.
+      rerender(h(SandboxedLayout, propsFor(30500, { status: 'paused' })))
+      expect(postMessage).toHaveBeenCalledTimes(3)
+      expect(postMessage.mock.calls[2]?.[0].type).toBe('NOW_PLAYING_TICK')
+      expect(postMessage.mock.calls[2]?.[0].payload.isPlaying).toBe(false)
+
+      // A static change (title) re-ships the full snapshot, still with fresh
+      // volatile fields baked in.
+      vi.setSystemTime(Date.now() + 150)
+      rerender(
+        h(SandboxedLayout, propsFor(30500, { status: 'paused', nowPlaying: { ...IDLE.nowPlaying!, title: 'Changes' } })),
+      )
+      expect(postMessage).toHaveBeenCalledTimes(4)
+      const snap = postMessage.mock.calls[3]?.[0]
+      expect(snap.type).toBe('NOW_PLAYING_SNAPSHOT')
+      expect(snap.payload.title).toBe('Changes')
+      expect(snap.payload.positionMs).toBe(30500)
+      expect(snap.payload.isPlaying).toBe(false)
+      expect(snap.payload.lyrics.lines).toHaveLength(3)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

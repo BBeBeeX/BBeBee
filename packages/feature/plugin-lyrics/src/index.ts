@@ -180,7 +180,7 @@ export class LyricsPlugin extends Service implements LyricsService {
           (transport.nowPlaying.artist && lastMeta.artist !== transport.nowPlaying.artist)
 
         if (isNewMetadata) {
-          this.lastSearchedMeta.set(transport.trackUrn, {
+          this.rememberBounded(this.lastSearchedMeta, transport.trackUrn, {
             title: transport.nowPlaying.title,
             artist: transport.nowPlaying.artist,
           })
@@ -259,7 +259,7 @@ export class LyricsPlugin extends Service implements LyricsService {
     }
 
     if (presetMetadata?.title) {
-      this.lastSearchedMeta.set(trackUrn, {
+      this.rememberBounded(this.lastSearchedMeta, trackUrn, {
         title: presetMetadata.title,
         artist: presetMetadata.artist,
       })
@@ -373,7 +373,7 @@ export class LyricsPlugin extends Service implements LyricsService {
 
     // 1. In-memory positive cache
     if (this.memoryCache.has(trackUrn)) {
-      this.lastResolvedSourceType.set(trackUrn, 'cache')
+      this.rememberBounded(this.lastResolvedSourceType, trackUrn, 'cache')
       return this.memoryCache.get(trackUrn)
     }
 
@@ -422,7 +422,7 @@ export class LyricsPlugin extends Service implements LyricsService {
               offsetMs: row.offset_ms,
               language: row.language || undefined,
             }
-            this.lastResolvedSourceType.set(trackUrn, 'cache')
+            this.rememberBounded(this.lastResolvedSourceType, trackUrn, 'cache')
             this.remember(trackUrn, lyrics)
             return lyrics
           }
@@ -449,7 +449,7 @@ export class LyricsPlugin extends Service implements LyricsService {
         try {
           const fetched = await provider.getLyrics(parsedUrn.id)
           if (fetched && fetched.content && fetched.content.trim()) {
-            this.lastResolvedSourceType.set(trackUrn, 'audio-provider')
+            this.rememberBounded(this.lastResolvedSourceType, trackUrn, 'audio-provider')
             this.remember(trackUrn, fetched)
             await this.persistLyrics(trackUrn, fetched)
             return fetched
@@ -473,7 +473,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       try {
         const fetched = await lyricSourcesSvc.searchLyrics(query)
         if (fetched && fetched.content && fetched.content.trim()) {
-          this.lastResolvedSourceType.set(trackUrn, 'lyric-source')
+          this.rememberBounded(this.lastResolvedSourceType, trackUrn, 'lyric-source')
           this.remember(trackUrn, fetched)
           await this.persistLyrics(trackUrn, fetched)
           return fetched
@@ -494,7 +494,7 @@ export class LyricsPlugin extends Service implements LyricsService {
         try {
           const fetched = await lyricSourcesSvc.searchLyrics(retryQuery)
           if (fetched && fetched.content && fetched.content.trim()) {
-            this.lastResolvedSourceType.set(trackUrn, 'lyric-source')
+            this.rememberBounded(this.lastResolvedSourceType, trackUrn, 'lyric-source')
             this.remember(trackUrn, fetched)
             await this.persistLyrics(trackUrn, fetched)
             return fetched
@@ -680,6 +680,22 @@ export class LyricsPlugin extends Service implements LyricsService {
     }
   }
 
+  /**
+   * Bounded insert for the per-track bookkeeping maps. These grow one entry
+   * per track ever seen; without eviction a long session accumulates every
+   * URN forever. `memoryCache`/`negativeCache` evict through their own
+   * `remember`/`rememberNegative` — this is the same oldest-first policy.
+   */
+  private rememberBounded<V>(map: Map<string, V>, urn: string, value: V): void {
+    if (!map.has(urn) && map.size >= this.cacheSize) {
+      const oldestKey = map.keys().next().value
+      if (oldestKey !== undefined) {
+        map.delete(oldestKey)
+      }
+    }
+    map.set(urn, value)
+  }
+
   private remember(urn: string, lyrics: Lyrics): void {
     this.negativeCache.delete(urn)
     if (this.memoryCache.size >= this.cacheSize) {
@@ -774,6 +790,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       this.parsedCache.delete(trackUrn)
       this.negativeCache.delete(trackUrn)
       this.lastResolvedSourceType.delete(trackUrn)
+      this.lastSearchedMeta.delete(trackUrn)
       if (this.ownCtx.db) {
         try {
           await this.ownCtx.db.exec('DELETE FROM lyrics WHERE track_urn = ?', [trackUrn])
@@ -786,6 +803,7 @@ export class LyricsPlugin extends Service implements LyricsService {
       this.parsedCache.clear()
       this.negativeCache.clear()
       this.lastResolvedSourceType.clear()
+      this.lastSearchedMeta.clear()
       if (this.ownCtx.db) {
         try {
           await this.ownCtx.db.exec('DELETE FROM lyrics')
@@ -825,7 +843,10 @@ export class LyricsPlugin extends Service implements LyricsService {
     let parsed = this.parsedCache.get(urn)
     if (!parsed) {
       parsed = parseLrc(this.currentState.lyrics.content, { offsetMs: this.currentState.offsetMs })
-      this.parsedCache.set(urn, parsed)
+      // Bounded here too, not only via `remember`'s cross-eviction: the two
+      // caches are written from different paths and can drift, leaving this
+      // one to grow one parsed document per synced track forever.
+      this.rememberBounded(this.parsedCache, urn, parsed)
     }
 
     if (!parsed.synced || parsed.lines.length === 0) {

@@ -38,10 +38,30 @@ export function buildSandboxedHtml(htmlBody: string): string {
       };
 
       window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'NOW_PLAYING_SNAPSHOT') {
-          currentState = event.data.payload;
+        var data = event.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'NOW_PLAYING_SNAPSHOT') {
+          currentState = data.payload;
           for (var i = 0; i < stateListeners.length; i++) {
             try { stateListeners[i](currentState); } catch(e) { console.error(e); }
+          }
+        } else if (data.type === 'NOW_PLAYING_TICK') {
+          // The host ships volatile fields (position/active line/play state)
+          // separately at a throttled cadence; the heavy snapshot is re-sent
+          // only when the track or lyrics document actually changes. Merge the
+          // tick into the current snapshot so skins keep reading one stable
+          // shape from getState()/onSnapshot().
+          if (!currentState || !data.payload || typeof data.payload !== 'object') return;
+          var tick = data.payload;
+          currentState = Object.assign({}, currentState, {
+            positionMs: typeof tick.positionMs === 'number' ? tick.positionMs : currentState.positionMs,
+            isPlaying: typeof tick.isPlaying === 'boolean' ? tick.isPlaying : currentState.isPlaying,
+            lyrics: Object.assign({}, currentState.lyrics, {
+              activeIndex: typeof tick.activeIndex === 'number' ? tick.activeIndex : currentState.lyrics.activeIndex
+            })
+          });
+          for (var j = 0; j < stateListeners.length; j++) {
+            try { stateListeners[j](currentState); } catch(e) { console.error(e); }
           }
         }
       });

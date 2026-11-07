@@ -1119,7 +1119,8 @@ export interface NowPlayingService {
 - **Strict Data Whitelist (`SandboxPlayerSnapshot`)**: Only 8 core playback fields are projected (`cover`, `coverThemeColor`, `title`, `artist`, `lyrics`, `positionMs`/`durationMs`, `isPlaying`, `isLoved`). Local artwork paths (`file://`) are automatically rewritten to `bbebee-file://` to allow image loading without Chromium local origin violations.
 - **Strict Action Whitelist (`SandboxPlayerAction`)**: Only whitelisted transport/playback commands are honored (`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`).
 - **Bridge Protocol & SDK (`window.BBeBeePlayer`)**:
-  - The host pushes `{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }` and responds to sandbox handshake `{ type: 'BBEBEE_SANDBOX_READY' }`.
+  - The host pushes a full `{ type: 'NOW_PLAYING_SNAPSHOT', payload: SandboxPlayerSnapshot }` only when static content changes (track, lyrics document, duration, loved state) and on the `{ type: 'BBEBEE_SANDBOX_READY' }` handshake / iframe load.
+  - Volatile fields ride a throttled `{ type: 'NOW_PLAYING_TICK', payload: SandboxPlayerTick }` (~100 ms; instant on `isPlaying`/`activeIndex` changes). The SDK merges ticks into the latest snapshot, so `onSnapshot`/`getState()` keep exposing one stable object. Splitting the two messages is a hard requirement: a full snapshot per frame structured-clones the whole lyric document at 60 Hz, which a throttled sandbox iframe cannot always drain — every queued clone was retained until the renderer OOM'd (Chromium `0xE0000008`).
   - The iframe host injects `window.BBeBeePlayer` exposing `onSnapshot(fn)` (also aliased as `onStateChange(fn)`), `getState()`, and transport action dispatchers (`play`, `pause`, `togglePlay`, `previous`, `next`, `seek`, `toggleFavorite`).
 - **Active Fallback Protection**: Removing a custom plugin currently in use automatically resets active layout to `'classic'`.
 
