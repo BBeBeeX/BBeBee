@@ -26,6 +26,7 @@
     "js",
     "lan",
     "lanShare",
+    "lanSync",
     "library",
     "lifecycle",
     "liveActivity",
@@ -135,10 +136,14 @@
       "@bbebee/core-js-quickjs-desktop"
     ],
     "lan": [
-      "@bbebee/core-lan-desktop"
+      "@bbebee/core-lan-desktop",
+      "@bbebee/core-lan-mobile"
     ],
     "lanShare": [
       "@bbebee/plugin-lan-share"
+    ],
+    "lanSync": [
+      "@bbebee/plugin-lan-sync"
     ],
     "library": [
       "@bbebee/plugin-library"

@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- The LAN transport joins a multicast group for discovery. Receiving
+       multicast on Wi-Fi additionally requires the app-level
+       CHANGE_WIFI_MULTICAST_STATE permission and an acquired MulticastLock
+       (see LanHostModule.start); INTERNET is declared by the app itself. -->
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+</manifest>

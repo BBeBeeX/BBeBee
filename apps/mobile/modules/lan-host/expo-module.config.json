@@ -1,0 +1,10 @@
+{
+  "platforms": ["android", "ios"],
+  "android": {
+    "modules": ["expo.modules.lanhost.LanHostModule"]
+  },
+  "ios": {
+    "modules": ["LanHostModule"],
+    "podspecPath": "ios/lan-host.podspec"
+  }
+}

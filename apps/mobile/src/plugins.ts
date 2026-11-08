@@ -149,6 +149,11 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-share': {},
   '@bbebee/plugin-share-ui-mobile': {},
   '@bbebee/plugin-sleep-timer': {},
+  // Listen together: one device plays, the others mirror it over the LAN.
+  // Both shells run the pair — the feature-parity gate counts headless
+  // features, and the sync screen is reachable from settings on mobile.
+  '@bbebee/plugin-lan-sync': {},
+  '@bbebee/plugin-lan-sync-ui-mobile': {},
   '@bbebee/plugin-desktop-taskbar': {},
   '@bbebee/plugin-dsp': {},
   '@bbebee/plugin-dsp-ui-mobile': {},
@@ -193,6 +198,10 @@ export const DEFERRED_PLUGIN_IDS = [
   '@bbebee/plugin-visualizer',
   '@bbebee/plugin-visualizer-ui-mobile',
   '@bbebee/plugin-sleep-timer',
+  // The sync screen is reached from settings and the leader side is a pure
+  // background listener — nothing the first frame needs.
+  '@bbebee/plugin-lan-sync',
+  '@bbebee/plugin-lan-sync-ui-mobile',
   // Nothing on the first screen needs car mode; the settings row and the
   // charging auto-detection both arrive post-first-frame.
   '@bbebee/plugin-car-mode',

@@ -51,6 +51,7 @@ import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-play
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
 import type { LanShareIncomingRequest, LanSharePeer, LanShareSettings, LanShareTransfer } from './services/lan-share.js'
+import type { LanSyncSettings, SyncLeaderInfo, SyncSessionState, SyncSnapshot } from './services/lan-sync.js'
 import type { RegistryTask, RegistryUpdate } from './services/registry.js'
 import type { ConvertTask } from './services/audio-converter.js'
 import type { CarModeTrigger, LifecyclePhase, QuickActionItem } from './services/integration.js'
@@ -79,6 +80,12 @@ declare module 'cordis' {
     'lan-share/transfers-changed'(transfers: readonly LanShareTransfer[]): void
     'lan-share/settings-changed'(settings: LanShareSettings): void
     'lan-share/incoming'(request: LanShareIncomingRequest): void
+    /* ── lan-sync ────────────────────────────────────── emit ── */
+    'lan-sync/leaders-changed'(leaders: readonly SyncLeaderInfo[]): void
+    'lan-sync/session-changed'(session: SyncSessionState): void
+    /** Follower-side mirror of the leader's transport. */
+    'lan-sync/mirror-changed'(snapshot: SyncSnapshot): void
+    'lan-sync/settings-changed'(settings: LanSyncSettings): void
     /* ── player ─────────────────────────────────────── emit ── */
     'player/state-changed'(state: TransportState): void
     'player/track-changed'(trackUrn: string | undefined, previous?: string): void
@@ -342,6 +349,10 @@ export const DISPATCH_MODES = {
   'lan-share/transfers-changed': 'emit',
   'lan-share/settings-changed': 'emit',
   'lan-share/incoming': 'emit',
+  'lan-sync/leaders-changed': 'emit',
+  'lan-sync/session-changed': 'emit',
+  'lan-sync/mirror-changed': 'emit',
+  'lan-sync/settings-changed': 'emit',
   'plugin-manager/enabled-changed': 'emit',
   'plugin-manager/changed': 'emit',
   'registry/updates-available': 'emit',

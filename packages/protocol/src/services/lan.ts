@@ -60,6 +60,14 @@ export interface LanReply {
   body?: Uint8Array
   /** The host streams this file as the response body. */
   bodyFile?: Uri
+  /**
+   * Stream only the `bodyFile` slice `[bodyFileStart, bodyFileEnd]` — both
+   * inclusive, `createReadStream({ start, end })` semantics, end clamped to
+   * the file's last byte. This is how a Range/206 reply serves audio seeking
+   * without shipping the whole file; omit both to stream the entire file.
+   */
+  bodyFileStart?: number
+  bodyFileEnd?: number
 }
 
 /**

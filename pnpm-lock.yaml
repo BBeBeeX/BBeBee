@@ -349,6 +349,9 @@ importers:
       '@bbebee/core-js-mobile':
         specifier: workspace:*
         version: link:../../packages/core/core-js-mobile
+      '@bbebee/core-lan-mobile':
+        specifier: workspace:*
+        version: link:../../packages/core/core-lan-mobile
       '@bbebee/core-lifecycle-mobile':
         specifier: workspace:*
         version: link:../../packages/core/core-lifecycle-mobile
@@ -421,6 +424,12 @@ importers:
       '@bbebee/plugin-inspector':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-inspector
+      '@bbebee/plugin-lan-sync':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-lan-sync
+      '@bbebee/plugin-lan-sync-ui-mobile':
+        specifier: workspace:*
+        version: link:../../packages/ui/plugin-lan-sync-ui-mobile
       '@bbebee/plugin-library':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-library
@@ -997,6 +1006,18 @@ importers:
         specifier: workspace:*
         version: link:../core-paths-desktop
 
+  packages/core/core-lan-mobile:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+
   packages/core/core-lifecycle-mobile:
     dependencies:
       '@BBeBee/protocol':
@@ -1449,6 +1470,40 @@ importers:
       '@bbebee/core-lan-desktop':
         specifier: workspace:*
         version: link:../../core/core-lan-desktop
+
+  packages/feature/plugin-lan-sync:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/core-db-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-paths-desktop
+      '@bbebee/core-lan-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-lan-desktop
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
 
   packages/feature/plugin-library:
     dependencies:
@@ -2752,6 +2807,74 @@ importers:
       '@bbebee/plugin-lan-share':
         specifier: workspace:*
         version: link:../../feature/plugin-lan-share
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
+
+  packages/ui/plugin-lan-sync-ui-desktop:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
+      '@BBeBee/ui-core':
+        specifier: workspace:*
+        version: link:../ui-core
+      '@BBeBee/ui-kit-desktop':
+        specifier: workspace:*
+        version: link:../ui-kit-desktop
+      '@BBeBee/ui-tokens':
+        specifier: workspace:*
+        version: link:../ui-tokens
+      '@bbebee/plugin-lan-sync':
+        specifier: workspace:*
+        version: link:../../feature/plugin-lan-sync
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
+
+  packages/ui/plugin-lan-sync-ui-mobile:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
+      '@BBeBee/ui-core':
+        specifier: workspace:*
+        version: link:../ui-core
+      '@BBeBee/ui-kit-mobile':
+        specifier: workspace:*
+        version: link:../ui-kit-mobile
+      '@BBeBee/ui-tokens':
+        specifier: workspace:*
+        version: link:../ui-tokens
+      '@bbebee/plugin-lan-sync':
+        specifier: workspace:*
+        version: link:../../feature/plugin-lan-sync
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9

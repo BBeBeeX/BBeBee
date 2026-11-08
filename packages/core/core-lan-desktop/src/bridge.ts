@@ -37,6 +37,8 @@ interface ReplyWire {
   headers?: Record<string, string>
   body?: string
   bodyFile?: Uri
+  bodyFileStart?: number
+  bodyFileEnd?: number
 }
 
 export class LanBridge extends Service implements LanService {
@@ -183,6 +185,8 @@ export class LanBridge extends Service implements LanService {
       ...(reply.headers ? { headers: reply.headers } : {}),
       ...(reply.body ? { body: bytesToBase64(reply.body) } : {}),
       ...(reply.bodyFile ? { bodyFile: reply.bodyFile } : {}),
+      ...(reply.bodyFileStart !== undefined ? { bodyFileStart: reply.bodyFileStart } : {}),
+      ...(reply.bodyFileEnd !== undefined ? { bodyFileEnd: reply.bodyFileEnd } : {}),
     }
     await unwrapBridgeResult(await this.bridge.call('lan', 'replyRequest', [id, wire]))
   }

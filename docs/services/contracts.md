@@ -31,6 +31,7 @@
 - [27. Where to go next](#27-where-to-go-next)
 - [28. System-integration services (mobile)](#28-system-integration-services-mobile)
 - [29. `ctx.lan` — LAN transport](#29-ctxlan--lan-transport)
+- [30. `ctx.lanSync` — listen-together over the LAN](#30-ctxlansync--listen-together-over-the-lan)
 
 > **Scope boundary.** The normative registry of service keys — which keys exist and which package implements each on which platform — lives in [rules/services.md §2](../../rules/services.md#2-standard-service-keys) (L2). This catalog holds the full contracts, platform behavior and rationale.
 
@@ -1838,7 +1839,7 @@ export interface LanService {
 
 **Capability.** The flat `lan` token governs the whole service — one grant for both directions on purpose ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). `ctx.http` remains the egress point for everything else; `lan` is not a general network grant wearing a shorter name.
 
-**Platform shape.** Desktop only today: `core-lan-desktop` runs the sockets in the Node sidecar (`node:dgram` + `node:http`), exposed to the renderer as a thin bridge service (`LanBridge`) exactly like `FsBridge`. Inbound datagrams and requests are pushed to the renderer as `BBeBee:event` topics (`lan-datagram`, `lan-request`); replies and outbound requests go back as `lan.*` bridge calls, whose dispatch is allowlisted like every other service.
+**Platform shape.** Two implementations of one contract: `core-lan-desktop` runs the sockets in the Node sidecar (`node:dgram` + `node:http`), exposed to the renderer as a thin bridge service (`LanBridge`) exactly like `FsBridge`; `core-lan-mobile` runs them over the `BbebeeLanHost` Expo module (Android `MulticastSocket` + `ServerSocket`, iOS `NWListener`), registered as a bootstrap service only in builds that carry the native module. Inbound datagrams and requests are pushed to the UI as `lan-datagram` / `lan-request` events; replies and outbound requests go back as transport calls. On desktop the bridge dispatch is allowlisted like every other service, and a reply body file passes the same containment an `fs` read answers to — on mobile the same two checks live in the `LanMobile` wrapper and the adapter, the only seams to the sockets on that platform.
 
 ### Containment (identity-free, enforced at the dispatch and in the host)
 
@@ -1849,8 +1850,41 @@ export interface LanService {
 
 **Large bodies never cross the bridge in memory.** Uploads spill to files and arrive as `bodyFile`; a reply may name a `bodyFile` for the host to stream. Bytes cross the bridge only when they are small (base64 over the NDJSON transport).
 
-**Who uses it.** `plugin-lan-share` — the LocalSend-style song-transfer feature (`ctx.lanShare`, events `lan-share/peers-changed`, `lan-share/transfers-changed`, `lan-share/settings-changed`, `lan-share/incoming`). Received files land in the plugin's own data directory and are ingested through `ctx.scanner.importFiles`, so `library/changed` refreshes every screen.
+**Who uses it.** `plugin-lan-share` — the LocalSend-style song-transfer feature (`ctx.lanShare`, events `lan-share/peers-changed`, `lan-share/transfers-changed`, `lan-share/settings-changed`, `lan-share/incoming`). Received files land in the plugin's own data directory and are ingested through `ctx.scanner.importFiles`, so `library/changed` refreshes every screen. And `plugin-lan-sync` — the listen-together feature (`ctx.lanSync`, [§30](#30-ctxlansync--listen-together-over-the-lan)).
 
 **Progress granularity.** Per-file, not per-byte: the transport streams files in the sidecar, and the renderer learns that a file finished. This is the honest granularity the bridge provides; byte-level progress would need a transport extension.
 
-**Not yet on mobile.** A `core-lan-mobile` (Android `MulticastSocket` + `ServerSocket`, iOS `NWListener`) is the follow-up milestone; the feature's manifest declares `platforms: ["desktop"]` and the shell parity gate carries the exception.
+**Range replies.** A reply may carry `bodyFileStart`/`bodyFileEnd` (inclusive, clamped to the file) alongside `bodyFile`: the host streams only that slice. This is what lets a feature serve a local track with Range/206 semantics — a peer's audio engine seeks against it like against any web server.
+
+**Mobile transport.** `core-lan-mobile` implements the same contract over the `BbebeeLanHost` Expo module (Android `MulticastSocket` + `ServerSocket`, iOS `NWListener`): a mobile device announces, serves its playback state, and streams local files exactly like the desktop sidecar. Without the native module (Expo Go) the service is simply not registered, and `ctx.lan` consumers stay inert. Receiving *multicast* on iOS additionally requires Apple's `com.apple.developer.networking.multicast` entitlement; broadcast announce and manual addresses work without it.
+
+## 30. `ctx.lanSync` — listen-together over the LAN
+
+**Purpose.** Synchronized listening: one device (the leader) plays normally, every other device (a follower) mirrors the leader's transport within a bounded drift window. Any member can control the leader (play/pause/skip/seek); controls ride the same HTTP API. Implemented by `plugin-lan-sync` (L4) over `ctx.lan`, so every platform with a `lan` transport can take either role.
+
+**Roles are asymmetric on purpose.**
+
+- **Leader — passive.** It announces itself (UDP, `app: 'bbebee-sync'` on the shared well-known port so it coexists with the transfer feature on one socket), answers the sync API, and publishes a snapshot of `ctx.player`'s transport (`version`-stamped). It never learns a follower's address beyond what the follower's own requests reveal.
+- **Follower — active.** It long-polls the leader's `/state?since=<version>`, drives `ctx.audio` directly (the local player is stopped for the session — the mirror and the player would otherwise fight over one engine), corrects its position whenever drift exceeds 350 ms, and rejoins the discussion via `POST /command`.
+
+**Wire surface** (all under `/api/bbebee-lan-sync/v1`, JSON unless noted):
+
+| Endpoint | Meaning |
+|---|---|
+| `GET /info` | device identity |
+| `POST /join` | register a follower → `{sessionId, snapshot}` |
+| `POST /leave` | deregister |
+| `GET /state?since=<v>` | the snapshot; **long-poll** — held ≤10 s when `since` is current, so play/pause feels instant and drift is corrected at least every 10 s |
+| `POST /command` | follower control: `play/pause/toggle/next/previous/seek` |
+| `GET /stream/<token>` | a local file, Range/206 capable; tokens are 128-bit, TTL-bound, and answer a flat 404 — a token is a capability, not an identity |
+| `GET /artwork/<urn>` | the local artwork behind a track urn, resolved through the library (never an arbitrary path) |
+
+**The two playback answers.** A *local* track is registered under a token and served with Range/206 — the follower's own engine seeks like it would against any web server. A *third-party* stream travels as the **final resolved URL** (plus headers and `expiresAt`): the follower loads it directly and no audio bytes transit the leader. The leader re-publishes at least every 30 s so a rotated URL reaches its followers.
+
+**Capability.** `lan` (the transport), `audio` (the follower drives `ctx.audio`), `db:read:core` (queue metadata enrichment). No `net:host` grant — every peer exchange rides `ctx.lan` on both platforms.
+
+**Sync model.** Clock offset learned per snapshot (`serverTimeMs − arrivalTime`, biased by ≤RTT/2); expected position advances in real time while the leader reports `playing`; corrections only when the disagreement exceeds the 350 ms threshold and the handle is seekable. Volume and DSP stay per-device on purpose — same audio content, personal loudness.
+
+**Trust posture.** Cleartext HTTP on the LAN, no authentication — the same trust level as the transfer feature: anyone on the network holding a token can listen. The mirror never persists (a snapshot is re-pulled, the same reasoning that keeps `StreamHandle` transient).
+
+**Guard.** The engine is exclusive: if the local player starts playing while following, the session is left automatically rather than fighting it for the engine.

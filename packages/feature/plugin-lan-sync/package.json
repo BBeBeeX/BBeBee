@@ -1,0 +1,38 @@
+{
+  "name": "@bbebee/plugin-lan-sync",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
+    "./hooks": "./src/hooks.ts",
+    "./views": "./src/views.ts"
+  },
+  "main": "./src/index.ts",
+  "publishConfig": {
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./hooks": { "types": "./dist/hooks.d.ts", "default": "./dist/hooks.js" },
+      "./views": { "types": "./dist/views.d.ts", "default": "./dist/views.js" },
+      "./package.json": "./package.json"
+    },
+    "main": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@BBeBee/core-db-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*",
+    "@BBeBee/core-paths-desktop": "workspace:*",
+    "@bbebee/core-lan-desktop": "workspace:*",
+    "@types/react": "^19.2.0"
+  }
+}

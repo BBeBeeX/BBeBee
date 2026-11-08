@@ -98,6 +98,18 @@ import '../modules/audio-engine/index.js'
  */
 import { getProxyHttpTransport, getStreamRelay } from '../modules/http-proxy/index.js'
 
+/*
+ * The native LAN-host module, if this build carries it: the transport the
+ * `LanMobile` service wraps, and what makes a mobile device a first-class
+ * listen-together participant (it can announce, serve state and stream local
+ * files, like the desktop sidecar). Same rules as the proxy module above —
+ * probe here, hand in as config, never on `globalThis`. A build without the
+ * module (Expo Go) leaves the seam unset and the service unregistered, so
+ * every `ctx.lan` consumer stays inert instead of failing the boot.
+ */
+import { getLanHost } from '../modules/lan-host/index.js'
+import { LanMobile } from '@bbebee/core-lan-mobile'
+
 /**
  * Metro defines this in every bundle; it is `false` in a release build.
  *
@@ -519,6 +531,7 @@ async function resolveProxyConfig(): Promise<HttpProxyConfig | null> {
 // never a boot failure.
 const nativeProxyTransport = getProxyHttpTransport()
 const nativeStreamRelay = getStreamRelay()
+const nativeLanHost = getLanHost()
 
 /**
  * The transport `HttpRn` uses for requests marked `useProxy`: the native
@@ -556,6 +569,17 @@ const proxyTransport: HttpProxyTransport | undefined = nativeProxyTransport
       DeviceExpo,
       BackgroundExpo,
       MediaSessionRn,
+
+      /*
+       * `ctx.lan` — the mobile LAN transport, present only in builds with the
+       * `BbebeeLanHost` native module. A bootstrap entry for the same reason
+       * as the services above: `plugin-lan-sync` (and any future LAN feature)
+       * waits on this key, and a fiber PENDING behind a missing provider is
+       * invisible from the UI. Without the module the entry is omitted and
+       * those consumers stay inert — Expo Go loses listen-together, not the
+       * boot.
+       */
+      ...(nativeLanHost ? [[LanMobile, { transport: nativeLanHost }] as const] : []),
 
       /*
        * The system-integration services: haptic feedback, the home-screen

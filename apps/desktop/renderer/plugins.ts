@@ -92,6 +92,9 @@ export const SHELL_MANIFEST: PluginManifest = {
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
   '@bbebee/plugin-lan-share': {},
   '@bbebee/plugin-lan-share-ui-desktop': {},
+  // Listen together: one device plays, the others mirror it over the LAN.
+  '@bbebee/plugin-lan-sync': {},
+  '@bbebee/plugin-lan-sync-ui-desktop': {},
   '@bbebee/plugin-theme': {},
   '@bbebee/plugin-theme-ui-desktop': {},
   '@bbebee/plugin-ui': {},

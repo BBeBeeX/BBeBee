@@ -175,6 +175,57 @@ describe('createLanHost', () => {
     expect(Buffer.compare(Buffer.from(response.body!), content)).toBe(0)
   })
 
+  it('streams a clamped file slice for a Range/206 reply', async () => {
+    const a = await start()
+
+    const content = Buffer.alloc(1000)
+    for (let i = 0; i < content.length; i++) content[i] = i % 251
+    const replyPath = join(dirs[0]!, 'ranged.bin')
+    await writeFile(replyPath, content)
+
+    replyWhenRequestArrives(a.events, a.host, async (req) => {
+      // A slice past the file's end clamps to the last byte; a negative
+      // start clamps to 0 — the values crossed the bridge as peer data.
+      await a.host.replyRequest(req.id as string, {
+        status: 206,
+        headers: { 'content-range': 'bytes 100-299/1000', 'accept-ranges': 'bytes' },
+        bodyFile: pathToFileURL(replyPath).href,
+        bodyFileStart: 100,
+        bodyFileEnd: 299,
+      })
+    })
+
+    const response = await a.host.request(
+      { host: '127.0.0.1', port: a.ports.httpPort },
+      { method: 'GET', path: '/file', headers: { range: 'bytes=100-299' } },
+    )
+    expect(response.status).toBe(206)
+    expect(response.headers['content-length']).toBe('200')
+    expect(Buffer.compare(Buffer.from(response.body!), content.subarray(100, 300))).toBe(0)
+  })
+
+  it('answers an empty-file reply without a read stream', async () => {
+    const a = await start()
+
+    const replyPath = join(dirs[0]!, 'empty.bin')
+    await writeFile(replyPath, Buffer.alloc(0))
+
+    replyWhenRequestArrives(a.events, a.host, async (req) => {
+      await a.host.replyRequest(req.id as string, {
+        status: 200,
+        bodyFile: pathToFileURL(replyPath).href,
+      })
+    })
+
+    const response = await a.host.request(
+      { host: '127.0.0.1', port: a.ports.httpPort },
+      { method: 'GET', path: '/empty' },
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers['content-length']).toBe('0')
+    expect(response.body).toBeUndefined()
+  })
+
   it('refuses to dial or broadcast outside the local network', async () => {
     const a = await start()
     await expect(a.host.request({ host: 'example.com', port: 80 }, { path: '/' })).rejects.toThrow(

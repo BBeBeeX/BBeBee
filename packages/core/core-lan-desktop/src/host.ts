@@ -84,6 +84,12 @@ export function uriToPath(uri: string): string {
   throw new TypeError(`lan: not a file uri: ${uri}`)
 }
 
+/** Clamp a wire-supplied index into `[min, max]`, falling back when absent or malformed. */
+function clampIndex(value: number | undefined, fallback: number, min: number, max: number): number {
+  if (value === undefined || !Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.floor(value)))
+}
+
 export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose(): Promise<void> } {
   const spillBytes = options.bodySpillBytes ?? 1024 * 1024
   const maxBodyBytes = options.maxBodyBytes ?? 8 * 1024 * 1024 * 1024
@@ -392,6 +398,8 @@ export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose
       headers?: Record<string, string>
       body?: Uint8Array
       bodyFile?: string
+      bodyFileStart?: number
+      bodyFileEnd?: number
     },
   ): Promise<void> {
     const entry = pending.get(id)
@@ -404,11 +412,21 @@ export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose
       if (reply.bodyFile) {
         const filePath = uriToPath(reply.bodyFile)
         const size = (await stat(filePath)).size
-        if (!headers['content-length']) headers['content-length'] = String(size)
+        // An optional slice serves Range/206 replies — audio seeking — without
+        // the whole file crossing the wire. Everything is clamped: the values
+        // crossed the bridge, so they are peer data, not trusted constants.
+        const start = clampIndex(reply.bodyFileStart, 0, 0, Math.max(size - 1, 0))
+        const end = clampIndex(reply.bodyFileEnd, size - 1, start, Math.max(size - 1, 0))
+        const length = Math.max(0, end - start + 1)
+        if (!headers['content-length']) headers['content-length'] = String(length)
         res.writeHead(reply.status, headers)
+        if (length <= 0) {
+          res.end()
+          return
+        }
         // No callback: `stream/promises.pipeline` takes none — a rejection
         // lands in the catch below, which destroys the socket.
-        await pipeline(createReadStream(filePath), res)
+        await pipeline(createReadStream(filePath, { start, end }), res)
         return
       }
       const bytes = reply.body ?? new Uint8Array(0)

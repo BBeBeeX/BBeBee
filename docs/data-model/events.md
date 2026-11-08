@@ -34,6 +34,13 @@ declare module 'cordis' {
     'share/open'(target: ShareTarget): void
     'share/import'(): void
 
+    /* ── lan-sync ────────────────────────────────────── emit ── */
+    'lan-sync/leaders-changed'(leaders: readonly SyncLeaderInfo[]): void
+    'lan-sync/session-changed'(session: SyncSessionState): void
+    /** Follower-side mirror of the leader's transport. */
+    'lan-sync/mirror-changed'(snapshot: SyncSnapshot): void
+    'lan-sync/settings-changed'(settings: LanSyncSettings): void
+
     /* ── player ─────────────────────────────────────── emit ── */
     'player/state-changed'(state: TransportState): void
     'player/track-changed'(trackUrn: string | undefined, previous?: string): void
@@ -180,6 +187,7 @@ declare module 'cordis' {
 | `source/rule-failed` | **emit**, coalesced per source | One rotted source can fail a rule per track in a queue; the badge needs the fact, not the volume |
 | `player/position` | **emit**, throttled to 1 Hz | At 60 Hz it would dominate the event bus for no benefit; the UI interpolates between ticks |
 | `quick-actions/action`, `lifecycle/phase-changed`, `car-mode/changed` | **emit** | Mobile system-integration notifications — home-screen shortcuts, AppState boundaries, car-mode transitions ([contracts.md §28](../services/contracts.md#28-system-integration-services-mobile)) |
+| `lan-sync/*` | **emit** | Listen-together discovery, session and mirror notifications ([contracts.md §30](../services/contracts.md#30-ctxlansync--listen-together-over-the-lan)) |
 
 ---
 

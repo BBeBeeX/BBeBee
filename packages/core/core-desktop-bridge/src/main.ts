@@ -206,6 +206,9 @@ export interface LanHost {
       headers?: Record<string, string>
       body?: Uint8Array
       bodyFile?: string
+      /** Stream only this inclusive slice of `bodyFile` (Range/206 replies). */
+      bodyFileStart?: number
+      bodyFileEnd?: number
     },
   ): Promise<void>
 }

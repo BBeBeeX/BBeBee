@@ -49,6 +49,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/core-js-mobile","name":"@bbebee/core-js-mobile","displayName":"Script sandbox","description":"ctx.js — a sandboxed pure-JS interpreter realm per source, for iOS and Android.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["js"]},"effect":"js"},
     builtin: true,
   },
+  "@bbebee/core-lan-mobile": {
+    load: () => import('@bbebee/core-lan-mobile'),
+    manifest: {"id":"@bbebee/core-lan-mobile","name":"@bbebee/core-lan-mobile","displayName":"LAN Transport (Mobile)","description":"ctx.lan — UDP multicast/broadcast datagrams and a bounded HTTP server/client over the local network, via the BbebeeLanHost native module.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":["lan"],"contributes":{"services":["lan"]},"effect":"lan"},
+    builtin: true,
+  },
   "@bbebee/core-lifecycle-mobile": {
     load: () => import('@bbebee/core-lifecycle-mobile'),
     manifest: {"id":"@bbebee/core-lifecycle-mobile","name":"@bbebee/core-lifecycle-mobile","displayName":"Lifecycle","description":"ctx.lifecycle for iOS and Android — AppState phases and the splash screen.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-2","moduleId":"core","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["lifecycle"]},"effect":"lifecycle"},
@@ -132,6 +137,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-inspector": {
     load: () => import('@bbebee/plugin-inspector'),
     manifest: {"id":"@bbebee/plugin-inspector","name":"@bbebee/plugin-inspector","displayName":"Plugin Inspector","description":"Fiber tree and labelled effects.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"inspector","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":[],"contributes":{"services":["inspector"]},"effect":"inspector"},
+    builtin: true,
+  },
+  "@bbebee/plugin-lan-sync": {
+    load: () => import('@bbebee/plugin-lan-sync'),
+    manifest: {"id":"@bbebee/plugin-lan-sync","name":"@bbebee/plugin-lan-sync","displayName":"Listen Together","description":"ctx.lanSync — synchronized listening over the local network: one device plays, every other device mirrors it. Local tracks stream from the leader with seeking; third-party streams travel as the resolved URL.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-player"],"systemId":"layer-4","moduleId":"share","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js","mobile":"./dist/index.js"}},"capabilities":["lan","audio","db:read:core"],"contributes":{"services":["lanSync"]},"effect":"lanSync"},
     builtin: true,
   },
   "@bbebee/plugin-library": {
@@ -282,6 +292,11 @@ export const bundled: PluginRegistry = {
   "@bbebee/plugin-history-ui-mobile": {
     load: () => import('@bbebee/plugin-history-ui-mobile'),
     manifest: {"id":"@bbebee/plugin-history-ui-mobile","name":"@bbebee/plugin-history-ui-mobile","displayName":"History UI (Mobile)","description":"React Native views for @bbebee/plugin-history.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-history"],"systemId":"layer-5","moduleId":"storage","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
+    builtin: true,
+  },
+  "@bbebee/plugin-lan-sync-ui-mobile": {
+    load: () => import('@bbebee/plugin-lan-sync-ui-mobile'),
+    manifest: {"id":"@bbebee/plugin-lan-sync-ui-mobile","name":"@bbebee/plugin-lan-sync-ui-mobile","displayName":"Listen Together UI (Mobile)","description":"React Native views for @bbebee/plugin-lan-sync.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-ui","@bbebee/plugin-lan-sync"],"systemId":"layer-5","moduleId":"share","platforms":["mobile"],"entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{},"effect":null},
     builtin: true,
   },
   "@bbebee/plugin-library-ui-mobile": {
