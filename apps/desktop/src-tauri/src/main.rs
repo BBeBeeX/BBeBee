@@ -111,9 +111,7 @@ fn main() {
             plugins_install, desktop_plugins_install,
             plugins_uninstall, desktop_plugins_uninstall,
             // Proxy & stream
-            proxy_test, desktop_proxy_test,
-            proxy_set, desktop_proxy_set,
-            stream_set_headers, desktop_stream_set_headers,
+            proxy_reload, desktop_proxy_reload,
             // Sandbox
             sandbox_set_html, desktop_sandbox_set_html,
             // Screen

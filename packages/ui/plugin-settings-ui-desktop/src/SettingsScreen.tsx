@@ -15,6 +15,7 @@ import type {
   SourceRecord,
   SourcesService,
   PathsService,
+  SettingsService,
   UiService,
   FsService,
   Uri,
@@ -213,6 +214,40 @@ export function SettingsScreen({
     setNpmAuthTokenSet(false)
   }
 
+  // Proxy password presence (same custody rule as the npm token: the value
+  // lives in the secrets service and is never read here). Saving also pings
+  // the shell through `settings/changed` — the service emits it — so the
+  // sidecar picks the new credential up without a restart.
+  const [proxyPasswordSet, setProxyPasswordSet] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const settings = serviceOf<SettingsService>(ctx, 'settings')
+    if (settings?.hasProxyPassword) {
+      settings
+        .hasProxyPassword()
+        .then((v) => {
+          if (!cancelled) setProxyPasswordSet(v)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [ctx])
+
+  const handleSaveProxyPassword = async (password: string): Promise<void> => {
+    const settings = serviceOf<SettingsService>(ctx, 'settings')
+    await settings?.setProxyPassword(password)
+    setProxyPasswordSet(true)
+  }
+
+  const handleClearProxyPassword = async (): Promise<void> => {
+    const settings = serviceOf<SettingsService>(ctx, 'settings')
+    await settings?.clearProxyPassword()
+    setProxyPasswordSet(false)
+  }
+
   // Third-party sources list
   const [sourcesList, setSourcesList] = useState<readonly SourceRecord[]>(() => {
     const s = serviceOf<SourcesService>(ctx, 'sources')
@@ -375,29 +410,22 @@ export function SettingsScreen({
   const handleTestProxy = async () => {
     setProxyTesting(true)
     setProxyTestResult(null)
-    const bridge = (
-      window as unknown as {
-        BBeBee?: {
-          proxy?: {
-            test: (c: unknown) => Promise<{ ok: boolean; latencyMs?: number; error?: string }>
-          }
-        }
-      }
-    ).BBeBee
+    // The probe is a marked ctx.http request: it takes exactly the path a
+    // proxied source request takes (sidecar dispatcher with the custodied
+    // config, mobile native transport) — so the button tests the proxy as
+    // the app will use it, credentials included, and no proxy URL ever
+    // crosses into the renderer.
+    const started = Date.now()
     try {
-      if (bridge?.proxy?.test) {
-        const res = await bridge.proxy.test({
-          protocol: proxy.protocol,
-          host: proxy.host,
-          port: proxy.port,
-          username: proxy.username,
-          password: proxy.password,
-        })
-        setProxyTestResult(res)
+      const response = await ctx.http({
+        url: 'https://www.gstatic.com/generate_204',
+        timeoutMs: 8_000,
+        useProxy: true,
+      })
+      if (response.status < 400) {
+        setProxyTestResult({ ok: true, latencyMs: Date.now() - started })
       } else {
-        // Fallback probe for tests
-        await new Promise((resolve) => setTimeout(resolve, 200))
-        setProxyTestResult({ ok: true, latencyMs: 68 })
+        setProxyTestResult({ ok: false, error: `probe answered HTTP ${response.status}` })
       }
     } catch (err: unknown) {
       setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
@@ -607,16 +635,15 @@ export function SettingsScreen({
             proxyTestResult,
             onUpdateProxy: (p) => {
               void update({ proxy: p })
-              const bridge = (
+              // Payload-free ping: the shell re-reads the store + the
+              // secrets-held password and pushes the config to the sidecar.
+              // The renderer never carries the proxy config itself. (Read
+              // structurally: the shell's own d.ts owns `window.BBeBee`.)
+              void (
                 window as unknown as {
-                  BBeBee?: {
-                    proxy?: {
-                      set: (c: unknown) => Promise<void>
-                    }
-                  }
+                  BBeBee?: { proxy?: { reload?: () => Promise<void> } }
                 }
-              ).BBeBee
-              void bridge?.proxy?.set?.(p)
+              ).BBeBee?.proxy?.reload?.()?.catch(() => {})
             },
             onTestProxy: handleTestProxy,
             userAgent: settings.userAgent,
@@ -638,6 +665,9 @@ export function SettingsScreen({
             npmAuthTokenSet,
             onSaveNpmAuthToken: handleSaveNpmAuthToken,
             onClearNpmAuthToken: handleClearNpmAuthToken,
+            proxyPasswordSet,
+            onSaveProxyPassword: handleSaveProxyPassword,
+            onClearProxyPassword: handleClearProxyPassword,
           })
         : null,
 

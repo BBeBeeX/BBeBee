@@ -9,6 +9,7 @@ import type { Context } from 'cordis'
 import type {
   AppSettings,
   Disposable,
+  SecretsService,
   SettingsContribution,
   SettingsPatch,
   SettingsService,
@@ -31,6 +32,14 @@ import { watchGlobalShortcuts } from './shortcuts.js'
 const STORE_KEY = APP_SETTINGS_STORE_KEY
 
 /**
+ * The secrets key the proxy password lives under, inside this plugin's own
+ * capability scope — on disk `<pluginScope>/proxy.password`. Never in the
+ * settings document, the store file, or a log (see the custody chain in
+ * `apps/desktop/src-tauri/src/proxy_config.rs`).
+ */
+const PROXY_PASSWORD_KEY = 'proxy.password'
+
+/**
  * Normalizes a manual mirror/registry URL override: trims whitespace, drops
  * trailing slashes, and maps empty input to `undefined` (i.e. "derive from
  * the region default" rather than persisting an empty string).
@@ -41,8 +50,19 @@ function normalizeMirrorUrl(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+/**
+ * A `password` must never survive into the settings document — the secret
+ * file is its only home (`setProxyPassword`), and an older build's plaintext
+ * leftover is emptied here on every merge rather than trusted to a one-time
+ * migration.
+ */
+function stripLegacyProxyPassword(proxy: AppSettings['proxy']): AppSettings['proxy'] {
+  delete (proxy as { password?: unknown }).password
+  return proxy
+}
+
 function mergeSettings(base: AppSettings, patch?: SettingsPatch): AppSettings {
-  if (!patch) return { ...base }
+  if (!patch) return { ...base, proxy: stripLegacyProxyPassword({ ...base.proxy }) }
   return {
     ...base,
     ...patch,
@@ -86,14 +106,14 @@ function mergeSettings(base: AppSettings, patch?: SettingsPatch): AppSettings {
         ...(patch.shortcuts?.keybindings ?? {}),
       },
     },
-    proxy: {
+    proxy: stripLegacyProxyPassword({
       ...base.proxy,
       ...(patch.proxy ?? {}),
       sourceRules: {
         ...base.proxy.sourceRules,
         ...(patch.proxy?.sourceRules ?? {}),
       },
-    },
+    }),
     visualizer: {
       ...base.visualizer,
       ...(patch.visualizer ?? {}),
@@ -153,6 +173,14 @@ export class SettingsPlugin extends Service implements SettingsService {
   private current: AppSettings = mergeSettings(DEFAULT_APP_SETTINGS)
   private readonly contributions = new Map<string, SettingsContribution>()
   private uiScopedCtx?: Context
+  /** Captured when the optional secrets service arrives; see the password methods. */
+  private secrets?: SecretsService
+  /**
+   * A plaintext password an older build left in the stored document — kept
+   * aside at load time, because `mergeSettings` strips the field before the
+   * secrets custody migration (below) has a place to move it to.
+   */
+  private legacyProxyPassword: string | undefined
 
   constructor(ctx: Context) {
     super(ctx, 'settings')
@@ -164,11 +192,24 @@ export class SettingsPlugin extends Service implements SettingsService {
     try {
       const stored = await this.ownCtx.store.get<Partial<AppSettings>>(STORE_KEY)
       if (stored) {
+        const legacyPassword = (stored.proxy as { password?: unknown } | undefined)?.password
+        this.legacyProxyPassword = typeof legacyPassword === 'string' && legacyPassword ? legacyPassword : undefined
         this.current = mergeSettings(DEFAULT_APP_SETTINGS, stored)
       }
     } catch (err) {
       this.ownCtx.logger.warn(`settings: failed to load persisted preferences: ${err}`)
     }
+
+    // Optional: the credential store. Without one there is nowhere for the
+    // proxy password to live, and `setProxyPassword` says so instead of
+    // pretending to persist.
+    this.ownCtx.inject(['secrets'], (scoped) => {
+      this.secrets = scoped.secrets
+      void this.migrateLegacyProxyPassword()
+      return () => {
+        this.secrets = undefined
+      }
+    })
 
     this.ownCtx.inject(['ui'], (scoped) => {
       this.uiScopedCtx = scoped
@@ -274,6 +315,59 @@ export class SettingsPlugin extends Service implements SettingsService {
     return Array.from(this.contributions.values()).sort(
       (a, b) => (a.order ?? 50) - (b.order ?? 50),
     )
+  }
+
+  async setProxyPassword(password: string): Promise<void> {
+    if (!this.secrets) {
+      throw new Error('settings: no secrets service — the proxy password cannot be stored')
+    }
+    const trimmed = password.trim()
+    if (!trimmed) {
+      await this.clearProxyPassword()
+      return
+    }
+    await this.secrets.set(PROXY_PASSWORD_KEY, trimmed)
+    // Not a settings-document change, but the desktop shell reloads its
+    // sidecar-side proxy config on this event — the new password must reach
+    // the dispatcher, so the ping fires the same way an address change does.
+    this.ownCtx.emit('settings/changed', { ...this.current })
+  }
+
+  async clearProxyPassword(): Promise<void> {
+    await this.secrets?.delete(PROXY_PASSWORD_KEY)
+    this.ownCtx.emit('settings/changed', { ...this.current })
+  }
+
+  async hasProxyPassword(): Promise<boolean> {
+    return (await this.secrets?.get(PROXY_PASSWORD_KEY)) !== undefined
+  }
+
+
+  /**
+   * One-time custody migration: an older build kept the proxy password in
+   * the settings document — plaintext inside `store.json`. Move it to the
+   * secrets and empty the field, so the document stops carrying a credential
+   * (and `stripLegacyProxyPassword` keeps it emptied against any older
+   * write arriving late).
+   */
+  private async migrateLegacyProxyPassword(): Promise<void> {
+    const legacy = this.legacyProxyPassword
+    this.legacyProxyPassword = undefined
+    if (!legacy) return
+    if (!this.secrets) {
+      this.ownCtx.logger.warn(
+        'settings: a plaintext proxy password is in the settings document but no secrets service exists to receive it — it stays until one does',
+      )
+      return
+    }
+    try {
+      await this.secrets.set(PROXY_PASSWORD_KEY, legacy)
+      delete (this.current.proxy as { password?: unknown }).password
+      await this.ownCtx.store.set(STORE_KEY, this.current)
+      this.ownCtx.logger.info('settings: migrated the proxy password out of the settings document')
+    } catch (err) {
+      this.ownCtx.logger.warn(`settings: proxy password migration failed: ${String(err)}`)
+    }
   }
 }
 

@@ -34,8 +34,6 @@ export function proxyMarkedHttp(http: HttpService, enabled: () => boolean): Http
     post: (...args: Parameters<HttpService['post']>) => http.post(...args),
     download: (...args: Parameters<HttpService['download']>) => http.download(...args),
     setUserAgent: (userAgent: string) => http.setUserAgent?.(userAgent),
-    setProxy: (config: Parameters<NonNullable<HttpService['setProxy']>>[0]) =>
-      http.setProxy?.(config),
     cookies: http.cookies,
   }) as unknown as HttpService
   // A getter, not a copied value: the journal is the inner service's and must

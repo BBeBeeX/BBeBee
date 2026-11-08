@@ -149,7 +149,6 @@ function abortError(): Error {
 
 /**
  * Build the transport from the native surface.
- *
  * One call = one stateless native round trip; the proxy config travels with
  * the request, so a settings change needs no native-side invalidation.
  * `init.signal` is honoured on the JS side (the native call is not
@@ -236,5 +235,55 @@ export function buildProxyTransport(native: NativeHttpProxy): ProxyTransport {
     // expo's own responses use, so no new reading path is introduced.
     Object.defineProperty(response, '_rawHeaders', { value: result.headers, configurable: true })
     return response
+  }
+}
+
+/**
+ * The native stream-relay surface: one registration call; the listener,
+ * token table and loopback HTTP handling live natively (ServerSocket +
+ * OkHttp on Android, NWListener + URLSession on iOS).
+ */
+export interface NativeStreamRelay {
+  relayRegister(options: {
+    url: string
+    headers: Record<string, string>
+    proxy: HttpProxyConfig
+  }): Promise<{ url: string }>
+}
+
+/** What `core-audio-mpv`'s `streamProxyResolver` consumes. */
+export interface StreamRelay {
+  /**
+   * Register a real upstream (+ the source's headers, + the proxy to route
+   * it through) and get back the loopback URL the engine plays.
+   */
+  register(req: { url: string; headers?: Record<string, string>; proxy: HttpProxyConfig }): Promise<string>
+}
+
+/**
+ * Build the relay seam from the native surface.
+ *
+ * The proxy config travels with every registration — the native side holds
+ * no settings state, so a settings flip lands on the next registered stream
+ * with nothing to invalidate. A registration that answers no URL throws;
+ * `resolveProxied` in `core-audio-mpv` turns that into an honest direct play.
+ */
+export function createStreamRelay(native: NativeStreamRelay): StreamRelay {
+  return {
+    async register({ url, headers, proxy }) {
+      if (!/^https?:\/\//i.test(url)) {
+        throw new ProxyTransportError(`relay: refusing to register ${url.split(':')[0] ?? 'invalid'}// — only http/https is served`)
+      }
+      const result = await native.relayRegister({
+        url,
+        headers: headers ?? {},
+        proxy,
+      })
+      const local = result?.url
+      if (typeof local !== 'string' || !local.startsWith('http://127.0.0.1:')) {
+        throw new ProxyTransportError('relay: native side returned no loopback URL')
+      }
+      return local
+    },
   }
 }

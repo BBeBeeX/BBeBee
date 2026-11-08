@@ -25,8 +25,14 @@ export interface AudioHostApi {
     channels?: number
     bitDepth?: number
     endedCount?: number
+    /** The URI actually served — a relay rewrite answers with the loopback URL. */
+    uri?: string
   }>
-  mpvAppend(uri: string, playNow?: boolean, options?: { headers?: Record<string, string> }): Promise<void>
+  mpvAppend(
+    uri: string,
+    playNow?: boolean,
+    options?: { headers?: Record<string, string>; proxy?: boolean },
+  ): Promise<void>
   mpvPlay(atMs?: number): Promise<void>
   mpvPause(): Promise<void>
   mpvStop(): Promise<void>
@@ -47,7 +53,27 @@ export interface AudioHostApi {
   readonly supervisor: AudioEngineSupervisor
 }
 
-export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
+/**
+ * Translates one proxy-marked stream before it reaches the engine.
+ *
+ * Implemented by the sidecar shell (which holds the proxy config): returns
+ * either the original URL plus a per-load `proxyUrl` for engine builds that
+ * proxy themselves, or a loopback-relay rewrite whose headers live in the
+ * relay's registration (`headers: undefined`). Never throws for "can't" —
+ * an unresolvable wish comes back as the original URL, direct.
+ */
+export interface StreamProxyResolver {
+  resolve(req: { url: string; headers?: Record<string, string> }): Promise<{
+    url: string
+    headers?: Record<string, string>
+    proxyUrl?: string
+  }>
+}
+
+export function createAudioHost(
+  logger?: AudioMainLogger,
+  streamProxy?: StreamProxyResolver,
+): AudioHostApi {
   const devices = new AudioDeviceEnumerator(logger)
   const supervisor = new AudioEngineSupervisor(logger)
 
@@ -79,6 +105,39 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     lastFftFrame = frame
   })
 
+  /**
+   * One place for the proxy decision, shared by load and append: a marked
+   * stream goes through the resolver when there is one; unmarked streams
+   * (and the marker itself) pass through untouched. The resolver owns the
+   * policy — engine capability, socks5 caveats, the relay fallback — and
+   * this side never learns what a proxy URL looks like.
+   */
+  async function translateStreamProxy(
+    uri: string,
+    options?: AudioRequestOptions & { proxy?: boolean },
+  ): Promise<{ url: string; options?: AudioRequestOptions }> {
+    const { proxy, ...rest } = options ?? {}
+    if (!proxy || !streamProxy) {
+      return { url: uri, options: Object.keys(rest).length > 0 ? (rest as AudioRequestOptions) : undefined }
+    }
+    try {
+      const resolved = await streamProxy.resolve({ url: uri, headers: rest.headers })
+      const next: AudioRequestOptions & { proxyUrl?: string } = {
+        ...(rest.headers || resolved.headers
+          ? { headers: resolved.headers ?? rest.headers }
+          : {}),
+        ...(resolved.proxyUrl ? { proxyUrl: resolved.proxyUrl } : {}),
+      }
+      return {
+        url: resolved.url,
+        options: Object.keys(next).length > 0 ? next : undefined,
+      }
+    } catch (error) {
+      logger?.warn?.('audio-host: stream proxy resolution failed (%s) — playing direct', String(error))
+      return { url: uri, options: Object.keys(rest).length > 0 ? (rest as AudioRequestOptions) : undefined }
+    }
+  }
+
   return {
     getOutputDevices: () => devices.getOutputDevices(),
     setOutputDevice: async (id) => {
@@ -87,14 +146,16 @@ export function createAudioHost(logger?: AudioMainLogger): AudioHostApi {
     },
 
     mpvLoad: async (uri, options) => {
-      const res = await supervisor.load(uri, options)
+      const effective = await translateStreamProxy(uri, options)
+      const res = await supervisor.load(effective.url, effective.options)
       return {
         ...res,
         endedCount: res.endedCount ?? endedCount,
       }
     },
     mpvAppend: async (uri, playNow, options) => {
-      return supervisor.append(uri, playNow, options)
+      const effective = await translateStreamProxy(uri, options)
+      return supervisor.append(effective.url, playNow, effective.options)
     },
     mpvPlay: async (atMs) => {
       supervisor.play(typeof atMs === 'number' && atMs >= 0 ? atMs : undefined)

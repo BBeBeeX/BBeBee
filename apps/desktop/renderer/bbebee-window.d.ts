@@ -28,8 +28,8 @@ declare global {
         setGlass?(effect: string, tintColor?: string, tintOpacity?: number): Promise<boolean>
       }
       proxy?: {
-        test(config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }>
-        set(config: unknown): Promise<void>
+        /** Payload-free: the shell re-reads the settings + the secrets-held password itself. */
+        reload(): Promise<void>
       }
       sandbox?: {
         setHtml(id: string, html: string): Promise<void>

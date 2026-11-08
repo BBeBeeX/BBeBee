@@ -1,38 +1,61 @@
 /**
  * The JS half of the native http-proxy binding (`BbebeeHttpProxy`).
  *
- * Installs one seam:
+ * Exposes two seams, both consumed **only** by `boot.ts` (which hands them to
+ * the services as constructor config):
  *
- * - `globalThis.bbebeeProxyHttp` — the `fetch`-shaped transport
- *   (`buildProxyTransport`) that `HttpRn` uses for requests the settings
- *   marked `useProxy`, handed to the service through `boot.ts` as
- *   `proxyTransport`.
+ * - `getProxyHttpTransport()` — the `fetch`-shaped transport `HttpRn` uses
+ *   for requests the settings marked `useProxy`;
+ * - `getStreamRelay()` — the registration seam `core-audio-mpv`'s
+ *   `streamProxyResolver` uses to give proxy-marked streams a loopback URL.
  *
- * ⚠️ Loaded for its side effect from `boot.ts` and nowhere else: a build
- * without the native module (a dev client predating it, a JS-only run) must
- * leave the seam unset rather than crash — `HttpRn` then routes marked
- * requests direct through `expo/fetch`, which is the honest behaviour for a
- * build that cannot proxy. The adapter itself lives in `adapter.ts` (no
- * `expo` import) so tests can exercise it directly.
+ * ⚠️ Deliberately **not** installed on `globalThis`: a fetch that dials an
+ * arbitrary host through an arbitrary proxy must not be reachable from
+ * plugin JS, which is exactly what a global would be. A build without the
+ * native module (a dev client predating it, a JS-only run) returns
+ * `undefined` from both getters, and every marked request/stream degrades to
+ * direct — the honest behaviour, never a crash. The adapter builders live in
+ * `adapter.ts` (no `expo` import) so tests can exercise them directly.
  */
 
 import { requireNativeModule } from 'expo'
 
-import { buildProxyTransport, type NativeHttpProxy } from './adapter'
+import {
+  buildProxyTransport,
+  createStreamRelay,
+  type NativeHttpProxy,
+  type NativeStreamRelay,
+  type ProxyTransport,
+  type StreamRelay,
+} from './adapter'
 
-function install(): void {
-  const globals = globalThis as { bbebeeProxyHttp?: unknown }
-  if (globals.bbebeeProxyHttp) return
+/** The Expo module implements both seams; probing happens once. */
+type NativeSurface = NativeHttpProxy & NativeStreamRelay
 
-  let native: NativeHttpProxy
+let probed: NativeSurface | undefined | 'missing'
+
+function probe(): NativeSurface | undefined {
+  const found = probed
+  if (found === 'missing') return undefined
+  if (found) return found
   try {
-    native = requireNativeModule<NativeHttpProxy>('BbebeeHttpProxy')
+    const native = requireNativeModule<NativeSurface>('BbebeeHttpProxy')
+    probed = native
+    return native
   } catch {
-    // No native module in this build — marked requests stay direct.
-    return
+    probed = 'missing'
+    return undefined
   }
-
-  globals.bbebeeProxyHttp = buildProxyTransport(native)
 }
 
-install()
+/** The proxy-capable fetch transport, or `undefined` without the native module. */
+export function getProxyHttpTransport(): ProxyTransport | undefined {
+  const native = probe()
+  return native ? buildProxyTransport(native) : undefined
+}
+
+/** The stream-relay registration seam, or `undefined` without the native module. */
+export function getStreamRelay(): StreamRelay | undefined {
+  const native = probe()
+  return native ? createStreamRelay(native) : undefined
+}

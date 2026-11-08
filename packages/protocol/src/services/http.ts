@@ -5,7 +5,6 @@
 // resolves. Erased at build time; this adds no runtime import.
 import type {} from 'cordis'
 import type { Uri } from '../common.js'
-import type { HttpProxyConfig } from './settings.js'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD' | 'PATCH'
 
@@ -25,10 +24,13 @@ export interface HttpRequest {
    *
    * Set by the layer that knows *who is asking* — the source runtime per
    * imported source, the lyric-source sandbox per document, the player per
-   * track's provider — never by the transport, which only carries it. Absent
-   * or false means "go direct": a transport with no proxy configured also
-   * goes direct, and the flag is then simply inert. See
-   * `HttpService.setProxy` for where the *config* lives.
+   * track's provider — never by the caller arbitrarily: the flag is a routing
+   * *wish*, and the enforcement point (the desktop sidecar, the mobile native
+   * client) resolves it against the config it holds itself. A caller that
+   * could name its own proxy would be a caller that could point every
+   * credential-bearing request at a machine it controls. Absent or false
+   * means "go direct"; a marked request with no dialable config also goes
+   * direct — the wish the transport may honestly decline.
    */
   useProxy?: boolean
 }
@@ -185,15 +187,6 @@ export interface HttpService {
    * transport that cannot change it after construction may omit it.
    */
   setUserAgent?(userAgent: string): void
-  /**
-   * Provide the proxy config that a request marked `useProxy` is routed
-   * through. Live: the next marked request picks it up, no restart; `null`
-   * clears it and marked requests go direct. Optional for the same reason as
-   * `setUserAgent` — a transport that delegates proxying elsewhere (the
-   * desktop sidecar holds the config itself) still implements this as a
-   * store so the contract is uniform.
-   */
-  setProxy?(config: HttpProxyConfig | null): void
   readonly cookies: CookieJarService
   /**
    * The request journal, when this build keeps one. Optional because a

@@ -5,6 +5,7 @@ pub mod transcode;
 pub mod i18n;
 pub mod lyrics_manager;
 pub mod mini_player_manager;
+pub mod proxy_config;
 pub mod secrets;
 pub mod protocols;
 pub mod sidecar;

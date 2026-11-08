@@ -95,23 +95,55 @@ export interface DownloadRequest extends HttpRequest {
 | Arbitrary headers | ✅ `Origin`, `Referer`, `User-Agent`, `Cookie` all settable | ✅ |
 | Cookie jar | RFC 6265 jar in JS (shared), envelope-encrypted at rest via `ctx.secrets` | Same jar, same encryption — one implementation, two transports |
 | `Set-Cookie` capture | `Headers.getSetCookie()` (undici) | `FetchResponse._rawHeaders` (the expo escape hatch, native pairs kept separate); the base fallback is a quote-aware joined-header splitter, since RN's WHATWG `Headers` merges duplicates and has no `getSetCookie` |
-| Proxy | ✅ Configured: the sidecar holds the settings proxy (`proxy:set`) as an undici `ProxyAgent`/SOCKS dispatcher and routes every request marked `useProxy` through it | ✅ Configured: requests marked `useProxy` are served by the native `BbebeeHttpProxy` module (OkHttp / NSURLSession with a connection proxy); a build without the module goes direct |
+| Proxy | ✅ Configured: the sidecar holds the settings proxy as an undici `ProxyAgent`/SOCKS dispatcher and routes every request marked `useProxy` through it | ✅ Configured: requests marked `useProxy` are served by the native `BbebeeHttpProxy` module (OkHttp / NSURLSession with a connection proxy); a build without the module goes direct |
 | Request journal (§2.2) | ✅ In-memory, capped, detail capture switchable | ✅ Inherited from the shared base (the journal tee passes transport-agnostic header records) |
 
 **Proxy routing (both platforms).** The *policy* stays in settings — `proxy.enabled` gates the
 feature, `proxy.sourceRules[sourceId]` is the per-source opt-in switch (`?? false`) that both
-settings UIs render for music sources *and* lyric sources. The *mechanics* are a per-request flag:
-`HttpRequest.useProxy` is set by the layer that knows who is asking (the source runtime wraps its
-scoped http with `proxyMarkedHttp`, the lyric-source sandbox receives a `useProxy` flag per
-execution, the player marks a track's stream when its source opted in), never by the transport.
-The *config* travels through the composition roots on boot and every `settings/changed`
-(`HttpService.setProxy?` — the `setUserAgent` pattern; `AudioService.setProxyConfig?` for streams).
-Marked requests with no dialable config go direct: the flag is a wish the transport may honestly
-decline. Limits: the desktop renderer's webview-fallback fetch (no sidecar) cannot proxy; mobile
+settings UIs render for music sources *and* lyric sources. The *mechanics* are a per-request
+boolean: `HttpRequest.useProxy` is set by the layer that knows who is asking (the source runtime
+wraps its scoped http with `proxyMarkedHttp`, the lyric-source sandbox receives a `useProxy` flag
+per execution, the player marks a track's stream when its source opted in), and the marker is
+deliberately all a caller can express — **the config is the enforcement point's own knowledge**,
+so no renderer-side caller (plugin or otherwise) can aim credential-bearing requests at a proxy
+of its choosing. Marked requests with no dialable config go direct: the flag is a wish the
+transport may honestly decline.
+
+**Proxy custody.** The password never appears in the settings document (an older build's
+plaintext leftover is migrated to the secrets service and the field stripped on every merge);
+it lives under the settings plugin's secrets scope (`setProxyPassword`). On desktop the shell
+reads the store plus the secrets file (`proxy_config.rs`), decides the master switch there, and
+pushes the assembled config to the sidecar on a renderer `proxy.reload` ping — the renderer
+carries no config and no credential. On mobile the composition-root closures resolve the config
+per call (settings document + secrets read). Residual: on mobile, code holding `ctx.settings`
+can call `buildProxyTestConfig` and read the credential — a JS-realm trust level the desktop
+custody chain avoids.
+
+**Playback streams through the proxy.** The audio engines fetch stream URLs themselves, and the
+proxy *config* never crosses to the renderer — so a proxy-marked stream crosses the bridge as a
+boolean (`LoadOptions.proxy` → the engine payload's `proxy: true`), and the platform layer
+behind the bridge translates it:
+
+- **per-load `http-proxy`** (the preferred path): engine builds that advertise
+  `proxySupported` (see [engine-proxy.md](../audio/engine-proxy.md)) receive the resolved proxy
+  URL from the enforcement point — the sidecar's audio host on desktop (the config is
+  shell-custodied, `proxy_config.rs`), the mobile bridge (boot closures) — and set mpv's
+  `http-proxy` for that one file. Range/seek/gapless/icy stay mpv-native.
+- **loopback relay** (the fallback, and the only path for socks5): older builds silently ignore
+  unknown load options, so the stream is registered with the relay
+  (`apps/desktop/sidecar/relay.ts` on desktop, the `BbebeeHttpProxy` module on mobile) and the
+  engine plays `http://127.0.0.1:<port>/s/<token>` while the relay dials the upstream —
+  forwarding the source's headers and mpv's `Range` exchanges. Containment: loopback bind,
+  128-bit tokens, sliding TTL, entry cap, http/https upstreams only. The relay is an un-gated
+  egress point at the same trust level as the renderer's `httpOpen` bridge; what it does not
+  allow is choosing the proxy.
+
+Limits: the desktop renderer's webview-fallback fetch (no sidecar) cannot proxy; mobile
 degrades an `https` proxy type to an HTTP CONNECT proxy, and iOS's `allHeaderFields` merges
-repeated `Set-Cookie` names on proxied responses; mpv stream proxying needs an engine build that
-consumes the per-load `proxyUrl` (desktop additionally falls back to spawning the engine with
-`http_proxy` for http/https proxies — process-wide, applied by the sidecar on `proxy:set`).
+repeated `Set-Cookie` names on proxied responses; authenticated SOCKS5 is refused on Android's
+`proxyFetch`/relay (Java's SOCKS socket has no user/password hook) and dialled without auth on
+iOS; a media-element degrade of a proxied stream fetches direct (reachable only when the engine
+itself refused the track).
 
 The cookie jar, download waterfall, per-hop host gate and journal are one implementation
 (`HttpRn extends HttpNode`); only the transport differs, which is why the shared conformance

@@ -41,8 +41,10 @@ import { HttpNode, jarStore, type HttpNodeConfig } from '@bbebee/core-http-deskt
  * module) rather than imported here, for the same dependency direction the
  * audio engine takes: `packages/core` never reaches into `apps/mobile`, the
  * shell hands the platform piece over. The request shape is plain `fetch` —
- * the proxy *config* is not part of a call; `setProxy` stores it and this
- * transport reads it at request time.
+ * the proxy *config* is the transport's own knowledge (the boot closure that
+ * built it resolves it per call), so no caller — and no plugin holding
+ * `ctx.http` — can aim a marked request anywhere but at the user's own
+ * configured proxy.
  */
 export type HttpProxyTransport = (url: string, init: RequestInit) => Promise<Response>
 
@@ -51,9 +53,11 @@ export type HttpRnConfig = Omit<HttpNodeConfig, 'fetch'> & {
   fetch?: typeof fetch
   /**
    * The proxy-capable transport, when this build carries the native module.
-   * Used only for requests marked `useProxy`; a build without it (or a
-   * marked request with no proxy configured) goes direct through
-   * `expo/fetch`, which cannot proxy.
+   * Used only for requests marked `useProxy`. The transport itself decides,
+   * per call, whether a dialable proxy is configured — with none it goes
+   * direct, which is the honest reading of a wish without a way to grant it.
+   * A build without the transport sends marked requests through
+   * `expo/fetch`, which cannot proxy and goes direct.
    */
   proxyTransport?: HttpProxyTransport
 }
@@ -82,14 +86,15 @@ export class HttpRn extends HttpNode {
   /**
    * The per-request transport choice.
    *
-   * A request the settings marked `useProxy` gets the native proxy client —
-   * but only when both halves exist: the transport this build carries, and
-   * the config the composition root pushed through `setProxy`. Missing
-   * either, the request falls through to `expo/fetch` and goes direct: the
-   * flag is a wish, and this is the place that honestly cannot grant it.
+   * A request the settings marked `useProxy` gets the native proxy client
+   * when this build carries one; everything else — and a marked request in a
+   * build without the module — goes through `expo/fetch` direct. Whether a
+   * proxy is actually configured is the transport's per-call decision, not
+   * this service's: there is deliberately no setter a caller could use to
+   * repoint marked requests.
    */
   protected override fetchFor(req: HttpRequest): typeof fetch {
-    if (req.useProxy && this.proxyTransport && this.proxyConfig) {
+    if (req.useProxy && this.proxyTransport) {
       return this.proxyTransport as unknown as typeof fetch
     }
     return super.fetchFor(req)

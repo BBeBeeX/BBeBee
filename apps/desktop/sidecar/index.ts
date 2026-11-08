@@ -28,7 +28,8 @@ import { httpProxyUrl } from '@BBeBee/protocol'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
 import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
-import { ProxyRegistry, normalizeProxyConfig, probeProxy } from './proxy.js'
+import { ProxyRegistry, describeProxy } from './proxy.js'
+import { StreamRelay } from './relay.js'
 import type { JsonRpcNotification, JsonRpcRequest, JsonRpcResponse } from './types.js'
 
 // Strictly isolate standard output for NDJSON JSON-RPC messages only.
@@ -110,12 +111,35 @@ export async function createSidecar(): Promise<SidecarContext> {
     },
   }
 
-  const audioHost = createAudioHost(audioLogger)
+  // Holds the proxy config the shell pushed (from the settings store plus the
+  // secrets-held password — never from the renderer) and turns it into the
+  // undici dispatcher marked requests and relayed streams are routed through.
+  const proxyRegistry = new ProxyRegistry()
+  // The loopback relay that gives audio-engine builds without per-load proxy
+  // support a proxy-routed stream: the engine plays
+  // `http://127.0.0.1:<port>/s/<token>`, this side fetches the real upstream
+  // (through the proxy when the entry says so). Retires once the pinned
+  // engine floor honours `proxyUrl` (see docs/audio/engine.md §proxy).
+  const relay = new StreamRelay(() => proxyRegistry.dispatcher, logger)
+  const audioHost = createAudioHost(audioLogger, {
+    async resolve({ url, headers }) {
+      const config = proxyRegistry.config
+      // No dialable config: the wish goes direct, headers on the request.
+      if (!config) return { url, headers }
+      // socks5 stays on the relay — mpv/ffmpeg's http-proxy socks support is
+      // not something we rely on — and so do engine builds that never
+      // advertised per-load proxy support (they would silently ignore the
+      // option and play direct, which is the one failure a blocked host
+      // cannot recover from).
+      if (config.protocol === 'socks5' || !audioHost.supervisor.isProxySupported()) {
+        const relayed = await relay.register({ url, headers, useProxy: true })
+        return { url: relayed, headers: undefined }
+      }
+      return { url, headers, proxyUrl: httpProxyUrl(config) }
+    },
+  })
   const userDataDir = resolveSystemPath('userData')
   const protocolManager = new ProtocolManager()
-  // Holds the proxy config pushed from settings and turns it into the
-  // undici dispatcher marked requests are routed through (see `proxy:set`).
-  const proxyRegistry = new ProxyRegistry()
 
   const wakeLocks = new Map<number, string>()
   const registeredHotkeys = new Set<string>()
@@ -311,37 +335,22 @@ export async function createSidecar(): Promise<SidecarContext> {
     return { ok: false, message: 'Plugin directory not found', deleted: [] }
   })
 
-  // Proxy test and set — the enforcement point of the settings-side proxy.
-  // The renderer only *marks* requests; this side holds the config, the
-  // dispatcher, and the audio engine's environment.
-  ipc.handle(
-    'proxy:test',
-    async (
-      _event,
-      config: { protocol?: string; host?: string; port?: number; username?: string; password?: string },
-    ) => {
-      const normalized = normalizeProxyConfig(config)
-      if (!normalized) {
-        return { ok: false, error: 'Proxy server address or port cannot be empty' }
-      }
-      return probeProxy(normalized)
-    },
-  )
-
-  ipc.handle('proxy:set', async (_event, config: unknown) => {
+  // Proxy apply — the enforcement point of the settings-side proxy. The
+  // renderer can only *ask* for a re-read (`proxy:reload` → the shell reads
+  // the store + the secrets-held password and pushes here); the config
+  // itself never crosses from the renderer, so nothing renderer-side can
+  // point credential-bearing requests at a proxy of its choosing. (The
+  // settings "test" button probes through a marked ctx.http request — the
+  // dispatcher path below — so it exercises the proxy as the app uses it.)
+  ipc.handle('proxy:apply', async (_event, config: unknown) => {
     const stored = proxyRegistry.set(config)
-    // Streams are fetched by the audio engine's own process, whose
-    // environment is fixed at spawn: push the URL down and let the
-    // supervisor decide whether a (signature-guarded) restart is warranted.
-    // Only http(s) proxies — ffmpeg reads no SOCKS proxy from the environment.
-    const url = stored && stored.protocol !== 'socks5' ? (httpProxyUrl(stored) ?? null) : null
-    audioHost.supervisor.setProxyEnv(url)
+    // describeProxy is the only thing about a config that may reach a log:
+    // scheme, host, port — never the credentials.
+    logger.info?.(`proxy: applied -> ${describeProxy(stored)}`)
     return { ok: true }
   })
 
   // Stream headers
-  ipc.handle('stream:set-headers', async () => {})
-
   ipc.handle('sandbox:set-html', async (_event, entry: { id: string; html: string }) => {
     return protocolManager.setSandboxHtml(entry.id, entry.html)
   })
@@ -376,6 +385,7 @@ export async function createSidecar(): Promise<SidecarContext> {
 
   const shutdown = async () => {
     proxyRegistry.dispose()
+    relay.dispose()
     try {
       await audioHost.supervisor.shutdown()
     } catch {

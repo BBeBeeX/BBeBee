@@ -23,7 +23,6 @@ import type {
   TransportState,
 } from '../entities/playback.js'
 import type { StreamHandle } from '../entities/media.js'
-import type { HttpProxyConfig } from './settings.js'
 
 /* ── ctx.audio ──────────────────────────────────────────────────────────── */
 
@@ -143,15 +142,6 @@ export interface AudioService {
   preloadNext?(src: string | Uri, opts?: { headers?: Record<string, string>; proxy?: boolean }): Promise<void>
   /** Outcome of the most recent `preloadNext`, for gapless diagnostics. */
   readonly lastPreloadStatus?: { uri: string; ok: boolean; at: number }
-  /**
-   * The proxy streams marked `proxy` are fetched through; `null` means direct.
-   *
-   * Optional: an engine that cannot proxy a stream (or a build without the
-   * native proxy seam) omits it, and the flag is honestly declined. The
-   * composition root pushes the config on boot and every `settings/changed`,
-   * exactly like `ctx.http.setProxy`.
-   */
-  setProxyConfig?(config: HttpProxyConfig | null): void
 
   onInterruption(cb: (e: InterruptionEvent) => void): Disposable
   onRouteChange(cb: (e: RouteChangeEvent) => void): Disposable

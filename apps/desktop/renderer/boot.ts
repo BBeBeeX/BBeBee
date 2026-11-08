@@ -722,25 +722,15 @@ function wireSettingsSync(app: App): void {
         }
       }
       if (s.proxy) {
-        void window.BBeBee?.proxy?.set?.(s.proxy)
         /*
-         * The same config into the HTTP service: a request marked
-         * `useProxy` (a source the per-source switches routed through the
-         * proxy) carries this copy in its init to the sidecar, which applies
-         * its own and reduces the field to a routing decision. `null` when
-         * the master switch is off — cleared, not stale.
+         * A payload-free ping: the shell re-reads the settings store and the
+         * secrets-held password itself and pushes the assembled config to the
+         * sidecar. The renderer deliberately never carries the proxy config
+         * (and never did carry the password) — a caller that could name the
+         * proxy could point credential-bearing requests at a machine it
+         * controls. See `proxy_config.rs` for the custody chain.
          */
-        scoped.http?.setProxy?.(
-          s.proxy.enabled
-            ? {
-                protocol: s.proxy.protocol,
-                host: s.proxy.host,
-                port: s.proxy.port,
-                ...(s.proxy.username ? { username: s.proxy.username } : {}),
-                ...(s.proxy.password ? { password: s.proxy.password } : {}),
-              }
-            : null,
-        )
+        void window.BBeBee?.proxy?.reload?.()?.catch(() => {})
       }
       if (s.audioOutputEngine && typeof scoped.audio?.switchEngine === 'function') {
         const target = s.audioOutputEngine === 'wasapi' ? 'mpv' : s.audioOutputEngine

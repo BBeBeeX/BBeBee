@@ -12,12 +12,12 @@ export interface AudioRequestOptions {
   /** Headers sent with the request — a source's `Referer`, `User-Agent`, etc. */
   headers?: Record<string, string>
   /**
-   * The proxy URL for this stream, when the settings route its source through
-   * one. Passed through to the engine verbatim: the engine release that reads
-   * it consumes it; earlier builds ignore the unknown option and play direct.
-   * (The session-wide fallback is the `http_proxy` environment the supervisor
-   * spawns the engine with — see `proxy:set`.)
+   * The proxy *wish* crossing from the renderer (`LoadOptions.proxy`) — a
+   * boolean, never a config. The audio host translates it through its
+   * `StreamProxyResolver` before the engine sees the request.
    */
+  proxy?: boolean
+  /** Resolved by the audio host for engines that proxy themselves. */
   proxyUrl?: string
 }
 

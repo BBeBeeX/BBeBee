@@ -93,14 +93,20 @@ export function useAppSettings(ctx: Context): UseAppSettingsResult {
             ...(partial.shortcuts?.keybindings ?? {}),
           },
         },
-        proxy: {
-          ...settings.proxy,
-          ...(partial.proxy ?? {}),
-          sourceRules: {
-            ...settings.proxy?.sourceRules,
-            ...(partial.proxy?.sourceRules ?? {}),
-          },
-        },
+        proxy: (() => {
+          const merged = {
+            ...settings.proxy,
+            ...(partial.proxy ?? {}),
+            sourceRules: {
+              ...settings.proxy?.sourceRules,
+              ...(partial.proxy?.sourceRules ?? {}),
+            },
+          }
+          // The password never belongs to the settings document — same rule
+          // as the service's own merge (see `stripLegacyProxyPassword`).
+          delete (merged as { password?: unknown }).password
+          return merged
+        })(),
       }
       setSettings(next)
       return next

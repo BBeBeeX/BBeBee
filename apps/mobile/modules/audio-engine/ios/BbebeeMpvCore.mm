@@ -727,9 +727,28 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
 #pragma mark - Playback contract
 
 - (NSString *)loadEx:(NSString *)uri headers:(NSString *)headers {
+  return [self loadEx:uri headers:headers proxy:nil];
+}
+
+- (void)setHttpProxy:(nullable NSString *)proxyUrl {
+#if !BBE_BEE_HAVE_MPV
+  (void)proxyUrl;
+#else
+  if (!_mpv) return;
+  // Engine-global like the header property: set before each load/append,
+  // cleared (empty string) when the next one is not proxied. libavformat
+  // reads it for its http and https protocols.
+  mpv_set_property_string(_mpv, "http-proxy", proxyUrl.length > 0 ? proxyUrl.UTF8String : "");
+#endif
+}
+
+- (NSString *)loadEx:(NSString *)uri
+             headers:(NSString *)headers
+               proxy:(nullable NSString *)proxyUrl {
 #if !BBE_BEE_HAVE_MPV
   (void)uri;
   (void)headers;
+  (void)proxyUrl;
   return @"{\"ok\":false,\"durationMs\":0,\"resumed\":false,\"endedCount\":0}";
 #else
   if (!self.isBooted || uri.length == 0) return [self loadFailureAnswer];
@@ -756,6 +775,7 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
     _endedCount.store(0, std::memory_order_release);
   }
 
+  [self setHttpProxy:proxyUrl];
   [self setHttpHeaderFields:headers];
 
   const char *argv[] = {"loadfile", uri.UTF8String, "replace", nullptr};
@@ -802,14 +822,23 @@ void PcmTapTrampoline(const float *interleaved, int frames, int channels, int sa
 }
 
 - (BOOL)appendUri:(NSString *)uri headers:(NSString *)headers {
+  return [self appendUri:uri headers:headers proxy:nil];
+}
+
+- (BOOL)appendUri:(NSString *)uri
+          headers:(NSString *)headers
+            proxy:(NSString *)proxyUrl {
 #if !BBE_BEE_HAVE_MPV
   (void)uri;
   (void)headers;
+  (void)proxyUrl;
   return NO;
 #else
   if (!self.isBooted || uri.length == 0) return NO;
   // The header property is engine-global and persists for the appended file —
-  // the same property-based semantics the Android JNI layer has.
+  // the same property-based semantics the Android JNI layer has. The proxy
+  // property rides the same way: set for a proxied append, cleared otherwise.
+  [self setHttpProxy:proxyUrl];
   [self setHttpHeaderFields:headers];
   const char *argv[] = {"loadfile", uri.UTF8String, "append", nullptr};
   return mpv_command(_mpv, argv) == 0;

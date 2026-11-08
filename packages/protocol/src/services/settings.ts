@@ -74,9 +74,27 @@ export interface HttpProxyConfig {
   password?: string
 }
 
-export interface ProxySettings extends HttpProxyConfig {
+/**
+ * The user-editable proxy settings document.
+ *
+ * Deliberately **not** the transport shape: this is what the settings UI
+ * edits and what persists in the store. The optional proxy *password* never
+ * appears here — it lives in the secrets service under the settings plugin's
+ * namespace (`setProxyPassword`), and the enforcement points receive it
+ * without it ever round-tripping through the settings document. `username`
+ * stays: it is an identifier, not a credential.
+ */
+export interface ProxySettings {
   /** Whether network proxy is enabled. */
   enabled: boolean
+  /** Proxy protocol type. */
+  protocol: 'http' | 'https' | 'socks5'
+  /** Proxy server host. */
+  host: string
+  /** Proxy server port. */
+  port: number
+  /** Optional proxy authentication username. */
+  username?: string
   /** Per-source proxy enable toggle (sourceId -> boolean). */
   sourceRules: Record<string, boolean>
 }
@@ -506,7 +524,6 @@ export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
   host: '127.0.0.1',
   port: 7890,
   username: '',
-  password: '',
   sourceRules: {},
 }
 
@@ -615,6 +632,23 @@ export interface SettingsService {
    * Returns all contributed settings entries.
    */
   getContributions(): readonly SettingsContribution[]
+
+  /**
+   * Store the optional proxy authentication password.
+   *
+   * The password is credential material: it goes to the secrets service under
+   * this plugin's namespace and **never** into the settings document, the
+   * store file, or any log. Presence is queryable through `hasProxyPassword`;
+   * the value itself is only handed to the proxy enforcement points.
+   */
+  setProxyPassword(password: string): Promise<void>
+
+  /** Forget the stored proxy password (and its persisted secret). */
+  clearProxyPassword(): Promise<void>
+
+  /** Whether a proxy password is stored. Presence only — never the value. */
+  hasProxyPassword(): Promise<boolean>
+
 }
 
 declare module 'cordis' {

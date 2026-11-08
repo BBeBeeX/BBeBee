@@ -12,6 +12,7 @@ import type {
 import { downloadEndpointsChangedSinceSessionStart } from '../../download-endpoint-baseline.js'
 import { GitHubAccelerationEditor } from '../GitHubAccelerationEditor.js'
 import { NpmAuthTokenRow } from '../NpmAuthTokenRow.js'
+import { ProxyPasswordRow } from '../ProxyPasswordRow.js'
 import { SettingsRow } from '../SettingsRow.js'
 import { SettingsSection } from '../SettingsSection.js'
 
@@ -51,6 +52,10 @@ export interface NetworkSectionProps {
   npmAuthTokenSet: boolean
   onSaveNpmAuthToken: (token: string) => Promise<void>
   onClearNpmAuthToken: () => Promise<void>
+  /** Whether a proxy password is stored in the secrets service. */
+  proxyPasswordSet: boolean
+  onSaveProxyPassword: (password: string) => Promise<void>
+  onClearProxyPassword: () => Promise<void>
 }
 
 export function NetworkSection({
@@ -79,6 +84,9 @@ export function NetworkSection({
   npmAuthTokenSet,
   onSaveNpmAuthToken,
   onClearNpmAuthToken,
+  proxyPasswordSet,
+  onSaveProxyPassword,
+  onClearProxyPassword,
 }: NetworkSectionProps): ReactElement {
   const { t } = useI18n(ctx)
   // The gate side of the download allowlist is baked when plugin-manager
@@ -263,6 +271,42 @@ export function NetworkSection({
                       }),
                 )
               : null,
+            // Optional proxy authentication. `username` is an identifier and
+            // lives in the settings document; the password lives in the
+            // secrets service (see ProxyPasswordRow) and only ever reaches
+            // the enforcement points.
+            h(SettingsRow, {
+              ctx,
+              title: t('settings:network.proxyUsername'),
+              description: t('settings:network.proxyUsernameDesc'),
+              action: h('input', {
+                type: 'text',
+                value: proxy.username ?? '',
+                placeholder: t('settings:network.proxyUsernamePlaceholder'),
+                'aria-label': t('settings:network.proxyUsername'),
+                autoComplete: 'off',
+                onChange: (e: { target: { value: string } }) =>
+                  onUpdateProxy({ ...proxy, username: e.target.value.trim() }),
+                style: {
+                  width: 280,
+                  maxWidth: '100%',
+                  height: 32,
+                  borderRadius: 6,
+                  background: 'var(--bb-bg-overlay, rgba(255, 255, 255, 0.08))',
+                  border: '1px solid var(--bb-border-subtle, rgba(255, 255, 255, 0.15))',
+                  color: 'var(--bb-text-primary, #FFFFFF)',
+                  fontSize: 13,
+                  padding: '0 10px',
+                  outline: 'none',
+                },
+              }),
+            }),
+            h(ProxyPasswordRow, {
+              ctx,
+              passwordSet: proxyPasswordSet,
+              onSave: onSaveProxyPassword,
+              onClear: onClearProxyPassword,
+            }),
             // Third-party Sources individual proxy management
             h(
               'div',

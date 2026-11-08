@@ -20,6 +20,19 @@ object BBeBeeAudioEngine {
     external fun nativeLoad(uri: String): Boolean
     external fun nativeLoadEx(uri: String, headers: String?): String
     external fun nativeAppend(uri: String, headers: String?): Boolean
+
+    /**
+     * Proxy-marked load/append — `proxyUrl` is set as mpv's `http-proxy`
+     * for this one file and cleared by the next non-proxied call, the same
+     * engine-global property semantics the header string has. Present only
+     * in engine releases that ship the export (see
+     * docs/audio/engine.md §"Proxy-marked streams"); calling it against an
+     * older `libbbebee_audio_jni.so` raises [UnsatisfiedLinkError], which
+     * the Expo module catches and reports as the `unsupported` marker the
+     * JS layer falls back to the loopback relay on.
+     */
+    external fun nativeLoadExProxy(uri: String, headers: String?, proxyUrl: String): String
+    external fun nativeAppendProxy(uri: String, headers: String?, proxyUrl: String): String
     external fun nativePlay()
     external fun nativePlayAt(atMs: Double)
     external fun nativePause()

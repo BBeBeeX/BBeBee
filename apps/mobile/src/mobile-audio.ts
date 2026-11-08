@@ -4,12 +4,15 @@ import type {
   AudioService,
   AudioSourceHandle,
   Disposable,
+  HttpProxyConfig,
   InterruptionEvent,
   LoadOptions,
   OutputDevice,
   RouteChangeEvent,
   Uri,
 } from '@BBeBee/protocol'
+import { httpProxyUrl } from '@BBeBee/protocol'
+import type { StreamRelay } from '../modules/http-proxy/adapter'
 
 export interface FftSpectrumFrame {
   frequencyData: number[] | Uint8Array
@@ -22,7 +25,20 @@ export interface FftSpectrumFrame {
  * Checks if React Native TurboModule / JSI binding `globalThis.bbebeeMobileMpv` is available;
  * falls back to high-fidelity in-process simulation when running in Expo Go or test runners.
  */
-export function createMobileMpvBridge(): (service: string, method: string, args: unknown[]) => Promise<unknown> {
+/** What the bridge needs to translate a proxy-marked stream itself. */
+export interface MobileBridgeProxyOptions {
+  /**
+   * The live proxy config (settings document + the secrets-held password),
+   * resolved per stream. `null` = nothing dialable — the wish goes direct.
+   */
+  proxyConfigProvider?: () => Promise<HttpProxyConfig | null>
+  /** The loopback relay, for engine builds without a proxy export. */
+  streamRelay?: StreamRelay
+}
+
+export function createMobileMpvBridge(
+  proxy: MobileBridgeProxyOptions = {},
+): (service: string, method: string, args: unknown[]) => Promise<unknown> {
   const globalMpv = (globalThis as unknown as { bbebeeMobileMpv?: Record<string, (...args: unknown[]) => unknown> }).bbebeeMobileMpv
 
   let currentVolume = 0.8
@@ -65,6 +81,53 @@ export function createMobileMpvBridge(): (service: string, method: string, args:
 
   return async (_service: string, method: string, args: unknown[]) => {
     if (globalMpv && typeof globalMpv[method] === 'function') {
+      // A proxy-marked load/append is translated here — the one place the
+      // native adapter, the live proxy config and the relay all sit. The
+      // marker is stripped before anything reaches the engine: mpv honours
+      // its own `http-proxy` on a new engine build; an older `.so` answers
+      // `unsupported` and the loopback relay takes the stream instead.
+      const isLoad = method === 'mpvLoad'
+      const isAppend = method === 'mpvAppend'
+      const optsIndex = isLoad ? 1 : isAppend ? 2 : -1
+      const opts = optsIndex >= 0
+        ? (args[optsIndex] as { proxy?: boolean; headers?: Record<string, string> } | undefined)
+        : undefined
+      if ((isLoad || isAppend) && opts?.proxy === true) {
+        const config = (await proxy.proxyConfigProvider?.()) ?? null
+        delete opts.proxy
+        if (config) {
+          const proxyUrl = httpProxyUrl(config)
+          const src = String(args[0])
+          const loadProxy = globalMpv.loadExProxy ?? globalMpv.appendProxy
+          if (proxyUrl && loadProxy) {
+            const answered = isLoad
+              ? await (globalMpv.loadExProxy as (...a: unknown[]) => Promise<unknown>)(
+                  src,
+                  { headers: opts.headers },
+                  proxyUrl,
+                )
+              : await (globalMpv.appendProxy as (...a: unknown[]) => Promise<unknown>)(
+                  src,
+                  { headers: opts.headers },
+                  proxyUrl,
+                )
+            if (answered && typeof answered === 'object' && !('unsupported' in answered)) {
+              return answered
+            }
+            // Unsupported → the loopback relay: the source's headers move
+            // into the registration, and the engine plays the local URL.
+            if (proxy.streamRelay) {
+              const local = await proxy.streamRelay.register({
+                url: src,
+                headers: opts.headers,
+                proxy: config,
+              })
+              args[0] = local
+              if (optsIndex >= 0) (args[optsIndex] as { headers?: unknown }).headers = undefined
+            }
+          }
+        }
+      }
       return globalMpv[method](...args)
     }
 
@@ -167,6 +230,19 @@ export interface MobileAudioConfig {
   mpvPlugin: Plugin
   createContext?: () => BaseAudioContext
   bridgeCall?: (service: string, method: string, args: unknown[]) => Promise<unknown>
+  /**
+   * The live proxy config (settings document plus the secrets-held
+   * password), resolved per stream by the bridge when it translates a
+   * proxy-marked load/append. Supplied by the shell — the config never
+   * reaches plugin-reachable surfaces. Absent → marked streams play direct.
+   */
+  proxyConfigProvider?: () => Promise<HttpProxyConfig | null>
+  /**
+   * The loopback relay, used when this engine build has no proxy export
+   * (the JNI surface is fixed by the prebuilt `.so`; iOS always supports
+   * the property natively).
+   */
+  streamRelay?: StreamRelay
   /**
    * The persisted `audioExclusive` setting, seeded by the shell from the
    * pre-boot store read so bit-perfect exclusive output is in force from the
@@ -467,7 +543,12 @@ export class MobileAudioService extends Service implements AudioService {
 
     let fiber: Fiber
     try {
-      this.bridgeCall = this.config.bridgeCall ?? createMobileMpvBridge()
+      this.bridgeCall =
+        this.config.bridgeCall ??
+        createMobileMpvBridge({
+          ...(this.config.proxyConfigProvider ? { proxyConfigProvider: this.config.proxyConfigProvider } : {}),
+          ...(this.config.streamRelay ? { streamRelay: this.config.streamRelay } : {}),
+        })
       const mpvConfig = {
         createContext: this.config.createContext,
         bridgeCall: this.bridgeCall,

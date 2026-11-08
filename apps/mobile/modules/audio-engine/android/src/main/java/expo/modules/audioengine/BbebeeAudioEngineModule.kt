@@ -46,6 +46,27 @@ class BbebeeAudioEngineModule : Module() {
             BBeBeeAudioEngine.nativeLoadEx(uri, headers)
         }
 
+        // Proxy-marked load/append. The JNI export ships with engine releases
+        // that grow it; against an older `.so` the first call raises
+        // UnsatisfiedLinkError, which is caught once and reported as the
+        // `unsupported` marker the JS bridge falls back to the loopback
+        // relay on (see docs/audio/engine.md §"Proxy-marked streams").
+        AsyncFunction("loadExProxy") { uri: String, headers: String?, proxyUrl: String ->
+            try {
+                BBeBeeAudioEngine.nativeLoadExProxy(uri, headers, proxyUrl)
+            } catch (e: UnsatisfiedLinkError) {
+                "{\"ok\":false,\"unsupported\":true}"
+            }
+        }
+
+        AsyncFunction("appendProxy") { uri: String, headers: String?, proxyUrl: String ->
+            try {
+                BBeBeeAudioEngine.nativeAppendProxy(uri, headers, proxyUrl)
+            } catch (e: UnsatisfiedLinkError) {
+                "{\"ok\":false,\"unsupported\":true}"
+            }
+        }
+
         AsyncFunction("append") { uri: String, headers: String? ->
             BBeBeeAudioEngine.nativeAppend(uri, headers)
         }

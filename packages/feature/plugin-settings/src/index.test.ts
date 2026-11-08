@@ -213,3 +213,99 @@ describe('plugin-settings lifecycle', () => {
     expect(problems, problems?.join('; ')).toBeUndefined()
   })
 })
+
+// ── proxy password custody ────────────────────────────────────────────────
+
+class MemorySecrets extends Service {
+  private map = new Map<string, string>()
+
+  constructor(ctx: Context) {
+    super(ctx, 'secrets')
+  }
+
+  async get(key: string): Promise<string | undefined> {
+    return this.map.get(key)
+  }
+  async set(key: string, value: string): Promise<void> {
+    this.map.set(key, value)
+  }
+  async delete(key: string): Promise<void> {
+    this.map.delete(key)
+  }
+  async clear(): Promise<void> {
+    this.map.clear()
+  }
+  namespace(): MemorySecrets {
+    return this
+  }
+  /** Test view of every entry, keyed as the service wrote it. */
+  snapshot(): Record<string, string> {
+    return Object.fromEntries(this.map)
+  }
+}
+
+describe('proxy password custody', () => {
+  it('stores the password in secrets — never in the settings document', async () => {
+    const ctx = await harness()
+    await ctx.plugin(MemorySecrets)
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    await ctx.settings.update({
+      proxy: { enabled: true, protocol: 'http', host: '127.0.0.1', port: 7890, sourceRules: {} },
+    })
+    await ctx.settings.setProxyPassword('s3cret')
+    expect(await ctx.settings.hasProxyPassword()).toBe(true)
+    // The document the store holds carries no password field at all.
+    const stored = await ctx.store.get<AppSettings>('preferences')
+    expect((stored?.proxy as { password?: unknown }).password).toBeUndefined()
+    expect(JSON.stringify(stored)).not.toContain('s3cret')
+  })
+
+  it('clears and reports absence', async () => {
+    const ctx = await harness()
+    await ctx.plugin(MemorySecrets)
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    await ctx.settings.setProxyPassword('s3cret')
+    await ctx.settings.clearProxyPassword()
+    expect(await ctx.settings.hasProxyPassword()).toBe(false)
+  })
+
+  it('migrates a legacy plaintext password out of the settings document', async () => {
+    const ctx = await harness()
+    await ctx.store.set('preferences', {
+      proxy: { enabled: true, protocol: 'http', host: '127.0.0.1', port: 7890, password: 'legacy' },
+    })
+    await ctx.plugin(MemorySecrets)
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    // The legacy value moved to the secret under this plugin's scope (the
+    // shells read `<pluginScope>/proxy.password` from the same file) ...
+    const secrets = ctx.secrets as unknown as MemorySecrets
+    const entries = Object.entries(secrets.snapshot())
+    const stored = entries.filter(([key, value]) => key.endsWith('proxy.password') && value === 'legacy')
+    expect(stored).toHaveLength(1)
+    // ... and the document stopped carrying it.
+    const storedDoc = await ctx.store.get<AppSettings>('preferences')
+    expect((storedDoc?.proxy as { password?: unknown }).password).toBeUndefined()
+    expect(await ctx.settings.hasProxyPassword()).toBe(true)
+  })
+
+  it('merges never resurrect a password into the document', async () => {
+    const ctx = await harness()
+    await ctx.plugin(MemorySecrets)
+    await ctx.plugin(SettingsPlugin)
+    await tick()
+
+    // A patch shaped like a hand-edited legacy document arrives.
+    await ctx.settings.update({
+      proxy: { enabled: true, host: '10.0.0.1', password: 'sneaky' },
+    } as never)
+    const stored = await ctx.store.get<AppSettings>('preferences')
+    expect(JSON.stringify(stored)).not.toContain('sneaky')
+  })
+
+})

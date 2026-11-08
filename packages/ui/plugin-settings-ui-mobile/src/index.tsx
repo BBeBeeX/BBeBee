@@ -14,7 +14,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
-import type { DownloadRegion, FsService, LyricSourceDefinition, LyricSourcesService, ProxySettings, ScannerService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
+import type { DownloadRegion, FsService, LyricSourceDefinition, LyricSourcesService, ProxySettings, ScannerService, SettingsService, SourcesService, UiService, Uri } from '@BBeBee/protocol'
 import { DEFAULT_PROXY_SETTINGS, resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { serviceOf, type MenuItemSpec } from '@BBeBee/ui-core'
 import { SETTINGS_VIEWS } from '@bbebee/plugin-settings/views'
@@ -196,6 +196,11 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const [resetting, setResetting] = useState(false)
   const [proxyTesting, setProxyTesting] = useState(false)
   const [proxyTestResult, setProxyTestResult] = useState<{ ok: boolean; latencyMs?: number; error?: string } | null>(null)
+  // The proxy password editor: draft + presence only — the value itself goes
+  // straight to `settings.setProxyPassword` (secrets) and is never read back.
+  const [proxyPasswordDraft, setProxyPasswordDraft] = useState('')
+  const [proxyPasswordSet, setProxyPasswordSet] = useState(false)
+  const [proxyPasswordBusy, setProxyPasswordBusy] = useState(false)
   const [configuringSourceId, setConfiguringSourceId] = useState<string | undefined>(undefined)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>(undefined)
 
@@ -217,6 +222,23 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
     const off = ctx.on('lyric-sources/changed', refresh)
     return () => {
       off?.()
+    }
+  }, [ctx])
+
+  // Proxy password presence (the value lives in the secrets service and is
+  // never read here) — presence-only, like the npm token row on desktop.
+  useEffect(() => {
+    let cancelled = false
+    const s = serviceOf<SettingsService>(ctx, 'settings')
+    if (s?.hasProxyPassword) {
+      s.hasProxyPassword()
+        .then((v) => {
+          if (!cancelled) setProxyPasswordSet(v)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
     }
   }, [ctx])
 
@@ -341,68 +363,21 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
   const handleTestProxy = async () => {
     setProxyTesting(true)
     setProxyTestResult(null)
+    // The probe is a marked ctx.http request — the exact path a proxied
+    // source request takes (native proxy transport, credentials from the
+    // enforcement seams). No proxy reachable → this reports the failure the
+    // sources would see, which is the point of the button.
+    const started = Date.now()
     try {
-      const bridge = (
-        typeof window !== 'undefined'
-          ? (window as unknown as {
-              BBeBee?: {
-                proxy?: {
-                  test: (c: unknown) => Promise<{ ok: boolean; latencyMs?: number; error?: string }>
-                }
-              }
-            }).BBeBee
-          : undefined
-      )
-      const proxyConfig = {
-        protocol: proxy.protocol,
-        host: proxy.host,
-        port: proxy.port,
-        username: proxy.username,
-        password: proxy.password,
-      }
-      if (bridge?.proxy?.test) {
-        setProxyTestResult(await bridge.proxy.test(proxyConfig))
-        return
-      }
-      // No desktop window bridge here — probe through the native proxy
-      // transport when this build carries it, so the button tests *the
-      // proxy* and not merely the direct route. (Typed structurally: a UI
-      // package does not import the platform core to name this seam.)
-      const proxyTransport = (globalThis as {
-        bbebeeProxyHttp?: (url: string, init: RequestInit) => Promise<Response>
-      }).bbebeeProxyHttp
-      const start = Date.now()
-      if (proxyTransport) {
-        try {
-          const response = await proxyTransport('https://www.gstatic.com/generate_204', {
-            method: 'GET',
-            proxy: proxyConfig,
-          } as RequestInit)
-          if (response.status < 400) {
-            setProxyTestResult({ ok: true, latencyMs: Date.now() - start })
-          } else {
-            setProxyTestResult({ ok: false, error: `probe answered HTTP ${response.status}` })
-          }
-        } catch (err: unknown) {
-          setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
-        }
-        return
-      }
-      // Last resort without a native proxy module: a direct probe, which says
-      // the network is up but cannot vouch for the proxy.
-      const ctrl = new AbortController()
-      const tId = setTimeout(() => ctrl.abort(), 5000)
-      try {
-        await fetch('https://www.google.com/generate_204', {
-          method: 'HEAD',
-          signal: ctrl.signal,
-          mode: 'no-cors',
-        })
-        clearTimeout(tId)
-        setProxyTestResult({ ok: true, latencyMs: Date.now() - start })
-      } catch (err: unknown) {
-        clearTimeout(tId)
-        setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
+      const response = await ctx.http({
+        url: 'https://www.gstatic.com/generate_204',
+        timeoutMs: 8_000,
+        useProxy: true,
+      })
+      if (response.status < 400) {
+        setProxyTestResult({ ok: true, latencyMs: Date.now() - started })
+      } else {
+        setProxyTestResult({ ok: false, error: `probe answered HTTP ${response.status}` })
       }
     } catch (err: unknown) {
       setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })
@@ -629,6 +604,81 @@ function SettingsSectionScreen({ ctx, sectionKey }: { ctx: Context; sectionKey: 
                             }),
                           )
                         : null,
+                      // Optional proxy authentication. `username` is an
+                      // identifier and stays in the settings document; the
+                      // password lives in the secrets service
+                      // (`settings.setProxyPassword`) and only ever reaches
+                      // the enforcement seams.
+                      h(
+                        native.View as never,
+                        { style: { gap: tokens.space[1] } },
+                        h(Text, { variant: 'md', children: t('settings:network.proxyUsername') }),
+                        h(Text, { variant: 'xs', tone: 'muted', children: t('settings:network.proxyUsernameDesc') }),
+                        h(TextField, {
+                          value: proxy.username ?? '',
+                          placeholder: t('settings:network.proxyUsernamePlaceholder'),
+                          accessibilityLabel: t('settings:network.proxyUsername'),
+                          onChange: (username) => void update({ proxy: { ...proxy, username: username.trim() } }),
+                        }),
+                      ),
+                      h(
+                        native.View as never,
+                        { style: { gap: tokens.space[1] } },
+                        h(Text, { variant: 'md', children: t('settings:network.proxyPassword') }),
+                        h(Text, { variant: 'xs', tone: 'muted', children: t('settings:network.proxyPasswordDesc') }),
+                        h(TextField, {
+                          value: proxyPasswordDraft,
+                          placeholder: t('settings:network.proxyPasswordPlaceholder'),
+                          accessibilityLabel: t('settings:network.proxyPassword'),
+                          secure: true,
+                          onChange: setProxyPasswordDraft,
+                        }),
+                        h(
+                          native.View as never,
+                          { style: { flexDirection: 'row', gap: tokens.space[2] } },
+                          h(Button, {
+                            variant: 'secondary',
+                            disabled: proxyPasswordBusy || !proxyPasswordDraft.trim(),
+                            loading: proxyPasswordBusy,
+                            children: t('settings:network.saveProxyPassword'),
+                            onPress: () => {
+                              const settings = serviceOf<SettingsService>(ctx, 'settings')
+                              setProxyPasswordBusy(true)
+                              void settings
+                                ?.setProxyPassword(proxyPasswordDraft.trim())
+                                .then(() => {
+                                  setProxyPasswordDraft('')
+                                  setProxyPasswordSet(true)
+                                })
+                                .catch(() => undefined)
+                                .finally(() => setProxyPasswordBusy(false))
+                            },
+                          }),
+                          proxyPasswordSet
+                            ? h(Button, {
+                                variant: 'secondary',
+                                disabled: proxyPasswordBusy,
+                                children: t('settings:network.clearProxyPassword'),
+                                onPress: () => {
+                                  const settings = serviceOf<SettingsService>(ctx, 'settings')
+                                  setProxyPasswordBusy(true)
+                                  void settings
+                                    ?.clearProxyPassword()
+                                    .then(() => setProxyPasswordSet(false))
+                                    .catch(() => undefined)
+                                    .finally(() => setProxyPasswordBusy(false))
+                                },
+                              })
+                            : null,
+                        ),
+                        h(Text, {
+                          variant: 'xs',
+                          tone: 'muted',
+                          children: proxyPasswordSet
+                            ? t('settings:network.proxyPasswordSet')
+                            : t('settings:network.proxyPasswordNotSet'),
+                        }),
+                      ),
                       h(
                         native.View as never,
                         {

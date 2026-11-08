@@ -1281,3 +1281,71 @@ describe('core-audio-mpv global media element', () => {
   })
 })
 
+
+describe('proxy-marked streams across the bridge', () => {
+  const recordingBridge = (loads: Array<{ src: string; opts: unknown }>): BridgeCall =>
+    async (_service, method, args) => {
+      if (method === 'mpvLoad') {
+        loads.push({ src: String(args[0]), opts: args[1] })
+        return { durationMs: 2_000, sampleRate: 48_000, channels: 2, bitDepth: 16 }
+      }
+      return undefined
+    }
+
+  it('a marked load crosses as the boolean marker, headers riding with it', async () => {
+    const loads: Array<{ src: string; opts: unknown }> = []
+    const { audio } = await harness({ bridgeCall: recordingBridge(loads) })
+
+    await audio.load('https://media.example/stream', {
+      strategy: 'stream',
+      headers: { Referer: 'https://page.example/watch' },
+      proxy: true,
+    })
+
+    // The marker is all this side knows: the proxy URL is the platform
+    // layer's own knowledge (sidecar custody / mobile boot closure).
+    expect(loads[0]?.src).toBe('https://media.example/stream')
+    expect(loads[0]?.opts).toMatchObject({
+      strategy: 'stream',
+      headers: { Referer: 'https://page.example/watch' },
+      proxy: true,
+    })
+  })
+
+  it('an unmarked load carries no marker at all', async () => {
+    const loads: Array<{ src: string; opts: unknown }> = []
+    const { audio } = await harness({ bridgeCall: recordingBridge(loads) })
+
+    await audio.load('https://media.example/stream', {
+      strategy: 'stream',
+      headers: { Referer: 'https://page.example/watch' },
+    })
+
+    expect(loads[0]?.src).toBe('https://media.example/stream')
+    expect(loads[0]?.opts).toMatchObject({ headers: { Referer: 'https://page.example/watch' } })
+    expect(loads[0]?.opts).not.toHaveProperty('proxy')
+  })
+
+  it('the gapless append crosses the marker too', async () => {
+    const appends: Array<{ src: string; opts: unknown }> = []
+    const bridge: BridgeCall = async (_service, method, args) => {
+      if (method === 'mpvAppend') {
+        appends.push({ src: String(args[0]), opts: args[2] })
+        return true
+      }
+      return undefined
+    }
+    const { audio } = await harness({ bridgeCall: bridge })
+
+    await audio.preloadNext('https://media.example/next', {
+      headers: { Referer: 'https://page.example/watch' },
+      proxy: true,
+    })
+
+    expect(appends[0]?.src).toBe('https://media.example/next')
+    expect(appends[0]?.opts).toMatchObject({
+      headers: { Referer: 'https://page.example/watch' },
+      proxy: true,
+    })
+  })
+})

@@ -55,8 +55,19 @@ NS_ASSUME_NONNULL_BEGIN
 /// URI mpv is already sounding answers `resumed:true` and touches nothing.
 - (NSString *)loadEx:(NSString *)uri headers:(nullable NSString *)headers;
 
+/// Proxy-marked variants: `proxyUrl` is set as mpv's `http-proxy` for this
+/// load/append and cleared when nil/empty — engine-global, exactly like the
+/// header property, so a proxied track never leaks its proxy onto a direct
+/// one (and vice versa). See docs/audio/engine.md §"Proxy-marked streams".
+- (NSString *)loadEx:(NSString *)uri
+             headers:(nullable NSString *)headers
+               proxy:(nullable NSString *)proxyUrl;
+
 /// Gapless playlist append (`loadfile <uri> append`). NO on command failure.
 - (BOOL)appendUri:(NSString *)uri headers:(nullable NSString *)headers;
+- (BOOL)appendUri:(NSString *)uri
+          headers:(nullable NSString *)headers
+            proxy:(nullable NSString *)proxyUrl;
 
 /// `play` — seek to `atMs` first when finite and non-negative; NaN is the
 /// adapter's "keep the engine's own position" marker (a paused resume, or the

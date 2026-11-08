@@ -256,11 +256,7 @@ var __BBeBeePreloadShim = (() => {
         }).then((res) => Boolean(res))
       },
       proxy: {
-        test: (config) => invoke("desktop_proxy_test", { config }),
-        set: (config) => invoke("desktop_proxy_set", { config })
-      },
-      stream: {
-        setHeaders: (entry) => invoke("desktop_stream_set_headers", { entry })
+        reload: () => invoke("desktop_proxy_reload")
       },
       audio: {
         cancelTranscode: (jobId) => invoke("desktop_audio_transcode_cancel", { jobId }).then(

@@ -1131,11 +1131,12 @@ describe('wiring itself to the credential store', () => {
 })
 
 describe('the per-request proxy marker', () => {
-  it('attaches the stored proxy config only to requests marked useProxy', async () => {
+  it('marks only requests that set useProxy — the config never rides from the caller', async () => {
     // The marker is the whole proxy contract from the transport's point of
-    // view: which requests are proxied is the caller's decision, the config
-    // is whatever `setProxy` last stored, and an unmarked request must not
-    // gain the field (that is what keeps every other consumer direct).
+    // view: which requests are proxied is the caller's decision, the *config*
+    // is the enforcement point's own knowledge (the sidecar's, the native
+    // transport's), and an unmarked request must not gain the field — that is
+    // what keeps every other consumer direct.
     const root = await tempDir('bbebee-http')
     const ctx = new Context()
     await ctx.plugin(PathsNode, { root })
@@ -1147,22 +1148,12 @@ describe('the per-request proxy marker', () => {
     })
     await ctx.plugin(plugin, { fetch: mockFetch as unknown as typeof fetch })
     await tick()
-    const http = ctx.http as unknown as HttpNode
 
-    // No config yet: a marked request has nothing to resolve against.
-    await ctx.http({ url: 'http://marked.example/x', useProxy: true })
-    expect(inits[0]?.proxy).toBeUndefined()
-
-    const config = { protocol: 'http' as const, host: '127.0.0.1', port: 7890 }
-    http.setProxy(config)
     await ctx.http({ url: 'http://plain.example/x' })
     await ctx.http({ url: 'http://marked.example/x', useProxy: true })
-    expect(inits[1]?.proxy).toBeUndefined()
-    expect(inits[2]?.proxy).toMatchObject({ host: '127.0.0.1', port: 7890 })
-
-    // Cleared, not stale: the next marked request goes direct again.
-    http.setProxy(null)
-    await ctx.http({ url: 'http://marked.example/x', useProxy: true })
-    expect(inits[3]?.proxy).toBeUndefined()
+    await ctx.http({ url: 'http://plain2.example/x', useProxy: false })
+    expect(inits[0]?.proxy).toBeUndefined()
+    expect(inits[1]?.proxy).toBe(true)
+    expect(inits[2]?.proxy).toBeUndefined()
   })
 })

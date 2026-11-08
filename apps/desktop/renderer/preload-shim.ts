@@ -86,13 +86,16 @@ export interface BBeBeeWindowApi {
 }
 
 export interface BBeBeeProxyApi {
-  test(config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }>
-  set(config: unknown): Promise<void>
+  /**
+   * Ask the shell to re-read the proxy settings and push them to the sidecar.
+   * Deliberately payload-free: the config is read (and the password
+   * decrypted) inside the shell, so nothing renderer-side can choose where
+   * proxied traffic goes. (The settings "test" button probes through a
+   * marked `ctx.http` request — the same path real proxied traffic takes.)
+   */
+  reload(): Promise<void>
 }
 
-export interface BBeBeeStreamApi {
-  setHeaders(entry: { url: string; headers: Record<string, string> }): Promise<void>
-}
 
 export interface BBeBeeAudioTranscodeOptions {
   jobId?: string
@@ -185,7 +188,6 @@ export interface BBeBeeApi {
   readonly plugins: BBeBeePluginsApi
   readonly window: BBeBeeWindowApi
   readonly proxy: BBeBeeProxyApi
-  readonly stream: BBeBeeStreamApi
   readonly audio: BBeBeeAudioApi
   readonly desktopLyrics: BBeBeeDesktopLyricsApi
   readonly taskbar: BBeBeeTaskbarApi
@@ -490,13 +492,7 @@ export function createPreloadApi(
         }).then((res) => Boolean(res)),
     },
     proxy: {
-      test: (config: unknown): Promise<{ ok: boolean; latencyMs?: number; error?: string }> =>
-        invoke('desktop_proxy_test', { config }),
-      set: (config: unknown): Promise<void> => invoke('desktop_proxy_set', { config }),
-    },
-    stream: {
-      setHeaders: (entry: { url: string; headers: Record<string, string> }): Promise<void> =>
-        invoke('desktop_stream_set_headers', { entry }),
+      reload: (): Promise<void> => invoke('desktop_proxy_reload'),
     },
     audio: {
       cancelTranscode: (jobId: string): Promise<boolean> =>

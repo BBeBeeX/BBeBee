@@ -40,6 +40,7 @@ import {
   isCriticalServiceKey,
   PLUGIN_MANAGER_ID,
   type AppSettings,
+  type HttpProxyConfig,
   type PluginManifest,
 } from '@BBeBee/protocol'
 import { MOBILE_LAYOUT_MODE_KEY, isMobileLayoutMode, type MobileLayoutMode } from './layout.js'
@@ -89,12 +90,13 @@ import { BOOTSTRAP_SERVICES, INITIAL_ENABLED } from './plugins'
 import '../modules/audio-engine/index.js'
 
 /*
- * The native proxy HTTP transport, if this build carries it: installs
- * `globalThis.bbebeeProxyHttp` for `HttpRn` to serve requests the settings
- * marked `useProxy`. Same side-effect-before-consumer rule as the audio
- * binding above.
+ * The native proxy HTTP module, if this build carries it: its seams
+ * (`getProxyHttpTransport`, `getStreamRelay`) are handed to the services as
+ * constructor config below. Deliberately imported for its probe, and its
+ * surface deliberately NOT on `globalThis` — a fetch that dials an arbitrary
+ * host through an arbitrary proxy must not be reachable from plugin JS.
  */
-import '../modules/http-proxy/index.js'
+import { getProxyHttpTransport, getStreamRelay } from '../modules/http-proxy/index.js'
 
 /**
  * Metro defines this in every bundle; it is `false` in a release build.
@@ -104,16 +106,6 @@ import '../modules/http-proxy/index.js'
  */
 declare const __DEV__: boolean
 
-/**
- * The proxy transport the native module installed, typed for `HttpRn`.
- *
- * `undefined` on a build without the module: the service then routes marked
- * requests direct through `expo/fetch`, which cannot proxy — the honest
- * degrade, never a boot failure.
- */
-function getProxyTransport(): HttpProxyTransport | undefined {
-  return (globalThis as { bbebeeProxyHttp?: HttpProxyTransport }).bbebeeProxyHttp
-}
 
 /*
  * Hermes' `TextDecoder` is UTF-8-only. Two tag paths need more: a Latin-1
@@ -488,6 +480,66 @@ export async function boot(): Promise<App> {
   const manifests = bundledManifests()
   const enabledPlugins = computeEnabledPlugins(prefs.storeData, manifests)
 
+/**
+ * The secrets key `plugin-settings.setProxyPassword` writes
+ * (`<pluginScope>/<key>`, as `core-secrets-mobile` prefixes it). Read here
+ * with the full key because the composition root has no capability scope of
+ * its own — the password goes straight from the keychain-backed store to the
+ * enforcement closures, never into a renderer-reachable global or a
+ * service setter a plugin could call.
+ */
+const PROXY_PASSWORD_KEY = '@bbebee/plugin-settings/proxy.password'
+
+/**
+ * The proxy config as the enforcement seams need it, resolved live per call:
+ * the master switch and address come from the settings document, the
+ * password straight from the secrets store. `null` means "no dialable
+ * proxy" — the honest reading of the wish the seams cannot grant.
+ */
+async function resolveProxyConfig(): Promise<HttpProxyConfig | null> {
+  const proxy = app.ctx.settings?.getSync().proxy
+  if (!proxy?.enabled || !proxy.host || !proxy.port) return null
+  let password: string | undefined
+  try {
+    password = await app.ctx.secrets?.get(PROXY_PASSWORD_KEY)
+  } catch {
+    password = undefined
+  }
+  return {
+    protocol: proxy.protocol,
+    host: proxy.host,
+    port: proxy.port,
+    ...(proxy.username ? { username: proxy.username } : {}),
+    ...(password ? { password } : {}),
+  }
+}
+
+// The native seams, probed once. `undefined` on a build without the module:
+// marked requests and streams then degrade to direct — the honest behaviour,
+// never a boot failure.
+const nativeProxyTransport = getProxyHttpTransport()
+const nativeStreamRelay = getStreamRelay()
+
+/**
+ * The transport `HttpRn` uses for requests marked `useProxy`: the native
+ * proxy client with the config resolved at call time. No config, no proxy —
+ * the request goes direct through plain `fetch`, which is what the flag
+ * honestly means when there is nothing to route through.
+ */
+const proxyTransport: HttpProxyTransport | undefined = nativeProxyTransport
+  ? async (url, init) => {
+      const config = await resolveProxyConfig()
+      if (!config) {
+        // The marker field is ours to strip, not the caller's — a direct
+        // replay of the request must not carry it (or log it) anywhere.
+        const direct = { ...(init as RequestInit) }
+        delete (direct as { proxy?: unknown }).proxy
+        return fetch(url, direct)
+      }
+      return nativeProxyTransport(url, { ...init, proxy: config } as RequestInit)
+    }
+  : undefined
+
   const app = createApp({
     target: Platform.OS === 'ios' ? 'ios' : 'android',
     bootstrap: [
@@ -533,15 +585,15 @@ export async function boot(): Promise<App> {
       // neither WebAssembly nor eval for the desktop QuickJS build.
       JsSandboxMobile,
       CodecRn,
-      // The proxy-capable transport (`globalThis.bbebeeProxyHttp`, installed
-      // by the import above) rides into the HTTP service here: a request
-      // marked `useProxy` is served by the native proxy client; a build
-      // without the native module leaves the seam unset and such requests go
-      // direct through `expo/fetch`.
+      // The proxy-capable transport rides into the HTTP service here: a
+      // request marked `useProxy` is served by the native proxy client with
+      // the config resolved per call (settings + the secrets-held password).
+      // A build without the native module leaves the seam unset and such
+      // requests go direct through `expo/fetch`.
       [
         HttpRn,
         {
-          ...(getProxyTransport() ? { proxyTransport: getProxyTransport() } : {}),
+          ...(proxyTransport ? { proxyTransport } : {}),
         },
       ],
       /*
@@ -553,6 +605,18 @@ export async function boot(): Promise<App> {
         {
           mpvPlugin: AudioMpv,
           createContext: () => new AudioContext(),
+          // Proxy-marked streams are translated by the bridge: mpv's own
+          // `http-proxy` on an engine build with the export, the loopback
+          // relay on one without. The config comes from the live provider
+          // (settings + the secrets-held password); a build without the
+          // native module leaves both seams unset and marked streams play
+          // direct.
+          ...(nativeStreamRelay || nativeProxyTransport
+            ? {
+                proxyConfigProvider: resolveProxyConfig,
+                ...(nativeStreamRelay ? { streamRelay: nativeStreamRelay } : {}),
+              }
+            : {}),
           // Applied at engine mount (desktop seeds its wrapper the same way),
           // so bit-perfect exclusive output is in force from the first load,
           // not from the first settings change.
@@ -629,38 +693,13 @@ export async function boot(): Promise<App> {
       if (!s) return
       if (s.userAgent !== undefined) scoped.http?.setUserAgent?.(s.userAgent)
       /*
-       * The configured proxy: `ctx.http.setProxy` is what a request marked
-       * `useProxy` (a source the per-source switches routed through the
-       * proxy) resolves against, and `ctx.audio.setProxyConfig` the stream
-       * flag the player passes on load. `null` when the master switch is off
-       * — cleared, not stale. Per-source decisions live with the callers that
-       * know the source id; this applier only carries the config.
+       * The proxy needs no applier: the enforcement seams built above resolve
+       * the config live per call (`resolveProxyConfig` — settings document
+       * plus the secrets-held password), so a settings flip lands on the
+       * next request or stream with nothing to push and nothing a plugin
+       * could repoint. Per-source decisions live with the callers that know
+       * the source id.
        */
-      if (s.proxy) {
-        const proxy = s.proxy
-        scoped.http?.setProxy?.(
-          proxy.enabled
-            ? {
-                protocol: proxy.protocol,
-                host: proxy.host,
-                port: proxy.port,
-                ...(proxy.username ? { username: proxy.username } : {}),
-                ...(proxy.password ? { password: proxy.password } : {}),
-              }
-            : null,
-        )
-        scoped.audio?.setProxyConfig?.(
-          proxy.enabled
-            ? {
-                protocol: proxy.protocol,
-                host: proxy.host,
-                port: proxy.port,
-                ...(proxy.username ? { username: proxy.username } : {}),
-                ...(proxy.password ? { password: proxy.password } : {}),
-              }
-            : null,
-        )
-      }
       if (s.audioOutputDeviceId) {
         void scoped.audio?.setOutputDevice?.(s.audioOutputDeviceId).catch((err) => {
           app.ctx.logger.warn(`boot: applying audio output device failed: ${String(err)}`)

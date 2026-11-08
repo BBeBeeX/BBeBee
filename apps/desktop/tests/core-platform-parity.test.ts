@@ -1143,13 +1143,10 @@ describe('Comprehensive OS Services Support (Group 0 Mapping Table)', () => {
     await expect(bridge.httpClose!(head.handle)).resolves.toBeUndefined()
   })
 
-  it('verifies session: proxy testing & configuration and stream headers map', async () => {
+  it('verifies session: the proxy reload ping is payload-free', async () => {
     const invoker = vi.fn(async (cmd: string, args: any) => {
-      if (cmd === 'desktop_proxy_test') {
-        if (!args?.config?.host) return { ok: false, error: 'Host missing' }
-        return { ok: true, latencyMs: 18 }
-      }
-      if (cmd === 'desktop_proxy_set' || cmd === 'desktop_stream_set_headers') {
+      if (cmd === 'desktop_proxy_reload') {
+        expect(args).toBeUndefined()
         return undefined
       }
       return undefined
@@ -1157,20 +1154,9 @@ describe('Comprehensive OS Services Support (Group 0 Mapping Table)', () => {
 
     const preload = createPreloadApi(invoker)
 
-    const testFail = await preload.proxy.test({})
-    expect(testFail.ok).toBe(false)
-
-    const testSuccess = await preload.proxy.test({ host: '127.0.0.1', port: 7890 })
-    expect(testSuccess.ok).toBe(true)
-    expect(testSuccess.latencyMs).toBe(18)
-
-    await expect(preload.proxy.set({ host: '127.0.0.1', port: 7890 })).resolves.toBeUndefined()
-
-    await expect(
-      preload.stream.setHeaders({
-        url: 'https://media.test/*',
-        headers: { Referer: 'https://source.test' },
-      }),
-    ).resolves.toBeUndefined()
+    // The renderer's only proxy verb. The settings "test" button probes
+    // through a marked `ctx.http` request — the same path real proxied
+    // traffic takes — not through a shim surface.
+    await expect(preload.proxy.reload()).resolves.toBeUndefined()
   })
 })

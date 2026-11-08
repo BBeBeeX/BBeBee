@@ -17,7 +17,7 @@
  * the place that can refuse it.
  */
 
-import { Agent, ProxyAgent, buildConnector, fetch as undiciFetch } from 'undici'
+import { Agent, ProxyAgent, buildConnector } from 'undici'
 import type { Dispatcher } from 'undici'
 import { SocksClient } from 'socks'
 import type { HttpProxyConfig } from '@BBeBee/protocol'
@@ -32,15 +32,19 @@ export type StoredProxyConfig = Required<Pick<HttpProxyConfig, 'protocol' | 'hos
 /**
  * Normalize an incoming proxy document into a dialable config.
  *
- * `proxy:set` is fed straight from the settings document, so every field is
- * untrusted: wrong types, empty host, port 0. Anything that does not add up
- * to "an address and a way to reach it" comes back `null`, and `null` means
- * the side has no proxy — never a throw, because a half-saved settings form
- * must not take the HTTP transport down with it.
+ * The document is the *settings* shape, so `enabled` is part of the decision
+ * and is enforced here, not just at the caller: a master switch flipped off
+ * must mean "no proxy" no matter which channel delivered the rest. Every
+ * other field is untrusted too — wrong types, empty host, port 0. Anything
+ * that does not add up to "switched on, an address, and a way to reach it"
+ * comes back `null`, and `null` means the side has no proxy — never a throw,
+ * because a half-saved settings form must not take the HTTP transport down
+ * with it.
  */
 export function normalizeProxyConfig(input: unknown): StoredProxyConfig | null {
   if (!input || typeof input !== 'object') return null
   const raw = input as Record<string, unknown>
+  if (raw['enabled'] === false) return null
   const protocol = raw['protocol'] === 'socks5' || raw['protocol'] === 'https' ? raw['protocol'] : 'http'
   const host = typeof raw['host'] === 'string' ? raw['host'].trim() : ''
   const port = Number(raw['port'])
@@ -52,6 +56,17 @@ export function normalizeProxyConfig(input: unknown): StoredProxyConfig | null {
     ...(typeof raw['username'] === 'string' && raw['username'] ? { username: raw['username'] } : {}),
     ...(typeof raw['password'] === 'string' && raw['password'] ? { password: raw['password'] } : {}),
   }
+}
+
+/**
+ * A log-safe description of a proxy config: scheme, host, port — and
+ * deliberately nothing else. `username`/`password` never appear (not even
+ * percent-encoded: that encoding is reversible), so a log line copied into a
+ * bug report cannot carry the credential with it.
+ */
+export function describeProxy(config: StoredProxyConfig | null): string {
+  if (!config) return 'direct'
+  return `${config.protocol}://${config.host}:${config.port}`
 }
 
 function sameConfig(a: StoredProxyConfig | null, b: StoredProxyConfig | null): boolean {
@@ -132,51 +147,6 @@ function socksConnect(config: StoredProxyConfig): ConnectFn {
       .catch((err: unknown) => {
         callback(err instanceof Error ? err : new Error(String(err)), null)
       })
-  }
-}
-
-export type ProxyProbeResult = { ok: true; latencyMs: number } | { ok: false; error: string }
-
-/**
- * One request through a throwaway dispatcher, timed — the settings "test"
- * button. Runs against the config as typed, so the user learns whether *this*
- * form works, not whether the last saved one did. `fetchImpl` exists for
- * tests: the real one is undici's, and building a `ProxyAgent` in a unit test
- * would dial an address that does not exist.
- */
-export async function probeProxy(
-  config: StoredProxyConfig,
-  opts: {
-    url?: string
-    timeoutMs?: number
-    fetchImpl?: typeof undiciFetch
-  } = {},
-): Promise<ProxyProbeResult> {
-  const url = opts.url ?? 'https://www.gstatic.com/generate_204'
-  const timeoutMs = opts.timeoutMs ?? 8_000
-  const doFetch = opts.fetchImpl ?? undiciFetch
-  const dispatcher = buildProxyDispatcher(config)
-  try {
-    const started = Date.now()
-    const response = await doFetch(url, {
-      dispatcher,
-      redirect: 'error',
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-    // The probe is a status line, not a body; 204 is the expected answer from
-    // a generate_204 endpoint, but any < 400 says "the tunnel and the origin
-    // both answered" — which is what the button is asking.
-    await response.body?.cancel?.()
-    const latencyMs = Date.now() - started
-    if (response.status >= 400) {
-      return { ok: false, error: `probe answered HTTP ${response.status}` }
-    }
-    return { ok: true, latencyMs }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return { ok: false, error: message || 'connection failed' }
-  } finally {
-    void dispatcher.close().catch(() => undefined)
   }
 }
 

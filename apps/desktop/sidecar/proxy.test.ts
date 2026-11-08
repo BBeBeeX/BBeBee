@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { ProxyRegistry, normalizeProxyConfig, probeProxy } from './proxy.js'
+import { describe, expect, it } from 'vitest'
+import { ProxyRegistry, describeProxy, normalizeProxyConfig } from './proxy.js'
 
 describe('normalizeProxyConfig', () => {
   it('keeps a dialable config and defaults the protocol to http', () => {
@@ -23,6 +23,17 @@ describe('normalizeProxyConfig', () => {
       host: 'p.example',
       port: 1080,
     })
+  })
+
+  it('treats the master switch as part of the dialable verdict — desktop proxy:apply sends the whole document', () => {
+    // `enabled: false` must normalize to "no proxy" no matter which channel
+    // delivered it; the address alone is not a proxy.
+    expect(normalizeProxyConfig({ enabled: false, host: '127.0.0.1', port: 7890 })).toBeNull()
+    expect(normalizeProxyConfig({ enabled: true, host: '127.0.0.1', port: 7890 })).toMatchObject({
+      host: '127.0.0.1',
+    })
+    // Absent (the test-button shape) is not "off".
+    expect(normalizeProxyConfig({ host: '127.0.0.1', port: 7890 })).not.toBeNull()
   })
 
   it('refuses what cannot be dialled — the settings form mid-edit must not crash the transport', () => {
@@ -65,28 +76,22 @@ describe('ProxyRegistry', () => {
   })
 })
 
-describe('probeProxy', () => {
-  const config = { protocol: 'http' as const, host: '127.0.0.1', port: 7890 }
-  type ProbeFetch = NonNullable<Parameters<typeof probeProxy>[1]>['fetchImpl']
-
-  it('reports latency when the probe answers under 400', async () => {
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 204 })) as unknown as ProbeFetch
-    const result = await probeProxy(config, { fetchImpl })
-    expect(result).toMatchObject({ ok: true })
-    expect(result.ok && result.latencyMs).toBeGreaterThanOrEqual(0)
+describe('describeProxy', () => {
+  it('logs scheme, host and port — and never the credentials', () => {
+    expect(describeProxy({ protocol: 'http', host: '127.0.0.1', port: 7890 })).toBe('http://127.0.0.1:7890')
+    expect(describeProxy({ protocol: 'socks5', host: 'p.example', port: 1080 })).toBe('socks5://p.example:1080')
+    const described = describeProxy({
+      protocol: 'http',
+      host: 'p.example',
+      port: 8080,
+      username: 'secret-user',
+      password: 'secret-pass',
+    })
+    expect(described).toBe('http://p.example:8080')
+    expect(described).not.toContain('secret')
   })
 
-  it('reports an HTTP status as a failure, not a success', async () => {
-    const fetchImpl = (async () => new Response(null, { status: 502 })) as unknown as ProbeFetch
-    const result = await probeProxy(config, { fetchImpl })
-    expect(result).toEqual({ ok: false, error: 'probe answered HTTP 502' })
-  })
-
-  it('reports a transport failure with its message', async () => {
-    const fetchImpl = (async () => {
-      throw new Error('connect ECONNREFUSED 127.0.0.1:7890')
-    }) as unknown as ProbeFetch
-    const result = await probeProxy(config, { fetchImpl })
-    expect(result).toEqual({ ok: false, error: 'connect ECONNREFUSED 127.0.0.1:7890' })
+  it('names the direct case honestly', () => {
+    expect(describeProxy(null)).toBe('direct')
   })
 })

@@ -341,16 +341,19 @@ pub fn handle_bbebee_plugin_request(
     });
 }
 
-/// `<userData>/installed-plugins`, with `userData` resolved exactly as
-/// the sidecar resolves it (`core-paths-desktop`'s
-/// `resolveSystemPath('userData')`): `BBEBEE_DATA_DIR` wins, then the
-/// platform data directory + `BBeBee`.
+/// `<userData>`, resolved exactly as the sidecar resolves it
+/// (`core-paths-desktop`'s `resolveSystemPath('userData')`):
+/// `BBEBEE_DATA_DIR` wins, then the platform data directory + `BBeBee`.
+pub(crate) fn user_data_dir() -> Option<PathBuf> {
+    match std::env::var("BBEBEE_DATA_DIR") {
+        Ok(custom) if !custom.is_empty() => Some(PathBuf::from(custom)),
+        _ => platform_user_data_dir(),
+    }
+}
+
+/// `<userData>/installed-plugins`.
 fn installed_plugins_dir() -> Option<PathBuf> {
-    let user_data = match std::env::var("BBEBEE_DATA_DIR") {
-        Ok(custom) if !custom.is_empty() => PathBuf::from(custom),
-        _ => platform_user_data_dir()?,
-    };
-    Some(user_data.join("installed-plugins"))
+    Some(user_data_dir()?.join("installed-plugins"))
 }
 
 #[cfg(target_os = "windows")]

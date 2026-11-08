@@ -39,8 +39,7 @@ describe('Preload Surface Conformance Test: Tauri Shim API Contract', () => {
       devtools: ['open'],
       plugins: ['listInstalled', 'getLock', 'install', 'uninstall'],
       window: ['minimize', 'maximize', 'close', 'isMaximized', 'setCloseToTray', 'toggle'],
-      proxy: ['test', 'set'],
-      stream: ['setHeaders'],
+      proxy: ['reload'],
       audio: ['cancelTranscode', 'transcode'],
       desktopLyrics: [
         'setVisible',

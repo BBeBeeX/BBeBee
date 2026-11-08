@@ -37,6 +37,14 @@ export function headersToFields(headers?: Record<string, string>): string | null
 export interface NativeAudioEngine {
   loadEx(uri: string, headers: string | null): Promise<string>
   append(uri: string, headers: string | null): Promise<boolean>
+  /**
+   * Proxy-marked load/append — present in engine releases that ship the JNI
+   * export. Against an older `.so` the Expo module answers the
+   * `unsupported` marker (it catches the UnsatisfiedLinkError itself), so
+   * the adapter parses both shapes.
+   */
+  loadExProxy?(uri: string, headers: string | null, proxyUrl: string): Promise<string>
+  appendProxy?(uri: string, headers: string | null, proxyUrl: string): Promise<string>
   playAt(atMs: number): Promise<void>
   pause(): Promise<void>
   stop(): Promise<void>
@@ -106,6 +114,16 @@ export interface MpvLoadResult {
   sampleRate?: number
   channels?: number
   bitDepth?: number
+}
+
+/**
+ * The answer a proxy-marked load/append can carry instead of a result: the
+ * engine build has no proxy export and the caller must fall back to the
+ * loopback relay. (A plain `undefined` keeps meaning "engine refused" — the
+ * degrade signal `mpvLoad` has always used.)
+ */
+export interface MpvProxyUnsupported {
+  unsupported: true
 }
 
 export interface MpvStateResult {
@@ -204,64 +222,44 @@ function assertSwitchableOutputDevice(id: string): void {
 }
 
 export function buildMpvAdapter(native: NativeAudioEngine) {
-  /*
-   * Stream proxying: `core-audio-mpv` resolves the settings proxy to a URL and
-   * hands it down as `opts.proxyUrl`. mpv reads it from its `http-proxy`
-   * property, which only an engine build that forwards it into the JNI can
-   * set — an optional `loadExProxy`/`appendProxy` native method is the seam
-   * for that, feature-detected so today's builds degrade honestly (one
-   * warning per session) instead of breaking the load.
-   */
-  const proxiedNative = native as NativeAudioEngine & {
-    loadExProxy?: (uri: string, headers: string | null, proxyUrl: string) => Promise<string>
-    appendProxy?: (uri: string, headers: string | null, proxyUrl: string) => Promise<boolean>
-  }
-  let warnedNoStreamProxy = false
-  const noteStreamProxyMiss = (): void => {
-    if (warnedNoStreamProxy) return
-    warnedNoStreamProxy = true
-    console.warn(
-      '[audio-engine] stream proxy requested but this engine build cannot proxy mpv streams — playing direct',
-    )
-  }
   return {
-    async mpvLoad(
-      uri: string,
-      opts?: { strategy?: string; headers?: Record<string, string>; proxyUrl?: string | null },
-    ) {
-      const headers = headersToFields(opts?.headers)
-      let answer: string
-      if (opts?.proxyUrl) {
-        if (typeof proxiedNative.loadExProxy === 'function') {
-          answer = await proxiedNative.loadExProxy(uri, headers, opts.proxyUrl)
-        } else {
-          // Today's engine builds carry a fixed JNI surface with no proxy
-          // parameter — degrade honestly rather than break the load.
-          noteStreamProxyMiss()
-          answer = await native.loadEx(uri, headers)
-        }
-      } else {
-        answer = await native.loadEx(uri, headers)
-      }
-      const parsed = JSON.parse(answer) as MpvLoadResult
+    async mpvLoad(uri: string, opts?: { strategy?: string; headers?: Record<string, string> }) {
+      const parsed = JSON.parse(await native.loadEx(uri, headersToFields(opts?.headers))) as MpvLoadResult
       // The engine treats "no answer" as the degrade signal; `ok: false`
       // must therefore arrive as undefined, not as a truthy error object.
       return parsed.ok ? parsed : undefined
     },
-    async mpvAppend(
+    async mpvAppend(uri: string, _play?: boolean, opts?: { headers?: Record<string, string> }) {
+      await native.append(uri, headersToFields(opts?.headers))
+    },
+    /**
+     * Proxy-marked load through mpv's own `http-proxy` (set natively for
+     * this one file). The `unsupported` marker means this engine build has
+     * no proxy export — the bridge falls back to the loopback relay.
+     */
+    async loadExProxy(
       uri: string,
-      _play?: boolean,
-      opts?: { headers?: Record<string, string>; proxyUrl?: string | null },
-    ) {
-      const headers = headersToFields(opts?.headers)
-      if (opts?.proxyUrl) {
-        if (typeof proxiedNative.appendProxy === 'function') {
-          await proxiedNative.appendProxy(uri, headers, opts.proxyUrl)
-          return
-        }
-        noteStreamProxyMiss()
-      }
-      await native.append(uri, headers)
+      opts?: { headers?: Record<string, string> },
+      proxyUrl?: string,
+    ): Promise<MpvLoadResult | MpvProxyUnsupported | undefined> {
+      if (!proxyUrl || typeof native.loadExProxy !== 'function') return { unsupported: true }
+      const parsed = JSON.parse(
+        await native.loadExProxy(uri, headersToFields(opts?.headers), proxyUrl),
+      ) as (MpvLoadResult & { unsupported?: boolean }) | { unsupported: true }
+      if ('unsupported' in parsed) return { unsupported: true }
+      return parsed.ok ? parsed : undefined
+    },
+    async appendProxy(
+      uri: string,
+      opts?: { headers?: Record<string, string> },
+      proxyUrl?: string,
+    ): Promise<{ ok: boolean } | MpvProxyUnsupported> {
+      if (!proxyUrl || typeof native.appendProxy !== 'function') return { unsupported: true }
+      const parsed = JSON.parse(
+        await native.appendProxy(uri, headersToFields(opts?.headers), proxyUrl),
+      ) as { ok?: boolean; unsupported?: boolean }
+      if (parsed.unsupported) return { unsupported: true }
+      return { ok: parsed.ok === true }
     },
     mpvPlay(atMs?: number) {
       // NaN is the "keep the engine's own position" marker the JNI side reads.

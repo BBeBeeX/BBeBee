@@ -331,7 +331,7 @@ Two things route through the sidecar / host for reasons worth stating:
 
 ### Process/security posture on desktop
 
-Tauri v2 webview isolation is enforced, with native capabilities scoped via Tauri configuration. Communication between the webview and the Node.js sidecar uses capability-scoped JSON-RPC over a local loopback port, guarded by an IPC token. The kernel wraps services per plugin ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served for the app origin.
+Tauri v2 webview isolation is enforced, with native capabilities scoped via Tauri configuration. Communication between the webview and the Node.js sidecar is framed NDJSON JSON-RPC over the sidecar's **stdio** — the renderer never reaches the sidecar directly; every call is an explicit Tauri command (`desktop_*`) that forwards a fixed channel, which is also why the proxy config can be custodied in the shell: the renderer's only proxy verb is a payload-free reload ping (`proxy_config.rs` reads the store and the secrets-held password itself). The kernel wraps services per plugin ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). A strict CSP is served for the app origin.
 
 The one token beyond that floor is `'wasm-unsafe-eval'`, and it is there for `ctx.js`. Chromium/Webview
 gates `WebAssembly.instantiate` on `script-src`, so QuickJS cannot compile without it and the

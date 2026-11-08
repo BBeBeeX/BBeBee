@@ -1245,60 +1245,30 @@ pub async fn desktop_plugins_uninstall(
 }
 
 // =============================================================================
-// Proxy & Stream Headers
+// Proxy & Stream Relay
 // =============================================================================
 
+/// Re-read the proxy settings and push the assembled config to the sidecar.
+///
+/// The renderer's only proxy verb is this reload ping; the config itself is
+/// read here (the store) and here only (the secrets-held password), and the
+/// master switch is decided before anything leaves this process. A `None`
+/// config is pushed too — "no proxy" must be able to *reach* the sidecar, or
+/// a switch-off would leave the old dispatcher in place.
 #[tauri::command]
-pub async fn proxy_test(
-    state: tauri::State<'_, AppState>,
-    config: serde_json::Value,
-) -> Result<serde_json::Value, String> {
+pub async fn proxy_reload(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let sidecar = state.get_sidecar()?;
-    sidecar.call("proxy:test", serde_json::json!([config])).await
+    let config = crate::proxy_config::user_data_dir()
+        .ok()
+        .and_then(|user_data| crate::proxy_config::effective_proxy_config(&user_data));
+    sidecar
+        .notify("proxy:apply", serde_json::json!([config]))
+        .await
 }
 
 #[tauri::command]
-pub async fn desktop_proxy_test(
-    state: tauri::State<'_, AppState>,
-    config: serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    proxy_test(state, config).await
-}
-
-#[tauri::command]
-pub async fn proxy_set(
-    state: tauri::State<'_, AppState>,
-    config: serde_json::Value,
-) -> Result<(), String> {
-    let sidecar = state.get_sidecar()?;
-    let _ = sidecar.call("proxy:set", serde_json::json!([config])).await;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn desktop_proxy_set(
-    state: tauri::State<'_, AppState>,
-    config: serde_json::Value,
-) -> Result<(), String> {
-    proxy_set(state, config).await
-}
-
-#[tauri::command]
-pub async fn stream_set_headers(
-    state: tauri::State<'_, AppState>,
-    entry: serde_json::Value,
-) -> Result<(), String> {
-    let sidecar = state.get_sidecar()?;
-    let _ = sidecar.call("stream:set-headers", serde_json::json!([entry])).await;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn desktop_stream_set_headers(
-    state: tauri::State<'_, AppState>,
-    entry: serde_json::Value,
-) -> Result<(), String> {
-    stream_set_headers(state, entry).await
+pub async fn desktop_proxy_reload(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    proxy_reload(state).await
 }
 
 // =============================================================================

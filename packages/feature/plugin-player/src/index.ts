@@ -1221,16 +1221,11 @@ export class Player extends Service implements PlayerService {
   }
 
   private async load(handle: StreamHandle, opts: { useProxy?: boolean } = {}): Promise<AudioSourceHandle> {
-    if (
-      handle.headers &&
-      typeof window !== 'undefined' &&
-      typeof (window as unknown as { BBeBee?: { stream?: { setHeaders: (entry: { url: string; headers: Record<string, string> }) => Promise<void> } } }).BBeBee?.stream?.setHeaders === 'function'
-    ) {
-      void (window as unknown as { BBeBee: { stream: { setHeaders: (entry: { url: string; headers: Record<string, string> }) => Promise<void> } } }).BBeBee.stream.setHeaders({
-        url: handle.target,
-        headers: handle.headers,
-      })
-    }
+    // The per-source proxy wish rides in `LoadOptions.proxy`; the engine-side
+    // resolver (composition-root supplied) turns a marked stream into a
+    // relayed loopback URL with the source's headers registered server-side.
+    // There is deliberately no separate "set stream headers" channel — the
+    // resolver is the one place headers and routing travel together.
     return this.ownCtx.audio.load(handle.target, {
       strategy: this.strategyFor(handle),
       ...(handle.headers ? { headers: handle.headers } : {}),

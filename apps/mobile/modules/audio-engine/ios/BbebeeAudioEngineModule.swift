@@ -120,6 +120,23 @@ public class BbebeeAudioEngineModule: Module {
       }
     }
 
+    /// Proxy-marked load/append: `proxyUrl` lands in mpv's `http-proxy`
+    /// property for this one file and is cleared by the next non-proxied
+    /// call. iOS drives libmpv in-process, so this is always supported —
+    /// the `unsupported` marker exists for the Android JNI, whose surface
+    /// is fixed by the prebuilt `.so`.
+    AsyncFunction("loadExProxy") { (uri: String, headers: String?, proxyUrl: String, promise: Promise) in
+      engineQueue.async {
+        promise.resolve(self.engine().loadEx(uri, headers: headers, proxy: proxyUrl))
+      }
+    }
+
+    AsyncFunction("appendProxy") { (uri: String, headers: String?, proxyUrl: String, promise: Promise) in
+      engineQueue.async {
+        promise.resolve(self.engine().appendUri(uri, headers: headers, proxy: proxyUrl))
+      }
+    }
+
     AsyncFunction("append") { (uri: String, headers: String?, promise: Promise) in
       engineQueue.async {
         promise.resolve(self.engine().appendUri(uri, headers: headers))

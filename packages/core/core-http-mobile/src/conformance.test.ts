@@ -404,9 +404,7 @@ describe('multi-set-cookie through the mobile transport', () => {
 /* ── the proxy transport choice ─────────────────────────────────────────── */
 
 describe('the per-request proxy transport', () => {
-  const proxyConfig = { protocol: 'http' as const, host: '127.0.0.1', port: 7890 }
-
-  it('serves a marked request with a config through the native proxy transport', async () => {
+  it('serves a marked request through the native proxy transport', async () => {
     const calls: string[] = []
     const ctx = new Context()
     await ctx.plugin(TestFs)
@@ -418,7 +416,6 @@ describe('the per-request proxy transport', () => {
       },
     })
     await tick()
-    ;(ctx.http as unknown as { setProxy: (c: typeof proxyConfig | null) => void }).setProxy(proxyConfig)
 
     const response = await ctx.http({ url: `${origin}/echo`, useProxy: true })
     expect(await response.text()).toBe('proxied')
@@ -437,36 +434,18 @@ describe('the per-request proxy transport', () => {
       },
     })
     await tick()
-    ;(ctx.http as unknown as { setProxy: (c: typeof proxyConfig | null) => void }).setProxy(proxyConfig)
 
     const response = await ctx.http({ url: `${origin}/echo` })
     expect(((await response.json()) as { method: string }).method).toBe('GET')
     expect(calls).toEqual([])
   })
 
-  it('a marked request with no stored config goes direct — the flag is a wish', async () => {
-    const calls: string[] = []
-    const ctx = new Context()
-    await ctx.plugin(TestFs)
-    await ctx.plugin(plugin, {
-      defaultTimeoutMs: 10_000,
-      proxyTransport: async (url: string) => {
-        calls.push(url)
-        return new Response('proxied', { status: 200 })
-      },
-    })
-    await tick()
-
-    const response = await ctx.http({ url: `${origin}/echo`, useProxy: true })
-    expect(((await response.json()) as { method: string }).method).toBe('GET')
-    expect(calls).toEqual([])
-  })
-
   it('a marked request without a transport (build without the native module) goes direct', async () => {
     const ctx = await harness()
-    ;(ctx.http as unknown as { setProxy: (c: typeof proxyConfig | null) => void }).setProxy(proxyConfig)
     // The real expo stub serves this: the request reached the server, not a
-    // proxy seam that does not exist in this build.
+    // proxy seam that does not exist in this build. Whether a *configured*
+    // proxy is dialable is the transport's own per-call decision (see the
+    // adapter tests) — the service has no config to hold or leak.
     const response = await ctx.http({ url: `${origin}/echo`, useProxy: true })
     expect(((await response.json()) as { method: string }).method).toBe('GET')
   })
