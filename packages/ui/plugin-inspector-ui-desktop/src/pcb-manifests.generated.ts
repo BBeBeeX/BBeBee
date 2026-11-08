@@ -892,6 +892,66 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     },
     "effect": "js"
   },
+  "@bbebee/core-lan-desktop": {
+    "id": "@bbebee/core-lan-desktop",
+    "name": "@bbebee/core-lan-desktop",
+    "displayName": "LAN Transport (Desktop)",
+    "description": "ctx.lan — UDP multicast/broadcast datagrams and a bounded HTTP server/client over the local network, via the desktop sidecar.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "lan"
+    ],
+    "contributes": {
+      "services": [
+        "lan"
+      ]
+    },
+    "effect": "lan"
+  },
+  "core-lan-desktop": {
+    "id": "@bbebee/core-lan-desktop",
+    "name": "@bbebee/core-lan-desktop",
+    "displayName": "LAN Transport (Desktop)",
+    "description": "ctx.lan — UDP multicast/broadcast datagrams and a bounded HTTP server/client over the local network, via the desktop sidecar.",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-2",
+    "moduleId": "core",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [
+      "lan"
+    ],
+    "contributes": {
+      "services": [
+        "lan"
+      ]
+    },
+    "effect": "lan"
+  },
   "@bbebee/core-lifecycle-mobile": {
     "id": "@bbebee/core-lifecycle-mobile",
     "name": "@bbebee/core-lifecycle-mobile",
@@ -2071,6 +2131,80 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
       ]
     },
     "effect": "inspector"
+  },
+  "@bbebee/plugin-lan-share": {
+    "id": "@bbebee/plugin-lan-share",
+    "name": "@bbebee/plugin-lan-share",
+    "displayName": "LAN Transfer",
+    "description": "ctx.lanShare — discover BBeBee devices on the local network and transfer library tracks between them (LocalSend-style).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "share",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js",
+      "ui": {
+        "desktop": "./dist/index.js"
+      }
+    },
+    "capabilities": [
+      "lan",
+      "db:read:core",
+      "fs:read:all",
+      "fs:read:cache",
+      "fs:write:own"
+    ],
+    "contributes": {
+      "services": [
+        "lanShare"
+      ]
+    },
+    "effect": "lanShare"
+  },
+  "plugin-lan-share": {
+    "id": "@bbebee/plugin-lan-share",
+    "name": "@bbebee/plugin-lan-share",
+    "displayName": "LAN Transfer",
+    "description": "ctx.lanShare — discover BBeBee devices on the local network and transfer library tracks between them (LocalSend-style).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [],
+    "systemId": "layer-4",
+    "moduleId": "share",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js",
+      "ui": {
+        "desktop": "./dist/index.js"
+      }
+    },
+    "capabilities": [
+      "lan",
+      "db:read:core",
+      "fs:read:all",
+      "fs:read:cache",
+      "fs:write:own"
+    ],
+    "contributes": {
+      "services": [
+        "lanShare"
+      ]
+    },
+    "effect": "lanShare"
   },
   "@bbebee/plugin-library": {
     "id": "@bbebee/plugin-library",
@@ -4176,6 +4310,60 @@ export const PLUGIN_MANIFESTS: Record<string, PluginManifest> = {
     ],
     "systemId": "layer-5",
     "moduleId": "inspector",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "@bbebee/plugin-lan-share-ui-desktop": {
+    "id": "@bbebee/plugin-lan-share-ui-desktop",
+    "name": "@bbebee/plugin-lan-share-ui-desktop",
+    "displayName": "LAN Transfer UI (Desktop)",
+    "description": "Desktop views for @bbebee/plugin-lan-share (peer list, send panel, receive prompts).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lan-share"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "share",
+    "platforms": [
+      "desktop"
+    ],
+    "entry": {
+      "main": "./dist/index.js"
+    },
+    "capabilities": [],
+    "contributes": {},
+    "effect": null
+  },
+  "plugin-lan-share-ui-desktop": {
+    "id": "@bbebee/plugin-lan-share-ui-desktop",
+    "name": "@bbebee/plugin-lan-share-ui-desktop",
+    "displayName": "LAN Transfer UI (Desktop)",
+    "description": "Desktop views for @bbebee/plugin-lan-share (peer list, send panel, receive prompts).",
+    "version": "0.0.0",
+    "author": "BBeBee Team",
+    "engines": {
+      "BBeBee": "^0.1.0"
+    },
+    "enabled": true,
+    "dependencies": [
+      "@bbebee/plugin-ui",
+      "@bbebee/plugin-lan-share"
+    ],
+    "systemId": "layer-5",
+    "moduleId": "share",
     "platforms": [
       "desktop"
     ],

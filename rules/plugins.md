@@ -114,6 +114,7 @@ Declared in each package's `BBeBee.plugin.json`, mediated by the kernel via inte
 | `secrets:own` | Its own credential namespace |
 | `js` | May evaluate untrusted script in `ctx.js` (`plugin-source-runtime` only) |
 | `audio`, `mediaSession`, `notify`, `shell`, `background` | Audio graph / OS-level actions |
+| `lan` | LAN transport (`ctx.lan`): UDP multicast/broadcast datagrams, a bounded HTTP server, and HTTP requests to private-network addresses. One flat token for both directions on purpose — a plugin that may serve the LAN may also talk to it. Containment lives in the service: dialing is refused outside loopback/RFC 1918, and an unanswered server request times out with a 504 |
 
 > User-driven picks (`ctx.fs.pickDirectory`, `ctx.fs.pickFiles`) carry no capability token: the user, not the plugin, chooses what is handed over, and each picked location then classifies through the usual `fs:read:*` scoping on first read.
 

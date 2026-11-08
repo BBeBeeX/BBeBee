@@ -1,0 +1,31 @@
+{
+  "name": "@bbebee/core-lan-desktop",
+  "version": "0.0.0",
+  "description": "ctx.lan — LAN transport (UDP multicast/broadcast + bounded HTTP server/client) for desktop, over the sidecar bridge.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./host": "./src/host.ts",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/kernel": "workspace:*",
+    "@bbebee/core-desktop-bridge": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {
+    "@BBeBee/core-paths-desktop": "workspace:*",
+    "@BBeBee/core-fs-desktop": "workspace:*"
+  }
+}

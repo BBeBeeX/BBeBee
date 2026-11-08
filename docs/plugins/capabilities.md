@@ -43,6 +43,7 @@ each grant with its semantics and rationale.
 | `audio` | May contribute nodes to the audio graph |
 | `mediaSession` | May publish now-playing metadata and receive transport commands |
 | `notify`, `shell`, `background` | User-visible or OS-level actions |
+| `lan` | The LAN transport `ctx.lan` ([services/contracts.md §29](../services/contracts.md#29-ctxlan--lan-transport)) — UDP multicast/broadcast, a bounded HTTP server, and requests to private-network addresses, all under one flat token. Not a general network grant: dialing is refused outside loopback/RFC 1918 inside the service itself, and `ctx.http` remains the egress point for everything else. Currently held by `plugin-lan-share` (and the `core-lan-desktop` provider, which needs no gate for itself) |
 
 `store` is also mediated, though it has no capability of its own: the interception config carries
 the plugin's **storage namespace**, which `ctx.store`, `ctx.secrets`, and the cookie jar all key

@@ -30,6 +30,7 @@
 - [26. `ctx.audioConverter` — audio format conversion & compression service](#26-ctxaudioconverter--audio-format-conversion--compression-service)
 - [27. Where to go next](#27-where-to-go-next)
 - [28. System-integration services (mobile)](#28-system-integration-services-mobile)
+- [29. `ctx.lan` — LAN transport](#29-ctxlan--lan-transport)
 
 > **Scope boundary.** The normative registry of service keys — which keys exist and which package implements each on which platform — lives in [rules/services.md §2](../../rules/services.md#2-standard-service-keys) (L2). This catalog holds the full contracts, platform behavior and rationale.
 
@@ -1816,3 +1817,40 @@ export interface VisualizerService {
 
 
 
+
+---
+
+## 29. `ctx.lan` — LAN transport
+
+**Purpose.** UDP multicast/broadcast datagrams plus a bounded HTTP server and client, scoped to the local network. The transport is deliberately dumb — it knows datagrams and requests, not devices or songs; the protocol state machine (peer discovery, transfer sessions) lives in `plugin-lan-share` (`ctx.lanShare`), which is why a future mobile transport (`core-lan-mobile`) is an implementation swap, not a protocol rewrite.
+
+```ts
+export interface LanService {
+  start(opts: { udpPort: number; httpPort: number; multicastGroup: string }): Promise<{ udpPort: number; httpPort: number }>
+  stop(): Promise<void>
+  readonly running: boolean
+  sendDatagram(target: { host: string; port: number }, data: Uint8Array, opts?: { broadcast?: boolean }): Promise<void>
+  onDatagram(cb: (d: LanDatagram) => void): Disposable
+  onRequest(cb: (req: LanRequestContext) => void): Disposable
+  request(target: { host: string; port: number }, req: LanRequest): Promise<LanResponse>
+}
+```
+
+**Capability.** The flat `lan` token governs the whole service — one grant for both directions on purpose ([capabilities.md §7](../plugins/capabilities.md#7-capability-model)). `ctx.http` remains the egress point for everything else; `lan` is not a general network grant wearing a shorter name.
+
+**Platform shape.** Desktop only today: `core-lan-desktop` runs the sockets in the Node sidecar (`node:dgram` + `node:http`), exposed to the renderer as a thin bridge service (`LanBridge`) exactly like `FsBridge`. Inbound datagrams and requests are pushed to the renderer as `BBeBee:event` topics (`lan-datagram`, `lan-request`); replies and outbound requests go back as `lan.*` bridge calls, whose dispatch is allowlisted like every other service.
+
+### Containment (identity-free, enforced at the dispatch and in the host)
+
+1. **Private addresses only.** Datagrams and requests are refused outside loopback, RFC 1918, link-local, IPv4 broadcast, and the multicast range — checked both at the bridge dispatch (which cannot trust a renderer caller) and inside the host (which honours the contract even when driven in-process).
+2. **File-referencing bodies stay contained.** A `bodyFile` named on a request or a reply passes the same containment check an `fs` read answers to.
+3. **Bounded server.** An inbound request body above 1 MiB spills to a temp file (multi-gigabyte uploads never materialise in memory); a body over the 8 GiB ceiling answers 413. An inbound request nobody replies to within 30 s answers **504**, so a crashed handler cannot hold a peer's socket open.
+4. **Bounded client.** `request()` caps a peer's response body at 16 MiB (by declared `content-length`), and streams upload bodies from disk rather than buffering them.
+
+**Large bodies never cross the bridge in memory.** Uploads spill to files and arrive as `bodyFile`; a reply may name a `bodyFile` for the host to stream. Bytes cross the bridge only when they are small (base64 over the NDJSON transport).
+
+**Who uses it.** `plugin-lan-share` — the LocalSend-style song-transfer feature (`ctx.lanShare`, events `lan-share/peers-changed`, `lan-share/transfers-changed`, `lan-share/settings-changed`, `lan-share/incoming`). Received files land in the plugin's own data directory and are ingested through `ctx.scanner.importFiles`, so `library/changed` refreshes every screen.
+
+**Progress granularity.** Per-file, not per-byte: the transport streams files in the sidecar, and the renderer learns that a file finished. This is the honest granularity the bridge provides; byte-level progress would need a transport extension.
+
+**Not yet on mobile.** A `core-lan-mobile` (Android `MulticastSocket` + `ServerSocket`, iOS `NWListener`) is the follow-up milestone; the feature's manifest declares `platforms: ["desktop"]` and the shell parity gate carries the exception.

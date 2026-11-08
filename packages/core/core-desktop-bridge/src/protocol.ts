@@ -42,7 +42,7 @@ export const CH = {
 } as const
 
 /** Services reachable over the bridge. */
-export type BridgedService = 'fs' | 'db' | 'paths' | 'system' | 'audio' | 'codec'
+export type BridgedService = 'fs' | 'db' | 'paths' | 'system' | 'audio' | 'codec' | 'lan'
 
 /**
  * Topics `main` may push to the renderer.
@@ -58,6 +58,26 @@ export type BridgeEvent =
   | { topic: 'will-suspend' }
   | { topic: 'power'; charging: boolean; level: number }
   | { topic: 'transport'; command: string; positionMs?: number }
+  /**
+   * One inbound LAN datagram. `data` is base64 — datagrams are discovery
+   * sized (tens of bytes to a few KiB), never bulk, so the encoding cost is
+   * noise and the NDJSON transport stays line-oriented.
+   */
+  | { topic: 'lan-datagram'; host: string; port: number; data: string }
+  /**
+   * One inbound LAN HTTP request awaiting the renderer's `lan.replyRequest`.
+   * A body above the sidecar's spill threshold arrives as `bodyFile` instead
+   * of `body`; an unanswered request times out (504) on the sidecar side.
+   */
+  | {
+      topic: 'lan-request'
+      id: string
+      method: string
+      url: string
+      headers: Record<string, string>
+      body?: string
+      bodyFile?: string
+    }
 
 /** A request as it crosses the bridge. Plain data — no `Request`, no streams. */
 export interface BridgeHttpRequest {
@@ -184,6 +204,37 @@ export async function safeStorageCodec(): Promise<{
     encrypt: (plain) => bridge.encrypt(plain),
     decrypt: (cipher) => bridge.decrypt(cipher),
   }
+}
+
+/**
+ * Whether a host is a private-network target the `lan` bridge service may
+ * dial or broadcast to: loopback, RFC 1918, link-local, IPv4 broadcast, and
+ * the multicast range discovery uses (plus their IPv6 loopback/link-local/
+ * ULA analogues).
+ *
+ * Lives here because two layers enforce it — the dispatch in `main` (which
+ * cannot trust a renderer caller) and the transport in `core-lan-desktop`
+ * (which honours the `ctx.lan` contract even when driven in-process) — and
+ * one copy cannot drift.
+ */
+export function isPrivateLanHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
+  if (!h) return false
+  if (h === 'localhost' || h.endsWith('.localhost')) return true
+  if (h === '::1' || h === '::') return true
+  if (h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h)
+  if (!m) return false
+  const a = Number(m[1])
+  const b = Number(m[2])
+  if (!Number.isInteger(a) || !Number.isInteger(b)) return false
+  if (a === 0 || a === 127 || a === 10) return true
+  if (a === 192 && b === 168) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 169 && b === 254) return true
+  // Broadcast (255.255.255.255 et al) and the multicast range discovery uses.
+  if (a === 255 || (a >= 224 && a <= 239)) return true
+  return false
 }
 
 /** A serialized error traversing the IPC bridge. */

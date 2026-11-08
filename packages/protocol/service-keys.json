@@ -24,6 +24,8 @@
     "i18n",
     "inspector",
     "js",
+    "lan",
+    "lanShare",
     "library",
     "lifecycle",
     "liveActivity",
@@ -131,6 +133,12 @@
     "js": [
       "@bbebee/core-js-mobile",
       "@bbebee/core-js-quickjs-desktop"
+    ],
+    "lan": [
+      "@bbebee/core-lan-desktop"
+    ],
+    "lanShare": [
+      "@bbebee/plugin-lan-share"
     ],
     "library": [
       "@bbebee/plugin-library"

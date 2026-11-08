@@ -34,6 +34,7 @@ import { DbNode } from '@BBeBee/core-db-desktop'
 import { CodecNode } from '@bbebee/core-codec-desktop'
 import {
   CH,
+  isPrivateLanHost,
   serializeBridgeError,
   type BridgeEnvelope,
   type BridgeEvent,
@@ -124,6 +125,8 @@ export interface HostOptions {
   pickDirectory?: (sender?: unknown) => Promise<string | undefined>
   /** Native audio decoding (e.g. FFmpeg) and system device enumeration. */
   audio?: AudioHost
+  /** LAN transport (UDP + bounded HTTP server), supplied by the sidecar. */
+  lan?: LanHost
   /** Optional logger for host operations */
   logger?: BridgeLogger
 }
@@ -163,6 +166,48 @@ export interface AudioHost {
   mpvEngineStatus?(): Promise<{ running: boolean; mpvAvailable: boolean }>
   /** The renderer's media-element playback state, for the engine's visualizer. */
   mpvSetStreamPlayback?(playing: boolean): Promise<unknown>
+}
+
+/**
+ * The LAN transport the sidecar supplies.
+ *
+ * Structural, like `IpcHost` and `SystemHost`: the real implementation lives
+ * in `core-lan-desktop` (`createLanHost`), this package only names the seam so
+ * the dispatch surface is visible in one place. Absent, the `lan` service
+ * refuses in words rather than pretending to run.
+ */
+export interface LanHost {
+  start(opts: {
+    udpPort: number
+    httpPort: number
+    multicastGroup: string
+  }): Promise<{ udpPort: number; httpPort: number }>
+  stop(): Promise<void>
+  sendDatagram(
+    target: { host: string; port: number },
+    data: Uint8Array,
+    opts?: { broadcast?: boolean },
+  ): Promise<void>
+  request(
+    target: { host: string; port: number },
+    req: {
+      method?: string
+      path: string
+      headers?: Record<string, string>
+      body?: Uint8Array
+      bodyFile?: string
+      timeoutMs?: number
+    },
+  ): Promise<{ status: number; headers: Record<string, string>; body?: Uint8Array }>
+  replyRequest(
+    id: string,
+    reply: {
+      status: number
+      headers?: Record<string, string>
+      body?: Uint8Array
+      bodyFile?: string
+    },
+  ): Promise<void>
 }
 
 /** The referrer policies accepted by the HTTP client. */
@@ -269,6 +314,10 @@ const ALLOWED: Record<BridgedService, ReadonlySet<string>> = {
     'readMetadata', 'readMetadataBatch', 'readArtwork', 'readArtworkBatch',
     'readMetadataWithArtwork', 'probeDuration',
   ]),
+  // The LAN transport. Datagrams and requests are confined to private
+  // addresses by the dispatch below; file-referencing arguments go through
+  // the same containment as fs reads.
+  lan: new Set(['start', 'stop', 'sendDatagram', 'request', 'replyRequest']),
 }
 
 /** Methods whose leading arguments are Uris that must stay inside the app. */
@@ -375,7 +424,7 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
 
   const services: Record<
     BridgedService,
-    () => FsService | DbService | PathsService | CodecService | Required<SystemHost> | Required<AudioHost>
+    () => FsService | DbService | PathsService | CodecService | Required<SystemHost> | Required<AudioHost> | LanHost
   > = {
     fs: () => ctx.fs,
     db: () => ctx.db,
@@ -383,6 +432,14 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
     codec: () => ctx.codec,
     system: () => system,
     audio: () => audio,
+    // Unlike the services above, the LAN transport is not a `core-*-node`
+    // service on this ctx — it is supplied by the sidecar, because a UDP
+    // socket and an HTTP server have no business inside a generic host.
+    // Absent, it refuses rather than pretending to run.
+    lan: () => {
+      if (!options.lan) throw new Error('bridge: no lan transport was configured')
+      return options.lan
+    },
   }
 
   function toFileUri(pathOrUri: string): string {
@@ -537,6 +594,52 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
               const uri = toFileUri(arg)
               extraRoots.add(uri)
             }
+          }
+        }
+      }
+
+      /*
+       * The LAN transport's identity-free containment, at the one place every
+       * renderer call passes through. Per-plugin capability (`lan`) is the
+       * renderer-side LanBridge's job; these are the limits that hold no
+       * matter which plugin asks:
+       *
+       *   - Datagrams and requests go to private addresses only. `ctx.http`
+       *     remains the egress point for everything else, and a `lan` grant
+       *     is not a general network grant wearing a shorter name.
+       *   - A file named as a request or response body sits inside the app's
+       *     directories / authorized roots — the same containment fs reads
+       *     answer to, so the LAN surface cannot read a file the fs surface
+       *     could not.
+       *   - Bodies cross the bridge base64 (small: datagrams, JSON replies);
+       *     the large ones are file references the sidecar streams.
+       */
+      if (service === 'lan') {
+        if (method === 'sendDatagram' || method === 'request') {
+          const dial = callArgs[0] as { host?: unknown } | undefined
+          if (
+            !dial ||
+            typeof dial.host !== 'string' ||
+            !isPrivateLanHost(dial.host)
+          ) {
+            throw new Error(
+              `bridge: lan.${method} dials outside the local network — refused`,
+            )
+          }
+        }
+        if (method === 'sendDatagram' && typeof callArgs[1] === 'string') {
+          callArgs[1] = base64ToBytes(callArgs[1])
+        }
+        if (method === 'request' && callArgs[1] && typeof callArgs[1] === 'object') {
+          const req = callArgs[1] as { body?: unknown; bodyFile?: unknown }
+          if (typeof req.bodyFile === 'string') assertContained(req.bodyFile)
+          if (typeof req.body === 'string') callArgs[1] = { ...req, body: base64ToBytes(req.body) }
+        }
+        if (method === 'replyRequest' && callArgs[1] && typeof callArgs[1] === 'object') {
+          const reply = callArgs[1] as { body?: unknown; bodyFile?: unknown }
+          if (typeof reply.bodyFile === 'string') assertContained(reply.bodyFile)
+          if (typeof reply.body === 'string') {
+            callArgs[1] = { ...reply, body: base64ToBytes(reply.body) }
           }
         }
       }
@@ -891,6 +994,9 @@ export async function createHost(ipc: IpcHost, options: HostOptions = {}): Promi
       extraRoots.add(toFileUri(uri))
     },
     async dispose() {
+      // The LAN transport holds a UDP socket and an HTTP server; left bound,
+      // they keep the process alive and the port taken after the app is gone.
+      await options.lan?.stop().catch(() => undefined)
       for (const channel of Object.values(CH)) ipc.removeHandler(channel)
       for (const reader of readers.values()) await reader.cancel().catch(() => undefined)
       readers.clear()

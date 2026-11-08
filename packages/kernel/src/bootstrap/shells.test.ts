@@ -59,7 +59,12 @@ const SHELLS: Shell[] = [
  * declares the restriction, so a feature cannot leave the mobile shell by
  * adding an id here alone, and this table cannot drift from the manifests.
  */
-const DESKTOP_ONLY_FEATURES: readonly string[] = ['@bbebee/plugin-desktop-lyrics']
+// `lan-share` needs a transport only the desktop sidecar has today; the mobile
+// core service (`core-lan-mobile`) is a later milestone (docs/services/contracts.md §ctx.lan).
+const DESKTOP_ONLY_FEATURES: readonly string[] = [
+  '@bbebee/plugin-desktop-lyrics',
+  '@bbebee/plugin-lan-share',
+]
 
 /**
  * The mirror image: features one shell may lack because they are

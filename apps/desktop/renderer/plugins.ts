@@ -28,6 +28,7 @@ export const BOOTSTRAP_SERVICES = [
   'fs',
   'store',
   'db',
+  'lan',
   'device',
   'background',
   'mediaSession',
@@ -89,6 +90,8 @@ export const SHELL_MANIFEST: PluginManifest = {
 }
 
 export const ENABLED: NonNullable<AppConfig['plugins']> = {
+  '@bbebee/plugin-lan-share': {},
+  '@bbebee/plugin-lan-share-ui-desktop': {},
   '@bbebee/plugin-theme': {},
   '@bbebee/plugin-theme-ui-desktop': {},
   '@bbebee/plugin-ui': {},

@@ -33,6 +33,7 @@ Declared in `packages/protocol/src/services/` and augmented onto `Context`:
 | `ctx.secrets` | Keychain and hardware-backed credential storage (root is caller-scoped; explicit namespaces `ctx.secrets.namespace(ns)` are cross-plugin shared) | `core-secrets-desktop`, `core-secrets-mobile` |
 | `ctx.http` | Outbound HTTP with cookie jar and isolation | `core-http-desktop`, `core-http-mobile` |
 | `ctx.ws` | WebSocket client with capability host checks | `core-http-desktop` / native |
+| `ctx.lan` | LAN transport: UDP multicast/broadcast datagrams + a bounded HTTP server/client, private-network only. Requires the `lan` capability | `core-lan-desktop` (desktop sidecar; mobile native module is a later milestone) |
 | `ctx.audio` | Web Audio API graph + media-element plumbing, driven by the libmpv native engine | `core-audio-mpv` (desktop: libmpv native engine in a crash-isolated subprocess, direct OS audio output with optional WASAPI exclusive mode, append-based gapless, real-PCM SPSC RingBuffer FFT spectrum & time-domain waveform, astats RMS/Peak levels, host-side in-memory fast-path bridge for low-latency visualizer queries; mobile: in-process libmpv JNI/JSI bridge, see `apps/mobile/src/boot.ts`) |
 | `ctx.codec` | Audio metadata, tag reading, PCM decoding | `core-codec-desktop` (desktop FFmpeg bridge + music-metadata), `core-codec-mobile` |
 | `ctx.device` | Network status, battery, media keys, platform info | `core-device-desktop`, `core-device-mobile` |

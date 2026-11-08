@@ -1,0 +1,34 @@
+{
+  "name": "@bbebee/plugin-lan-share-ui-desktop",
+  "version": "0.0.0",
+  "description": "Desktop views for @bbebee/plugin-lan-share (peer discovery, send and receive over the LAN).",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bbebee/plugin-lan-share": "workspace:*",
+    "@BBeBee/protocol": "workspace:*",
+    "@BBeBee/toolkit": "workspace:*",
+    "@BBeBee/ui-core": "workspace:*",
+    "@BBeBee/ui-kit-desktop": "workspace:*",
+    "@BBeBee/ui-tokens": "workspace:*",
+    "cordis": "4.0.0-rc.9",
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@BBeBee/kernel": "workspace:*",
+    "@types/react": "^19.2.0"
+  }
+}

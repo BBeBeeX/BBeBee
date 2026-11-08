@@ -50,6 +50,7 @@ import type { ThemeDefinition, ThemePack } from './services/theme.js'
 import type { NowPlayingStyleId, NowPlayingStyleMeta } from './services/now-playing.js'
 import type { LyricSourceDefinition } from './services/lyric-sources.js'
 import type { ShareTarget } from './services/share.js'
+import type { LanShareIncomingRequest, LanSharePeer, LanShareSettings, LanShareTransfer } from './services/lan-share.js'
 import type { RegistryTask, RegistryUpdate } from './services/registry.js'
 import type { ConvertTask } from './services/audio-converter.js'
 import type { CarModeTrigger, LifecyclePhase, QuickActionItem } from './services/integration.js'
@@ -73,6 +74,11 @@ declare module 'cordis' {
     /* ── share ───────────────────────────────────────── emit ── */
     'share/open'(target: ShareTarget): void
     'share/import'(): void
+    /* ── lan-share ───────────────────────────────────── emit ── */
+    'lan-share/peers-changed'(peers: readonly LanSharePeer[]): void
+    'lan-share/transfers-changed'(transfers: readonly LanShareTransfer[]): void
+    'lan-share/settings-changed'(settings: LanShareSettings): void
+    'lan-share/incoming'(request: LanShareIncomingRequest): void
     /* ── player ─────────────────────────────────────── emit ── */
     'player/state-changed'(state: TransportState): void
     'player/track-changed'(trackUrn: string | undefined, previous?: string): void
@@ -332,6 +338,10 @@ export const DISPATCH_MODES = {
   'lyric-sources/changed': 'emit',
   'share/open': 'emit',
   'share/import': 'emit',
+  'lan-share/peers-changed': 'emit',
+  'lan-share/transfers-changed': 'emit',
+  'lan-share/settings-changed': 'emit',
+  'lan-share/incoming': 'emit',
   'plugin-manager/enabled-changed': 'emit',
   'plugin-manager/changed': 'emit',
   'registry/updates-available': 'emit',

@@ -31,7 +31,7 @@ export type FsScope = 'own' | 'media' | 'cache' | 'downloads' | 'logs' | 'all'
  *   db:*:<ns>                            both, plus schema changes
  *   secrets:own                          own credential namespace (no `all`)
  *   js                                   may evaluate untrusted script
- *   audio | mediaSession | notify | shell | background
+ *   audio | mediaSession | notify | shell | background | lan
  *
  * The `db` verbs are deliberately separate rather than nested: `db:write:core`
  * does not imply `db:read:core`, so a plugin that does both says so, and an
@@ -62,6 +62,15 @@ export type Capability =
   | 'notify'
   | 'shell'
   | 'background'
+  /**
+   * LAN transport (`ctx.lan`): UDP multicast/broadcast datagrams, a bounded
+   * HTTP server, and HTTP requests to private-network addresses. One flat
+   * token for both directions on purpose — serving the LAN and talking to it
+   * stand or fall together. Everything a peer could dial is still funnelled
+   * through the service's containment rules (private-address dialing only,
+   * unanswered server requests time out).
+   */
+  | 'lan'
 
 /**
  * Services the kernel mediates. Anything else is unrestricted.
@@ -83,6 +92,7 @@ export const MEDIATED_SERVICES = [
   'notify',
   'shell',
   'background',
+  'lan',
 ] as const
 
 export type MediatedService = (typeof MEDIATED_SERVICES)[number]

@@ -1,0 +1,30 @@
+{
+  "id": "@bbebee/core-lan-desktop",
+  "name": "@bbebee/core-lan-desktop",
+  "displayName": "LAN Transport (Desktop)",
+  "description": "ctx.lan — UDP multicast/broadcast datagrams and a bounded HTTP server/client over the local network, via the desktop sidecar.",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-2",
+  "moduleId": "core",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js"
+  },
+  "capabilities": [
+    "lan"
+  ],
+  "contributes": {
+    "services": [
+      "lan"
+    ]
+  },
+  "effect": "lan"
+}

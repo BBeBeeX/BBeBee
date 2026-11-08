@@ -25,6 +25,7 @@
     "@bbebee/core-device-desktop": "workspace:*",
     "@bbebee/core-http-desktop": "workspace:*",
     "@bbebee/core-js-quickjs-desktop": "workspace:*",
+    "@bbebee/core-lan-desktop": "workspace:*",
     "@bbebee/core-media-session-desktop": "workspace:*",
     "@BBeBee/core-paths-desktop": "workspace:*",
     "@bbebee/core-secrets-desktop": "workspace:*",

@@ -353,3 +353,44 @@ describe('per-source host narrowing', () => {
     ).not.toThrow()
   })
 })
+
+describe('lan mediation', () => {
+  // `lan` is a flat, flag-shaped grant like `audio`: it governs the whole
+  // service — UDP datagrams, the HTTP server, and LAN-scope requests — rather
+  // than being carved per host. The gate's job is only to make the grant
+  // auditable and revocable; containment rules (private-address dialing,
+  // server timeouts) live in the service itself. See docs/services/contracts.md §ctx.lan.
+  it('delivers the grant to an intercepted lan service', async () => {
+    const ctx = new Context()
+    let seen: unknown
+
+    class FakeLan extends Service<{ granted?: string[] }> {
+      constructor(c: Context) {
+        super(c, 'lan')
+      }
+      ping(this: FakeLan) {
+        seen = this[Service.resolveConfig]()
+      }
+    }
+    await ctx.plugin(FakeLan)
+
+    const scoped = scopeContext(ctx, {
+      pluginId: '@bbebee/plugin-lan-share',
+      requested: ['lan', 'db:read:core'] as Capability[],
+    })
+    ;(scoped as never as { lan: FakeLan }).lan.ping()
+    await tick()
+
+    expect(seen).toMatchObject({
+      pluginId: '@bbebee/plugin-lan-share',
+      granted: ['lan', 'db:read:core'],
+    })
+  })
+
+  it('refuses an ungranted caller', () => {
+    expect(() => assertGranted({ pluginId: 'p', granted: ['db:read:core'] }, 'lan')).toThrow(
+      CapabilityError,
+    )
+    expect(() => assertGranted({ pluginId: 'p', granted: ['lan'] }, 'lan')).not.toThrow()
+  })
+})

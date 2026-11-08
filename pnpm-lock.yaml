@@ -78,6 +78,9 @@ importers:
       '@bbebee/core-js-quickjs-desktop':
         specifier: workspace:*
         version: link:../../packages/core/core-js-quickjs-desktop
+      '@bbebee/core-lan-desktop':
+        specifier: workspace:*
+        version: link:../../packages/core/core-lan-desktop
       '@bbebee/core-media-session-desktop':
         specifier: workspace:*
         version: link:../../packages/core/core-media-session-desktop
@@ -972,6 +975,28 @@ importers:
         specifier: workspace:*
         version: link:../../kernel
 
+  packages/core/core-lan-desktop:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@bbebee/core-desktop-bridge':
+        specifier: workspace:*
+        version: link:../core-desktop-bridge
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+    devDependencies:
+      '@BBeBee/core-fs-desktop':
+        specifier: workspace:*
+        version: link:../core-fs-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../core-paths-desktop
+
   packages/core/core-lifecycle-mobile:
     dependencies:
       '@BBeBee/protocol':
@@ -1393,6 +1418,37 @@ importers:
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
+
+  packages/feature/plugin-lan-share:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/core-db-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-db-desktop
+      '@BBeBee/core-fs-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-fs-desktop
+      '@BBeBee/core-paths-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-paths-desktop
+      '@bbebee/core-lan-desktop':
+        specifier: workspace:*
+        version: link:../../core/core-lan-desktop
 
   packages/feature/plugin-library:
     dependencies:
@@ -2675,6 +2731,40 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@22.20.1)(jsdom@30.0.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/ui/plugin-lan-share-ui-desktop:
+    dependencies:
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../../feature/toolkit
+      '@BBeBee/ui-core':
+        specifier: workspace:*
+        version: link:../ui-core
+      '@BBeBee/ui-kit-desktop':
+        specifier: workspace:*
+        version: link:../ui-kit-desktop
+      '@BBeBee/ui-tokens':
+        specifier: workspace:*
+        version: link:../ui-tokens
+      '@bbebee/plugin-lan-share':
+        specifier: workspace:*
+        version: link:../../feature/plugin-lan-share
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
 
   packages/ui/plugin-library-ui-desktop:
     dependencies:

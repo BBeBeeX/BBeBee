@@ -1,0 +1,37 @@
+{
+  "id": "@bbebee/plugin-lan-share",
+  "name": "@bbebee/plugin-lan-share",
+  "displayName": "LAN Transfer",
+  "description": "ctx.lanShare — discover BBeBee devices on the local network and transfer library tracks between them (LocalSend-style).",
+  "version": "0.0.0",
+  "author": "BBeBee Team",
+  "engines": {
+    "BBeBee": "^0.1.0"
+  },
+  "enabled": true,
+  "dependencies": [],
+  "systemId": "layer-4",
+  "moduleId": "share",
+  "platforms": [
+    "desktop"
+  ],
+  "entry": {
+    "main": "./dist/index.js",
+    "ui": {
+      "desktop": "./dist/index.js"
+    }
+  },
+  "capabilities": [
+    "lan",
+    "db:read:core",
+    "fs:read:all",
+    "fs:read:cache",
+    "fs:write:own"
+  ],
+  "contributes": {
+    "services": [
+      "lanShare"
+    ]
+  },
+  "effect": "lanShare"
+}

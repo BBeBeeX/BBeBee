@@ -25,6 +25,7 @@ import {
 } from '@bbebee/core-desktop-bridge/main'
 import { CH } from '@bbebee/core-desktop-bridge/protocol'
 import { httpProxyUrl } from '@BBeBee/protocol'
+import { createLanHost } from '@bbebee/core-lan-desktop'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
 import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
@@ -141,6 +142,15 @@ export async function createSidecar(): Promise<SidecarContext> {
   const userDataDir = resolveSystemPath('userData')
   const protocolManager = new ProtocolManager()
 
+  // The LAN transport (`ctx.lan`): UDP multicast/broadcast plus a bounded
+  // HTTP server, bound here where the sockets exist. Datagrams and inbound
+  // requests are pushed to the renderer as `BBeBee:event` broadcasts; the
+  // plugin-layer protocol (`plugin-lan-share`) answers through bridge calls.
+  // Upload spill files land in the app's temp directory — not the OS one —
+  // so a uri the renderer may name passes the bridge's containment check
+  // like any other file under the app's directories.
+  const lanHost = createLanHost({ logger, broadcast, tempDir: resolveSystemPath('temp') })
+
   const wakeLocks = new Map<number, string>()
   const registeredHotkeys = new Set<string>()
   let isMediaKeysWatching = false
@@ -215,6 +225,7 @@ export async function createSidecar(): Promise<SidecarContext> {
     },
     system,
     audio: audioHost,
+    lan: lanHost,
     logger,
   })
 

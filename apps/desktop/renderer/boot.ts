@@ -43,6 +43,7 @@ import {
   CodecBridge,
 } from '@bbebee/core-desktop-bridge'
 import { StoreFs } from '@bbebee/core-store-fs'
+import { LanBridge } from '@bbebee/core-lan-desktop'
 import { DeviceTauri } from '@bbebee/core-device-desktop'
 import { BackgroundTauri } from '@bbebee/core-background-desktop'
 import { MediaSessionTauri } from '@bbebee/core-media-session-desktop'
@@ -633,6 +634,7 @@ export async function boot(): Promise<App> {
       FsBridge,
       [StoreFs, { initialData: prefs.storeData }],
       DbBridge,
+      LanBridge,
       [DeviceTauri, { appVersion: APP_VERSION, platform: hostPlatform() }],
       BackgroundTauri,
       MediaSessionTauri,
