@@ -86,6 +86,7 @@
     "@bbebee/plugin-theme": "workspace:*",
     "@bbebee/plugin-theme-ui-mobile": "workspace:*",
     "@bbebee/plugin-ui": "workspace:*",
+    "@bbebee/plugin-updater": "workspace:*",
     "@bbebee/plugin-visualizer": "workspace:*",
     "@bbebee/plugin-visualizer-ui-mobile": "workspace:*",
     "@shopify/flash-list": "2.3.2",

@@ -176,6 +176,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // The plugin manager's mobile views: the plugin list with enable/disable
   // toggles (persisted-only on mobile — changes apply at next launch).
   '@bbebee/plugin-manager-ui-mobile': {},
+  // Application update & hot update coordinator
+  '@bbebee/plugin-updater': {},
 }
 
 /**
@@ -221,6 +223,7 @@ export const DEFERRED_PLUGIN_IDS = [
   // The manager screen is reached from settings and reads plugin-manager's
   // manifests — nothing the first screen needs.
   '@bbebee/plugin-manager-ui-mobile',
+  '@bbebee/plugin-updater',
 ] as const
 
 /** The allowlist minus everything that defers — what `boot()` starts with. */

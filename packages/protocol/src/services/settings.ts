@@ -9,6 +9,7 @@ import type { Disposable } from '../common.js'
 import type { DesktopLyricsPosition } from './lyrics.js'
 import type { DynamicThemeScheme, ThemeCategory } from './theme.js'
 import type { SettingsContribution } from './ui.js'
+import type { UpdateChannel } from './updater.js'
 
 export type { SettingsContribution }
 
@@ -454,6 +455,8 @@ export interface AppSettings {
   proxy: ProxySettings
   /** Audio visualizer configuration. */
   visualizer: VisualizerSettings
+  /** Updater channel and auto-check configuration. */
+  updater: UpdaterSettings
 }
 
 export const DEFAULT_DYNAMIC_THEME_SETTINGS: DynamicThemeSettings = {
@@ -527,6 +530,24 @@ export const DEFAULT_PROXY_SETTINGS: ProxySettings = {
   sourceRules: {},
 }
 
+export interface UpdaterSettings {
+  /** Active release channel ('main' | 'dev'). */
+  channel: UpdateChannel
+  /** Automatically check for updates on startup and periodically. */
+  autoCheck: boolean
+  /** Check interval in milliseconds (default 24h). */
+  checkIntervalMs?: number
+  /** Automatically download and stage hot-updates when available. */
+  autoApplyHotUpdate?: boolean
+}
+
+export const DEFAULT_UPDATER_SETTINGS: UpdaterSettings = {
+  channel: 'main',
+  autoCheck: true,
+  checkIntervalMs: 24 * 60 * 60 * 1000,
+  autoApplyHotUpdate: false,
+}
+
 export const DEFAULT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
 
@@ -590,6 +611,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
     sourceRules: { ...DEFAULT_PROXY_SETTINGS.sourceRules },
   },
   visualizer: { ...DEFAULT_VISUALIZER_SETTINGS },
+  updater: { ...DEFAULT_UPDATER_SETTINGS },
 }
 
 /**

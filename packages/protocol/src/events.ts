@@ -55,6 +55,8 @@ import type { LanSyncSettings, SyncLeaderInfo, SyncSessionState, SyncSnapshot } 
 import type { RegistryTask, RegistryUpdate } from './services/registry.js'
 import type { ConvertTask } from './services/audio-converter.js'
 import type { CarModeTrigger, LifecyclePhase, QuickActionItem } from './services/integration.js'
+import type { UpdateCheckResult, UpdateDownloadProgress, UpdaterStatus } from './services/updater.js'
+import type { Uri } from './common.js'
 import type { UrnKind } from './urn.js'
 
 declare module 'cordis' {
@@ -287,6 +289,13 @@ declare module 'cordis' {
      */
     'lifecycle/phase-changed'(phase: LifecyclePhase, previous: LifecyclePhase): void
     'car-mode/changed'(active: boolean, trigger: CarModeTrigger | undefined): void
+
+    /* ── updater ─────────────────────────────────────── emit ── */
+    'updater/status-changed'(status: UpdaterStatus): void
+    'updater/available'(result: UpdateCheckResult): void
+    'updater/download-progress'(progress: UpdateDownloadProgress): void
+    'updater/hot-update-ready'(bundleUri: Uri): void
+    'updater/hot-update-applied'(): void
   }
 }
 
@@ -371,6 +380,11 @@ export const DISPATCH_MODES = {
   'quick-actions/action': 'emit',
   'lifecycle/phase-changed': 'emit',
   'car-mode/changed': 'emit',
+  'updater/status-changed': 'emit',
+  'updater/available': 'emit',
+  'updater/download-progress': 'emit',
+  'updater/hot-update-ready': 'emit',
+  'updater/hot-update-applied': 'emit',
 } as const satisfies Record<string, DispatchMode>
 
 export type BBeBeeEventName = keyof typeof DISPATCH_MODES

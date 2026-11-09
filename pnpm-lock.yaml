@@ -240,6 +240,9 @@ importers:
       '@bbebee/plugin-ui':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-ui
+      '@bbebee/plugin-updater':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-updater
       '@bbebee/plugin-visualizer':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-visualizer
@@ -532,6 +535,9 @@ importers:
       '@bbebee/plugin-ui':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-ui
+      '@bbebee/plugin-updater':
+        specifier: workspace:*
+        version: link:../../packages/feature/plugin-updater
       '@bbebee/plugin-visualizer':
         specifier: workspace:*
         version: link:../../packages/feature/plugin-visualizer
@@ -1986,6 +1992,28 @@ importers:
       cordis:
         specifier: 4.0.0-rc.9
         version: 4.0.0-rc.9
+
+  packages/feature/plugin-updater:
+    dependencies:
+      '@BBeBee/kernel':
+        specifier: workspace:*
+        version: link:../../kernel
+      '@BBeBee/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@BBeBee/toolkit':
+        specifier: workspace:*
+        version: link:../toolkit
+      cordis:
+        specifier: 4.0.0-rc.9
+        version: 4.0.0-rc.9
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.18
 
   packages/feature/plugin-visualizer:
     dependencies:

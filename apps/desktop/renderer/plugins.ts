@@ -186,6 +186,8 @@ export const ENABLED: NonNullable<AppConfig['plugins']> = {
   // Audio format converter & compressor
   '@bbebee/plugin-audio-converter': {},
   '@bbebee/plugin-audio-converter-ui-desktop': {},
+  // Application update & hot update coordinator
+  '@bbebee/plugin-updater': {},
 }
 
 /**
@@ -218,6 +220,7 @@ export const DEFERRED_PLUGIN_IDS = [
   // contribution only exists once the service loads anyway, so deferring the
   // pair together changes nothing about when the sidebar entry appears.
   '@bbebee/plugin-registry-ui-desktop',
+  '@bbebee/plugin-updater',
 ] as const
 
 export const INITIAL_ENABLED: NonNullable<AppConfig['plugins']> = Object.fromEntries(

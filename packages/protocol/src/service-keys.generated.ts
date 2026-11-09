@@ -9,7 +9,7 @@
  * disabled in settings).
  */
 
-export const SERVICE_KEYS: readonly string[] = ["audio","audioConverter","background","cache","carMode","codec","contentRegistry","db","desktopLyrics","device","downloads","dsp","fs","haptics","http","i18n","inspector","js","lan","lanShare","lanSync","library","lifecycle","liveActivity","logBuffer","lyricSources","lyrics","mediaSession","miniPlayer","nowPlaying","paths","player","plugin-manager","quickActions","registryMetadata","scanner","secrets","securityAudit","settings","share","sleepTimer","sourceLocal","sources","store","theme","ui","visualizer"]
+export const SERVICE_KEYS: readonly string[] = ["audio","audioConverter","background","cache","carMode","codec","contentRegistry","db","desktopLyrics","device","downloads","dsp","fs","haptics","http","i18n","inspector","js","lan","lanShare","lanSync","library","lifecycle","liveActivity","logBuffer","lyricSources","lyrics","mediaSession","miniPlayer","nowPlaying","paths","player","plugin-manager","quickActions","registryMetadata","scanner","secrets","securityAudit","settings","share","sleepTimer","sourceLocal","sources","store","theme","ui","updater","visualizer"]
 
 export const CRITICAL_SERVICE_KEYS: readonly string[] = ["audio","codec","contentRegistry","db","downloads","fs","http","js","library","paths","player","plugin-manager","scanner","secrets","securityAudit","settings","store"]
 
@@ -162,6 +162,9 @@ export const SERVICE_KEY_PROVIDERS: Readonly<Record<string, readonly string[]>> 
   ],
   "ui": [
     "@bbebee/plugin-ui"
+  ],
+  "updater": [
+    "@bbebee/plugin-updater"
   ],
   "visualizer": [
     "@bbebee/plugin-visualizer"

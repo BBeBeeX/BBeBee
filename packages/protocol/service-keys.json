@@ -52,6 +52,7 @@
     "store",
     "theme",
     "ui",
+    "updater",
     "visualizer"
   ],
   "criticalKeys": [
@@ -222,6 +223,9 @@
     ],
     "ui": [
       "@bbebee/plugin-ui"
+    ],
+    "updater": [
+      "@bbebee/plugin-updater"
     ],
     "visualizer": [
       "@bbebee/plugin-visualizer"

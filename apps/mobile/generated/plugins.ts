@@ -244,6 +244,11 @@ export const bundled: PluginRegistry = {
     manifest: {"id":"@bbebee/plugin-ui","name":"@bbebee/plugin-ui","displayName":"UI Registry","description":"The ctx.ui contribution registry.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"ui","entry":{"main":"./dist/index.js"},"capabilities":[],"contributes":{"services":["ui"]},"effect":"ui"},
     builtin: true,
   },
+  "@bbebee/plugin-updater": {
+    load: () => import('@bbebee/plugin-updater'),
+    manifest: {"id":"@bbebee/plugin-updater","name":"@bbebee/plugin-updater","displayName":"Updater","description":"Application updates and hot-updates coordinator for desktop and mobile, supporting main/dev channels, GitHub Releases, and semver patch strategies.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":[],"systemId":"layer-4","moduleId":"updater","entry":{"main":"./dist/index.js"},"capabilities":["net:host/**","fs:read:all","fs:write:cache","fs:write:downloads","fs:write:own"],"contributes":{"services":["updater"]},"effect":"updater"},
+    builtin: true,
+  },
   "@bbebee/plugin-visualizer": {
     load: () => import('@bbebee/plugin-visualizer'),
     manifest: {"id":"@bbebee/plugin-visualizer","name":"@bbebee/plugin-visualizer","displayName":"Audio Visualizer","description":"ctx.visualizer — audio spectrum and waveform analysis service.","version":"0.0.0","author":"BBeBee Team","engines":{"BBeBee":"^0.1.0"},"enabled":true,"dependencies":["@bbebee/plugin-player"],"systemId":"layer-4","moduleId":"dsp","entry":{"main":"./dist/index.js","ui":{"desktop":"./dist/index.js"}},"capabilities":["audio"],"contributes":{"services":["visualizer"]},"effect":"visualizer"},

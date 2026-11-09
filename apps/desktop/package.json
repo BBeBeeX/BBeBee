@@ -81,6 +81,7 @@
     "@bbebee/plugin-sources-ui-desktop": "workspace:*",
     "@bbebee/plugin-theme": "workspace:*",
     "@bbebee/plugin-ui": "workspace:*",
+    "@bbebee/plugin-updater": "workspace:*",
     "@bbebee/plugin-visualizer": "workspace:*",
     "@bbebee/plugin-visualizer-ui-desktop": "workspace:*",
     "@BBeBee/protocol": "workspace:*",
