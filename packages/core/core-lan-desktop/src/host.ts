@@ -60,6 +60,22 @@ export interface LanHostOptions {
   requestTimeoutMs?: number
   /** Where spill files land. Default the OS temp directory. */
   tempDir?: string
+  /**
+   * Inbound datagrams admitted per second before rate limiting sheds them.
+   * Announce/control traffic sits well under this even with a floor full of
+   * peers. Default 40.
+   */
+  datagramRatePerSec?: number
+  /** Token-bucket burst allowed above the steady datagram rate. Default 80. */
+  datagramBurst?: number
+  /** Datagrams larger than this are dropped unread. Default 8 KiB. */
+  maxDatagramBytes?: number
+  /**
+   * In-flight inbound requests held before new ones answer 503. Every entry
+   * pins a socket and a timer, and each one becomes a renderer event, so the
+   * table — and with it the renderer event storm — must be capped. Default 128.
+   */
+  maxPendingRequests?: number
 }
 
 interface PendingReply {
@@ -90,11 +106,69 @@ function clampIndex(value: number | undefined, fallback: number, min: number, ma
   return Math.min(max, Math.max(min, Math.floor(value)))
 }
 
-export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose(): Promise<void> } {
+/** Token-bucket state for inbound datagram rate limiting. */
+export interface DatagramGate {
+  tokens: number
+  lastMs: number
+  droppedTotal: number
+}
+
+/**
+ * Decide whether one inbound datagram may be forwarded to the renderer.
+ *
+ * UDP is unauthenticated: any host on the segment can spray packets, and
+ * every forwarded datagram costs a base64 encode, a bridge line, and a
+ * renderer-side decode. The gate refills `ratePerSec` tokens each second up
+ * to `burst`; anything above that — or above `maxDatagramBytes` — is dropped
+ * and counted. Pure apart from mutating `gate`: inject `nowMs` so tests can
+ * drive time without sleeping.
+ */
+export function admitDatagram(
+  gate: DatagramGate,
+  byteLength: number,
+  nowMs: number,
+  ratePerSec: number,
+  burst: number,
+  maxDatagramBytes: number,
+): boolean {
+  if (byteLength > maxDatagramBytes) {
+    gate.droppedTotal++
+    return false
+  }
+  if (gate.lastMs === 0) {
+    gate.tokens = burst
+  } else {
+    const elapsedSec = Math.max(0, nowMs - gate.lastMs) / 1000
+    gate.tokens = Math.min(burst, gate.tokens + elapsedSec * ratePerSec)
+  }
+  gate.lastMs = nowMs
+  if (gate.tokens < 1) {
+    gate.droppedTotal++
+    return false
+  }
+  gate.tokens -= 1
+  return true
+}
+
+/** Live transport counters, for the metrics system. */
+export interface LanHostStats {
+  datagramsDropped: number
+  requestsRejectedBusy: number
+  pendingRequests: number
+}
+
+export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose(): Promise<void>; stats(): LanHostStats } {
   const spillBytes = options.bodySpillBytes ?? 1024 * 1024
   const maxBodyBytes = options.maxBodyBytes ?? 8 * 1024 * 1024 * 1024
   const replyTimeoutMs = options.replyTimeoutMs ?? 30_000
   const requestTimeoutMs = options.requestTimeoutMs ?? 30_000
+  const datagramRatePerSec = options.datagramRatePerSec ?? 40
+  const datagramBurst = options.datagramBurst ?? 80
+  const maxDatagramBytes = options.maxDatagramBytes ?? 8 * 1024
+  const maxPendingRequests = options.maxPendingRequests ?? 128
+
+  const datagramGate: DatagramGate = { tokens: 0, lastMs: 0, droppedTotal: 0 }
+  let requestsRejectedBusy = 0
 
   const log = options.logger
   const push = (payload: unknown): void => {
@@ -172,6 +246,22 @@ export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose
   }
 
   function handleIncoming(req: IncomingMessage, res: ServerResponse): void {
+    // Every held request pins a socket, a timer, and one renderer event. The
+    // 30 s timeout bounds each entry's lifetime, but a flood within the
+    // window would still accumulate without bound — reject at the cap.
+    if (pending.size >= maxPendingRequests) {
+      requestsRejectedBusy++
+      if (requestsRejectedBusy === 1 || requestsRejectedBusy % 100 === 0) {
+        log?.warn?.(`lan: rejected ${requestsRejectedBusy} requests — ${maxPendingRequests} already pending`)
+      }
+      try {
+        res.writeHead(503, { 'content-type': 'text/plain' })
+        res.end('lan: too many pending requests')
+      } catch {
+        /* the peer hung up first — nothing left to answer */
+      }
+      return
+    }
     void readBody(req)
       .then((body) => {
         const id = randomUUID()
@@ -232,6 +322,15 @@ export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose
 
     const socket = createSocket('udp4')
     socket.on('message', (msg, rinfo) => {
+      // Rate/size gate before the payload can cost a base64 encode and a
+      // renderer event. Announce traffic from a realistic floor is dozens of
+      // packets per second; anything above that is noise or an attack.
+      if (!admitDatagram(datagramGate, msg.length, Date.now(), datagramRatePerSec, datagramBurst, maxDatagramBytes)) {
+        if (datagramGate.droppedTotal === 1 || datagramGate.droppedTotal % 500 === 0) {
+          log?.warn?.(`lan: datagram gate dropped ${datagramGate.droppedTotal} packets total`)
+        }
+        return
+      }
       push({
         topic: 'lan-datagram',
         host: rinfo.address,
@@ -450,5 +549,10 @@ export function createLanHost(options: LanHostOptions = {}): LanHost & { dispose
     request,
     replyRequest,
     dispose: () => stop(),
+    stats: (): LanHostStats => ({
+      datagramsDropped: datagramGate.droppedTotal,
+      requestsRejectedBusy,
+      pendingRequests: pending.size,
+    }),
   }
 }

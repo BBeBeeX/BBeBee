@@ -74,7 +74,13 @@ export async function loadImage(src: string): Promise<HTMLImageElement | null> {
           const blobUrl = URL.createObjectURL(blob)
           return new Promise((resolve) => {
             const img = new Image()
-            img.onload = () => resolve(img)
+            // Revoke on BOTH paths: the decoded bitmap lives in the element,
+            // so the object URL is only a fetch handle — leaving it attached
+            // pins the blob for the page's lifetime.
+            img.onload = () => {
+              URL.revokeObjectURL(blobUrl)
+              resolve(img)
+            }
             img.onerror = () => {
               URL.revokeObjectURL(blobUrl)
               resolve(null)

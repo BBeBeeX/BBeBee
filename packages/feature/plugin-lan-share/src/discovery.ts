@@ -15,6 +15,7 @@ export class PeerTable {
   constructor(
     private readonly ttlMs: number = PEER_TTL_MS,
     private readonly now: () => number = () => Date.now(),
+    private readonly maxRows: number = 256,
   ) {}
 
   /**
@@ -31,8 +32,26 @@ export class PeerTable {
       existing.host !== peer.host ||
       existing.httpPort !== peer.httpPort ||
       existing.platform !== peer.platform
+    // A UDP flood with random ids would grow the table without bound — the
+    // TTL sweep only removes rows it already knows. Evict the
+    // least-recently-heard peer at the cap.
+    while (this.peers.size >= this.maxRows && !this.peers.has(peer.id)) {
+      this.evictOldest()
+    }
     this.peers.set(peer.id, { ...peer, lastSeen })
     return changed
+  }
+
+  private evictOldest(): void {
+    let oldestId: string | undefined
+    let oldestSeen = Infinity
+    for (const [id, peer] of this.peers) {
+      if (peer.lastSeen < oldestSeen) {
+        oldestSeen = peer.lastSeen
+        oldestId = id
+      }
+    }
+    if (oldestId !== undefined) this.peers.delete(oldestId)
   }
 
   remove(id: string): boolean {

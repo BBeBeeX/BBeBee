@@ -23,7 +23,7 @@ import type {
   StreamPrefs,
   Uri,
 } from '@BBeBee/protocol'
-import plugin, { imageExtension, type Cache, type CacheConfig } from './index.js'
+import plugin, { MAX_ARTWORK_SINGLE_BYTES, imageExtension, type Cache, type CacheConfig } from './index.js'
 
 const URN = 'BBeBee:demo:track:1'
 const URN2 = 'BBeBee:demo:track:2'
@@ -445,5 +445,105 @@ describe('plugin-cache lifecycle', () => {
 
     const problems = diffSnapshots(before, snapshotContext(ctx))
     expect(problems, problems?.join('; ')).toBeUndefined()
+  })
+})
+
+
+describe('plugin-cache artwork bounds', () => {
+  it('rejects a single cover past the per-file cap instead of decoding it', async () => {
+    const oversized = new Uint8Array(MAX_ARTWORK_SINGLE_BYTES + 1)
+    // Self-contained harness: the lazy harness above is scoped to its own
+    // describe block.
+    const ctx = new Context()
+    await ctx.plugin(PathsNode, { root: await tempDir('bbebee-cache-cap') })
+    await ctx.plugin(FsNode)
+    await ctx.plugin(DbNode, { fileName: ':memory:' })
+    await ctx.plugin(HttpStub)
+    await ctx.plugin(CodecStub)
+    ;(ctx.codec as unknown as CodecStub).art = oversized
+    const fiber = await ctx.plugin(plugin, {})
+    await tick()
+    const AUDIO = 'file:///music/album/track.flac' as Uri
+    const LAZY_ID = 'lazy:oversize'
+    await ctx.db.exec(
+      `INSERT INTO artworks (id, source_url, local_uri, fetched_at) VALUES (?, ?, NULL, 0)`,
+      [LAZY_ID, AUDIO],
+    )
+    const h = { ctx, fiber }
+    const uri = await h.ctx.cache.artwork({ id: LAZY_ID, sourceUrl: AUDIO })
+    expect(uri).toBeUndefined()
+    const entries = await h.ctx.db.query<{ key: string }>(
+      'SELECT key FROM cache_entries WHERE class = ?',
+      ['artwork'],
+    )
+    expect(entries).toHaveLength(0)
+    const row = await h.ctx.db.get<{ local_uri: string | null }>(
+      'SELECT local_uri FROM artworks WHERE id = ?',
+      [LAZY_ID],
+    )
+    expect(row?.local_uri).toBeNull()
+  })
+
+  it('evicts artwork over budget, honouring the fresh-touch grace window', async () => {
+    const h = await harness({ maxArtworkBytes: 7 })
+    const insert = (id: string) =>
+      h.ctx.db.exec(`INSERT INTO artworks (id, source_url, fetched_at) VALUES (?, ?, 0)`, [id, id])
+    await insert('cover-a')
+    await insert('cover-b')
+    await insert('cover-c')
+
+    const first = await h.ctx.cache.artwork({ id: 'cover-a', sourceUrl: 'cover-a' })
+    await h.ctx.cache.artwork({ id: 'cover-b', sourceUrl: 'cover-b' })
+    // Three 3-byte covers over a 7-byte budget: the oldest is evicted — but
+    // only after its grace window passes, so a live UI is never flickered.
+    expect(await h.entries('artwork')).toHaveLength(2)
+    expect(await h.ctx.fs.exists(first!)).toBe(true)
+
+    // Age cover-a beyond the grace window and force a re-check.
+    await h.ctx.db.exec(
+      'UPDATE cache_entries SET last_access_at = ? WHERE key = ?',
+      [Date.now() - 20 * 60 * 1000, 'artwork:cover-a'],
+    )
+    await insert('cover-d')
+    await h.ctx.cache.artwork({ id: 'cover-d', sourceUrl: 'cover-d' })
+
+    const survivors = await h.entries('artwork')
+    expect(survivors.map((r) => r.key)).not.toContain('artwork:cover-a')
+    // The evicted file is gone.
+    expect(await h.ctx.fs.exists(first!)).toBe(false)
+    // The catalogue reference self-heals instead of 404ing.
+    const stale = await h.ctx.db.get<{ local_uri: string | null }>(
+      'SELECT local_uri FROM artworks WHERE id = ?',
+      ['cover-a'],
+    )
+    expect(stale?.local_uri).toBeNull()
+    // The in-memory resolution is dropped too, so the next read re-extracts.
+    expect(await h.ctx.cache.artwork({ id: 'cover-a', sourceUrl: 'cover-a' })).toBeTruthy()
+  })
+
+  it('shrinks the next batch chunk when the previous response ran large', async () => {
+    const h = await harness()
+    const cache = h.cache as unknown as {
+      nextArtworkChunkSize(): number
+      lastArtworkChunkBytes: number
+      lastArtworkChunkItems: number
+    }
+    // No history yet: the configured size (5).
+    expect(cache.nextArtworkChunkSize()).toBe(5)
+    // Five covers averaging 8 MB of base64 per item: a 5-item chunk would
+    // answer with a 40 MB line, past the host's line cap — the next chunk
+    // shrinks to what fits the ~20 MiB response budget (2 items).
+    cache.lastArtworkChunkBytes = 40 * 1024 * 1024
+    cache.lastArtworkChunkItems = 5
+    expect(cache.nextArtworkChunkSize()).toBe(2)
+    // An extreme run still converges: one item always fits, since the
+    // per-file cap bounds a single response.
+    cache.lastArtworkChunkBytes = 100 * 1024 * 1024
+    cache.lastArtworkChunkItems = 5
+    expect(cache.nextArtworkChunkSize()).toBe(1)
+    // Small responses leave the configured size untouched.
+    cache.lastArtworkChunkBytes = 5_000
+    cache.lastArtworkChunkItems = 5
+    expect(cache.nextArtworkChunkSize()).toBe(5)
   })
 })

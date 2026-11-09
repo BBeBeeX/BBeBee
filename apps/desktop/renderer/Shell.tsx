@@ -26,6 +26,7 @@ import { SleepTimerIndicator, TopBar, WindowControls, type DraggableCSSPropertie
 import { isMacPlatform, useIsFullscreen } from './platform.js'
 import { markRegistryUpdatesSeen, useRegistryUnseenUpdates } from './registry-updates.js'
 import { importDroppedFiles, importDroppedPaths, type DropImportResult } from './drop-import.js'
+import { MemoryWatchdogBanner, startRendererMetricsSampler } from './metrics.js'
 
 /** What the sidebar can navigate to: a route, or a settings page. */
 interface Entry {
@@ -278,6 +279,9 @@ const QUEUE_DRAWER_KEYFRAMES =
   '@keyframes queueDrawerIn { from { transform: translateX(32px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }'
 
 export function Shell({ ctx }: { ctx: Context }) {
+  // Renderer-side heap sampler + dev watchdog (see metrics.ts): started once
+  // with the shell, alert-only, never reloads the page.
+  startRendererMetricsSampler()
   // Sidebar and view-frame titles are i18n keys (RouteContribution.title,
   // docs/services/i18n.md); plain titles pass through untouched.
   const { t } = useI18n(ctx)
@@ -1640,6 +1644,7 @@ export function Shell({ ctx }: { ctx: Context }) {
           }),
         )
       : null,
+      h(MemoryWatchdogBanner),
     ),
   )
 }

@@ -129,6 +129,54 @@ describe('LanBridge', () => {
     expect(replyCall!.args[1]).toMatchObject({ status: 202, body: btoa('accepted') })
   })
 
+  it('a datagram flood stays bounded in the renderer (drop-oldest)', async () => {
+    const installed = installBridge()
+    const ctx = new Context()
+    await ctx.plugin(LanBridge)
+    const bridgeLan = ctx.lan as unknown as LanBridge
+
+    const seen: Array<number> = []
+    bridgeLan.onDatagram((d) => {
+      seen.push(Number(Buffer.from(d.data).toString('utf8')))
+    })
+
+    // 100 announces fired synchronously — only the newest 64 may survive.
+    for (let i = 0; i < 100; i++) {
+      installed.handlers[0]!({
+        topic: 'lan-datagram',
+        host: '192.168.1.9',
+        port: 40000,
+        data: btoa(String(i)),
+      })
+    }
+    for (let i = 0; i < 100 && seen.length < 64; i++) await tick()
+    expect(seen).toHaveLength(64)
+    // Oldest survivors are drops 36..99.
+    expect(seen[0]).toBe(36)
+    expect(seen.at(-1)).toBe(99)
+  }, 10_000)
+
+  it('lan-requests are delivered synchronously — reply semantics cannot be queued away', async () => {
+    const installed = installBridge()
+    const ctx = new Context()
+    await ctx.plugin(LanBridge)
+    const bridgeLan = ctx.lan as unknown as LanBridge
+
+    let delivered = false
+    bridgeLan.onRequest((req) => {
+      delivered = true
+      req.reply({ status: 200 })
+    })
+    installed.handlers[0]!({
+      topic: 'lan-request',
+      id: 'sync-1',
+      method: 'GET',
+      url: 'http://x/',
+      headers: {},
+    })
+    expect(delivered).toBe(true)
+  })
+
   it('subscribing twice shares one bridge subscription', async () => {
     const installed = installBridge()
     await pluggedLan()

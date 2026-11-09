@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { createLanHost, uriToPath, type LanHostOptions } from './host.js'
+import { admitDatagram, createLanHost, uriToPath, type DatagramGate, type LanHostOptions } from './host.js'
 
 const GROUP = '239.255.42.98'
 
@@ -234,6 +234,29 @@ describe('createLanHost', () => {
     await expect(
       a.host.sendDatagram({ host: '8.8.8.8', port: 53318 }, new Uint8Array([1])),
     ).rejects.toThrow(/outside the local network/)
+  })
+
+  it('the datagram gate sheds a flood but keeps steady announce traffic', () => {
+    const gate: DatagramGate = { tokens: 0, lastMs: 0, droppedTotal: 0 }
+    // Steady announce cadence: 20/s across 5 s must all pass.
+    for (let ms = 0; ms <= 5_000; ms += 50) {
+      expect(admitDatagram(gate, 200, ms, 40, 80, 8 * 1024)).toBe(true)
+    }
+    expect(gate.droppedTotal).toBe(0)
+    // A burst above the bucket is shed.
+    let shed = 0
+    for (let i = 0; i < 200; i++) {
+      if (!admitDatagram(gate, 200, 5_000, 40, 80, 8 * 1024)) shed++
+    }
+    expect(shed).toBeGreaterThan(0)
+    expect(gate.droppedTotal).toBe(shed)
+  })
+
+  it('oversized datagrams are dropped unread regardless of budget', () => {
+    const gate: DatagramGate = { tokens: 0, lastMs: 0, droppedTotal: 0 }
+    expect(admitDatagram(gate, 8 * 1024 + 1, 0, 40, 80, 8 * 1024)).toBe(false)
+    // The rejection must not consume rate budget.
+    expect(admitDatagram(gate, 10, 0, 40, 80, 8 * 1024)).toBe(true)
   })
 
   it('round-trips a file uri through uriToPath', () => {

@@ -131,6 +131,7 @@ fn main() {
             system_media_session_set_playback_state, desktop_system_media_session_set_playback_state,
             system_media_session_set_position, desktop_system_media_session_set_position,
             system_power_save_blocker, desktop_system_power_save_blocker,
+            system_runtime_stats,
             system_emit_event, desktop_system_emit_event,
             // Console forwarding
             console_forward, desktop_console_forward,
@@ -173,6 +174,13 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         Some(app.handle().clone()),
     ));
     app.state::<AppState>().set_sidecar(sidecar.clone());
+    {
+        let state = app.state::<AppState>();
+        state
+            .metrics
+            .track_child(desktop_tauri_lib::metrics::ManagedChild::Sidecar(sidecar.clone()));
+        state.metrics.track_counters(sidecar.counters().clone());
+    }
 
     tauri::async_runtime::spawn(async move {
         if let Err(e) = sidecar.start().await {
@@ -188,6 +196,13 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     );
     app.state::<AppState>()
         .set_cover_sidecar(cover_sidecar.clone());
+    {
+        let state = app.state::<AppState>();
+        state
+            .metrics
+            .track_child(desktop_tauri_lib::metrics::ManagedChild::Sidecar(cover_sidecar.clone()));
+        state.metrics.track_counters(cover_sidecar.counters().clone());
+    }
 
     tauri::async_runtime::spawn(async move {
         if let Err(e) = cover_sidecar.start().await {
@@ -201,16 +216,22 @@ fn setup_app(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         None,
     ));
     app.state::<AppState>().set_audio_engine(audio_engine.clone());
+    {
+        let state = app.state::<AppState>();
+        state
+            .metrics
+            .track_child(desktop_tauri_lib::metrics::ManagedChild::Engine(audio_engine.clone()));
+    }
+    desktop_tauri_lib::metrics::spawn_metrics_sampler(
+        app.handle().clone(),
+        app.state::<AppState>().metrics.clone(),
+    );
 
-    // Forward engine events to the frontend as Tauri events
-    let app_handle = app.handle().clone();
-    let engine = audio_engine.clone();
-    tauri::async_runtime::spawn(async move {
-        let mut state_rx = engine.subscribe_state();
-        while let Ok(event) = state_rx.recv().await {
-            let _ = app_handle.emit("audio:state", &event);
-        }
-    });
+    // Forward engine events to the frontend as Tauri events. The engine's
+    // state broadcast has no webview consumer (playback state reaches the UI
+    // through the 200 ms mpvGetState poll and the renderer's own transport
+    // service), so it is deliberately not bridged — a broadcast with no
+    // receiver fails fast and costs nothing.
     let app_handle = app.handle().clone();
     let engine = audio_engine.clone();
     tauri::async_runtime::spawn(async move {

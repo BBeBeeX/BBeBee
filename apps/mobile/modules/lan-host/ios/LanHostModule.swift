@@ -22,6 +22,12 @@ import ExpoModulesCore
  * compile-parity with the Android implementation.
  */
 public class LanHostModule: Module {
+  /// Inbound bodies above this answer 413. The desktop host spills to disk
+  /// and Android caps at 8 GiB with a 1 MiB spill, but iOS keeps the whole
+  /// body in memory, so its ceiling must be a genuine memory budget — and
+  /// bodies that do fit must arrive *complete* (the previous code answered
+  /// with whatever bytes had happened to arrive alongside the head).
+  private let maxBodyBytes = 16 * 1024 * 1024
   private let queue = DispatchQueue(label: "expo.modules.lanhost.io", qos: .userInitiated)
   private let listenerQueue = DispatchQueue(label: "expo.modules.lanhost.listener")
   private var listener: NWListener?
@@ -178,7 +184,7 @@ public class LanHostModule: Module {
     if let range = accumulated.range(of: Data("\r\n\r\n".utf8)) {
       let headData = accumulated.subdata(in: accumulated.startIndex..<range.lowerBound)
       let rest = accumulated.subdata(in: range.upperBound..<accumulated.endIndex)
-      finishRequest(connection, headData: headData, bodySoFar: rest)
+      finishHead(connection, headData: headData, bodySoFar: rest)
       return
     }
     if accumulated.count > 32 * 1024 {
@@ -194,13 +200,26 @@ public class LanHostModule: Module {
     }
   }
 
-  private func finishRequest(_ connection: NWConnection, headData: Data, bodySoFar: Data) {
+  private struct ParsedRequest {
+    let method: String
+    let path: String
+    let headers: [String: String]
+    let contentLength: Int
+  }
+
+  private func finishHead(_ connection: NWConnection, headData: Data, bodySoFar: Data) {
     let head = String(decoding: headData, as: UTF8.self)
     var lines = head.components(separatedBy: "\r\n")
-    guard !lines.isEmpty else { return }
+    guard !lines.isEmpty else {
+      connection.cancel()
+      return
+    }
     let requestLine = lines.removeFirst()
     let parts = requestLine.split(separator: " ")
-    guard parts.count >= 2 else { return }
+    guard parts.count >= 2 else {
+      connection.cancel()
+      return
+    }
     let method = parts[0].uppercased()
     let path = String(parts[1])
 
@@ -213,7 +232,32 @@ public class LanHostModule: Module {
     }
 
     let contentLength = Int(headers["content-length"] ?? "0") ?? 0
-    let body = contentLength > 0 ? bodySoFar : Data()
+    if contentLength > maxBodyBytes {
+      writeReply(connection, reply: ["status": 413])
+      return
+    }
+    receiveBody(connection, parsed: ParsedRequest(method: method, path: path, headers: headers, contentLength: contentLength), body: bodySoFar)
+  }
+
+  /// Drain the body to `contentLength` before delivering: a body is only
+  /// complete once every announced byte has arrived, and the loop's total
+  /// accumulation is bounded by the 413-checked `maxBodyBytes`.
+  private func receiveBody(_ connection: NWConnection, parsed: ParsedRequest, body: Data) {
+    if body.count >= parsed.contentLength {
+      let full = parsed.contentLength > 0 ? body.prefix(parsed.contentLength) : Data()
+      deliverRequest(connection, parsed: parsed, body: Data(full))
+      return
+    }
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, _, error in
+      guard let self = self, error == nil, let data = data, !data.isEmpty else {
+        connection.cancel()
+        return
+      }
+      self.receiveBody(connection, parsed: parsed, body: body + data)
+    }
+  }
+
+  private func deliverRequest(_ connection: NWConnection, parsed: ParsedRequest, body: Data) {
     let id = UUID().uuidString
 
     pendingLock.lock()
@@ -221,9 +265,9 @@ public class LanHostModule: Module {
       pending[id] = continuation
       sendEvent("onLanRequest", [
         "id": id,
-        "method": method,
-        "url": "http://\(headers["host"] ?? "unknown")\(path)",
-        "headers": headers,
+        "method": parsed.method,
+        "url": "http://\(parsed.headers["host"] ?? "unknown")\(parsed.path)",
+        "headers": parsed.headers,
         "bodyBase64": body.isEmpty ? nil : body.base64EncodedString(),
       ])
       // Park before the event? The continuation is registered first so a

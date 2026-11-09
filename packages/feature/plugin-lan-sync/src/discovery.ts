@@ -19,7 +19,10 @@ export interface PeerUpsert {
 export class LeaderTable {
   private readonly rows = new Map<string, { info: SyncLeaderInfo; bye: boolean }>()
 
-  constructor(private readonly ttlMs: number) {}
+  constructor(
+    private readonly ttlMs: number,
+    private readonly maxRows: number = 256,
+  ) {}
 
   /**
    * Record an announce. Returns true when the *visible* row changed — a bare
@@ -42,8 +45,26 @@ export class LeaderTable {
       existing.info.platform !== info.platform ||
       existing.info.host !== info.host ||
       existing.info.httpPort !== info.httpPort
+    // A flood of announces with random ids would grow the table without
+    // bound — the TTL sweep only removes rows it already knows. Evict the
+    // least-recently-heard row at the cap.
+    while (this.rows.size >= this.maxRows && !this.rows.has(peer.id)) {
+      this.evictOldest()
+    }
     this.rows.set(peer.id, { info, bye: false })
     return changed
+  }
+
+  private evictOldest(): void {
+    let oldestId: string | undefined
+    let oldestSeen = Infinity
+    for (const [id, row] of this.rows) {
+      if (row.info.lastSeen < oldestSeen) {
+        oldestSeen = row.info.lastSeen
+        oldestId = id
+      }
+    }
+    if (oldestId !== undefined) this.rows.delete(oldestId)
   }
 
   /** Record a goodbye. Returns true when the peer was present. */

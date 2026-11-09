@@ -135,6 +135,33 @@ fn parse_range(range_header: &str, file_size: u64) -> Option<(u64, u64)> {
     }
 }
 
+/// Largest byte window served per response.
+///
+/// A `Range: bytes=0-` request on a 60 MB FLAC used to allocate the whole
+/// file into one `Vec` before it went out — per request, per seek. Browsers
+/// accept a 206 for a sub-range of the requested range and issue follow-up
+/// requests, so the window caps the allocation without breaking any consumer
+/// (`<img>`, `fetch`, the media element all handle it).
+pub const MAX_RESPONSE_WINDOW: u64 = 8 * 1024 * 1024;
+
+/// Clamp the byte window to serve.
+///
+/// `start`/`requested_end` are inclusive offsets pre-validated by
+/// `parse_range` (or the whole-file default). Returns
+/// `(start, served_end_inclusive, partial)`: a range that already covers the
+/// whole file stays complete (`partial = false` → 200), everything else is
+/// clamped to `MAX_RESPONSE_WINDOW` and served partial (206).
+pub fn clamp_to_window(start: u64, requested_end: u64, file_size: u64) -> (u64, u64, bool) {
+    let last_byte = file_size.saturating_sub(1);
+    let end = requested_end
+        .min(start.saturating_add(MAX_RESPONSE_WINDOW - 1))
+        .min(last_byte);
+    // An empty file has no window to speak of: it is always a complete
+    // (empty) 200, never a 206.
+    let partial = file_size > 0 && !(start == 0 && end >= last_byte);
+    (start, end, partial)
+}
+
 /// Handle a `bbebee-file://` protocol request.
 ///
 /// Runs on a spawned thread to avoid blocking the Tauri async runtime.
@@ -190,9 +217,12 @@ pub fn handle_bbebee_file_request(
             }
         };
 
-        // Handle Range requests (audio seeking)
+        // Handle Range requests (audio seeking). The served window is capped
+        // at MAX_RESPONSE_WINDOW: the media element issues follow-up range
+        // requests for the rest, so memory stays bounded per request.
         if let Some(range_str) = range_header {
-            if let Some((start, end)) = parse_range(&range_str, file_size) {
+            if let Some((start, requested_end)) = parse_range(&range_str, file_size) {
+                let (start, end, _partial) = clamp_to_window(start, requested_end, file_size);
                 let chunk_size = end - start + 1;
                 if file.seek(SeekFrom::Start(start)).is_ok() {
                     let mut buf = vec![0u8; chunk_size as usize];
@@ -217,28 +247,38 @@ pub fn handle_bbebee_file_request(
             }
         }
 
-        // Full file response
-        let mut buf = Vec::with_capacity(file_size.min(10 * 1024 * 1024) as usize);
-        match file.read_to_end(&mut buf) {
-            Ok(_) => {
-                let response = tauri::http::Response::builder()
-                    .status(tauri::http::StatusCode::OK)
-                    .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-                    .header(tauri::http::header::ACCEPT_RANGES, "bytes")
-                    .header(tauri::http::header::CONTENT_LENGTH, file_size.to_string())
-                    .header(tauri::http::header::CONTENT_TYPE, mime)
-                    .body(Cow::Owned(buf));
-                if let Ok(resp) = response {
-                    responder.respond(resp);
-                }
+        // Full file response — for files above the window, serve the first
+        // window as 206 with Accept-Ranges instead of materialising the
+        // whole file; range-capable consumers continue with follow-ups.
+        let (start, end, partial) = clamp_to_window(0, file_size.saturating_sub(1), file_size);
+        let chunk_size = end - start + 1;
+        let mut buf = vec![0u8; chunk_size as usize];
+        let read_ok = file.seek(SeekFrom::Start(start)).is_ok() && file.read_exact(&mut buf).is_ok();
+        if read_ok {
+            let mut builder = tauri::http::Response::builder()
+                .header(tauri::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+                .header(tauri::http::header::ACCEPT_RANGES, "bytes")
+                .header(tauri::http::header::CONTENT_LENGTH, chunk_size.to_string())
+                .header(tauri::http::header::CONTENT_TYPE, mime);
+            builder = if partial {
+                builder
+                    .status(tauri::http::StatusCode::PARTIAL_CONTENT)
+                    .header(
+                        tauri::http::header::CONTENT_RANGE,
+                        format!("bytes {start}-{end}/{file_size}"),
+                    )
+            } else {
+                builder.status(tauri::http::StatusCode::OK)
+            };
+            if let Ok(resp) = builder.body(Cow::Owned(buf)) {
+                responder.respond(resp);
             }
-            Err(e) => {
-                eprintln!("[bbebee-file] read failed for {file_path:?}: {e}");
-                responder.respond(error_response(
-                    tauri::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to read file",
-                ));
-            }
+        } else {
+            eprintln!("[bbebee-file] read failed for {file_path:?}");
+            responder.respond(error_response(
+                tauri::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to read file",
+            ));
         }
     });
 }
@@ -673,6 +713,53 @@ fn plugin_content_type(path: &Path) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_clamps_whole_file_requests() {
+        // A `bytes=0-` request on a 60 MB FLAC used to read the whole file
+        // into one Vec; the window caps the served range instead.
+        let size = 60 * 1024 * 1024;
+        let (start, end, partial) = clamp_to_window(0, size - 1, size);
+        assert_eq!(start, 0);
+        assert_eq!(end, MAX_RESPONSE_WINDOW - 1);
+        assert!(partial, "an over-window file is served partial");
+
+        // Small files stay complete: images, covers, plugin assets.
+        let (start, end, partial) = clamp_to_window(0, 999, 1_000);
+        assert_eq!((start, end), (0, 999));
+        assert!(!partial);
+    }
+
+    #[test]
+    fn window_clamps_seek_ranges() {
+        let size = 100 * 1024 * 1024;
+        // A seek deep into the file gets its own window, not the whole tail.
+        let start = 50 * 1024 * 1024;
+        let (s, end, partial) = clamp_to_window(start, size - 1, size);
+        assert_eq!(s, start);
+        assert_eq!(end, start + MAX_RESPONSE_WINDOW - 1);
+        assert!(partial);
+    }
+
+    #[test]
+    fn window_handles_empty_and_degenerate_files() {
+        // Empty file: nothing to serve, never partial.
+        let (start, end, partial) = clamp_to_window(0, 0, 0);
+        assert_eq!((start, end), (0, 0));
+        assert!(!partial, "an empty file is a complete (empty) 200");
+        // One-byte file.
+        let (start, end, partial) = clamp_to_window(0, 0, 1);
+        assert_eq!((start, end, partial), (0, 0, false));
+    }
+
+    #[test]
+    fn window_never_exceeds_the_file() {
+        // requested_end beyond the file (parse_range already clamps, but the
+        // window must not resurrect the overhang).
+        let (start, end, partial) = clamp_to_window(0, 10_000, 1_000);
+        assert_eq!(end, 999);
+        assert!(!partial);
+    }
 
     #[test]
     fn to_native_path_handles_windows() {

@@ -10,7 +10,6 @@
 
 import { join } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
-import readline from 'node:readline'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { fetch as undiciFetch } from 'undici'
@@ -57,7 +56,86 @@ export async function createSidecar(): Promise<SidecarContext> {
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>()
 
   function writeRaw(msg: JsonRpcResponse | JsonRpcNotification): void {
-    process.stdout.write(JSON.stringify(msg) + '\n')
+    pump(msg)
+  }
+
+  // ── Outbound frame pump with backpressure ─────────────────────────────
+  //
+  // `process.stdout.write` happily absorbs unbounded data into its internal
+  // buffer when the host reads slowly, so frames are staged in a bounded
+  // outbox flushed on 'drain'. Responses are never dropped — the host caps
+  // its pending-call table, so their count is naturally bounded — while
+  // notifications are shed oldest-first; state lives with the sender and
+  // webviews re-pull snapshots, so a dropped notification is recoverable.
+  const OUTBOX_MAX_ENTRIES = 256
+  const OUTBOX_MAX_BYTES = 8 * 1024 * 1024
+  type OutboundFrame = { line: string; bytes: number; droppable: boolean }
+  const outbox: OutboundFrame[] = []
+  let outboxBytes = 0
+  let awaitingDrain = false
+  let drainArmed = false
+  let droppedNotifications = 0
+
+  function shedNotification(): boolean {
+    const idx = outbox.findIndex((f) => f.droppable)
+    if (idx === -1) return false
+    const gone = outbox.splice(idx, 1)[0]
+    if (!gone) return false
+    outboxBytes -= gone.bytes
+    droppedNotifications++
+    if (droppedNotifications === 1 || droppedNotifications % 500 === 0) {
+      process.stderr.write(
+        `[sidecar:WARN] stdout backpressure: ${droppedNotifications} notifications dropped total\n`,
+      )
+    }
+    return true
+  }
+
+  function armDrain(): void {
+    if (drainArmed) return
+    drainArmed = true
+    process.stdout.once('drain', () => {
+      drainArmed = false
+      awaitingDrain = false
+      flushOutbox()
+    })
+  }
+
+  function flushOutbox(): void {
+    while (outbox.length > 0) {
+      const frame = outbox[0]!
+      if (!process.stdout.write(frame.line)) {
+        awaitingDrain = true
+        armDrain()
+        return
+      }
+      outbox.shift()
+      outboxBytes -= frame.bytes
+    }
+  }
+
+  function pump(msg: JsonRpcResponse | JsonRpcNotification): void {
+    const line = JSON.stringify(msg) + '\n'
+    if (awaitingDrain || outbox.length > 0) {
+      const frame: OutboundFrame = {
+        line,
+        bytes: line.length,
+        droppable: 'method' in msg,
+      }
+      outboxBytes += frame.bytes
+      outbox.push(frame)
+      while (
+        (outbox.length > OUTBOX_MAX_ENTRIES || outboxBytes > OUTBOX_MAX_BYTES) &&
+        shedNotification()
+      ) {
+        // shed until back inside budget
+      }
+      return
+    }
+    if (!process.stdout.write(line)) {
+      awaitingDrain = true
+      armDrain()
+    }
   }
 
   function broadcast(channel: string, payload: unknown): void {
@@ -394,7 +472,29 @@ export async function createSidecar(): Promise<SidecarContext> {
 
   ipc.handle('sidecar:ping', async () => 'pong')
 
+  // ── Runtime metrics notification ─────────────────────────────────────
+  // One small bounded payload a minute: the host's metrics ring records
+  // cross-process RSS, and this reports the Node side's own usage plus the
+  // LAN transport gates (drop counters, pending table depth). Nothing here
+  // grows — one object per emit, no history kept Node-side.
+  const METRICS_INTERVAL_MS = 60_000
+  const metricsTimer = setInterval(() => {
+    const mem = process.memoryUsage()
+    broadcast('metrics:node', [
+      {
+        rssBytes: mem.rss,
+        heapUsedBytes: mem.heapUsed,
+        externalBytes: mem.external,
+        arrayBufferBytes: mem.arrayBuffers,
+        lan: (lanHost as unknown as { stats?: () => unknown }).stats?.() ?? null,
+      },
+    ])
+  }, METRICS_INTERVAL_MS)
+  // Never hold the process open for the sampler.
+  metricsTimer.unref?.()
+
   const shutdown = async () => {
+    clearInterval(metricsTimer)
     proxyRegistry.dispose()
     relay.dispose()
     try {
@@ -421,12 +521,13 @@ export async function createSidecar(): Promise<SidecarContext> {
 }
 
 export function startStdioLoop(sidecar: SidecarContext): void {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false,
-  })
-
+  // Bounded stdin framing: lines are assembled manually so a runaway host
+  // can never balloon a single readline buffer. A line over the cap is
+  // discarded whole — the affected request simply times out on the host,
+  // which enforces its own 30 s bound.
+  const STDIN_LINE_MAX_CHARS = 8 * 1024 * 1024
+  let pendingLine = ''
+  let droppedOversizeLines = 0
   let activeRequests = 0
   let isClosed = false
 
@@ -438,7 +539,7 @@ export function startStdioLoop(sidecar: SidecarContext): void {
     }
   }
 
-  rl.on('line', (line) => {
+  function handleLine(line: string): void {
     const trimmed = line.trim()
     if (!trimmed) return
 
@@ -507,9 +608,27 @@ export function startStdioLoop(sidecar: SidecarContext): void {
         activeRequests--
         tryExit()
       })
-  })
+  }
 
-  rl.on('close', () => {
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk: string) => {
+    pendingLine += chunk
+    for (;;) {
+      const idx = pendingLine.indexOf('\n')
+      if (idx === -1) break
+      const line = pendingLine.slice(0, idx)
+      pendingLine = pendingLine.slice(idx + 1)
+      handleLine(line)
+    }
+    if (pendingLine.length > STDIN_LINE_MAX_CHARS) {
+      droppedOversizeLines++
+      process.stderr.write(
+        `[sidecar:WARN] stdin line over ${STDIN_LINE_MAX_CHARS} chars — discarded (${droppedOversizeLines} total)\n`,
+      )
+      pendingLine = ''
+    }
+  })
+  process.stdin.on('close', () => {
     isClosed = true
     tryExit()
   })

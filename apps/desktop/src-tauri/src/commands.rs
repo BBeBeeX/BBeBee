@@ -407,14 +407,14 @@ pub async fn desktop_lyrics_update_data(
     state: tauri::State<'_, AppState>,
     data: serde_json::Value,
 ) -> Result<(), String> {
-    eprintln!("[desktop-lyrics] update_data invoked");
     *lock_recover(&state.latest_lyric_data) = Some(data.clone());
-    if let Some(win) = app.get_webview_window("desktop-lyrics") {
-        eprintln!("[desktop-lyrics] emitting desktop-lyrics:data to window");
-        let _ = win.emit("desktop-lyrics:data", data);
-    } else {
-        eprintln!("[desktop-lyrics] update_data: no desktop-lyrics window found");
-    }
+    // Coalesced: the lyrics window renders the latest payload, so interim
+    // values are pure churn; a parked payload flushes on the timer, so the
+    // final line change always lands. The cache above already guarantees a
+    // (re)opened window gets the freshest snapshot.
+    state
+        .notify
+        .emit(&app, "desktop-lyrics:data", data, std::time::Duration::from_millis(100));
     Ok(())
 }
 
@@ -585,9 +585,12 @@ pub async fn mini_player_update_data(
     data: serde_json::Value,
 ) -> Result<(), String> {
     *lock_recover(&state.latest_mini_player_data) = Some(data.clone());
-    if let Some(win) = app.get_webview_window("mini-player") {
-        let _ = win.emit("mini-player:data", data);
-    }
+    // Coalesced (see desktop_lyrics_update_data): the mini window renders
+    // the latest payload; identical payloads (paused position ticks) are
+    // deduped away entirely instead of re-broadcast at 3 Hz.
+    state
+        .notify
+        .emit(&app, "mini-player:data", data, std::time::Duration::from_millis(100));
     Ok(())
 }
 
@@ -1554,6 +1557,17 @@ pub fn desktop_system_media_session_set_playback_state(
     system_media_session_set_playback_state(state, playback_state)
 }
 
+/// Cross-process memory + transport-gate counters for diagnostics.
+///
+/// Read-only and cheap: the ring is pre-sampled, so this never allocates
+/// beyond the answer itself.
+#[tauri::command]
+pub fn system_runtime_stats(
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    Ok(crate::metrics::runtime_stats(&state.metrics))
+}
+
 #[tauri::command]
 pub fn system_media_session_set_position(
     app: tauri::AppHandle,
@@ -1562,7 +1576,10 @@ pub fn system_media_session_set_position(
 ) -> Result<(), String> {
     if let Some(pos) = position_ms {
         state.set_position_ms(pos);
-        let _ = app.emit("media-session:position", pos);
+        // Coalesced: identical positions (paused ticker) dedup to nothing.
+        state
+            .notify
+            .emit(&app, "media-session:position", serde_json::json!(pos), std::time::Duration::from_millis(200));
     }
     Ok(())
 }

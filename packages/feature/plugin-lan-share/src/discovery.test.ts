@@ -59,6 +59,27 @@ describe('PeerTable', () => {
     expect(table.remove(peer.id)).toBe(true)
   })
 
+  it('evicts the least-recently-heard peer at the row cap', () => {
+    const c = clock()
+    const table = new PeerTable(10_000, c.now, 3)
+    table.upsert({ ...peer, id: 'p1' })
+    c.advance(1)
+    table.upsert({ ...peer, id: 'p2' })
+    c.advance(1)
+    table.upsert({ ...peer, id: 'p3' })
+    c.advance(1)
+    // A flood of random announce ids must not grow the table without bound.
+    table.upsert({ ...peer, id: 'flood-a' })
+    table.upsert({ ...peer, id: 'flood-b' })
+    expect(table.list()).toHaveLength(3)
+    // p1 was the least-recently-heard, so it is the one evicted.
+    expect(table.get('p1')).toBeUndefined()
+    expect(table.get('p3')).toBeDefined()
+    // Refreshing an existing id must not evict anything.
+    table.upsert({ ...peer, id: 'p2' })
+    expect(table.list()).toHaveLength(3)
+  })
+
   it('lists alphabetically so the UI order is stable', () => {
     const table = new PeerTable(10_000, clock().now)
     table.upsert({ ...peer, id: 'device-zeta', name: 'Zeta' })

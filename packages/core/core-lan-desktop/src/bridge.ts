@@ -41,10 +41,34 @@ interface ReplyWire {
   bodyFileEnd?: number
 }
 
+/** Wire form of an inbound datagram, before the renderer decodes it. */
+interface DatagramWire {
+  host: string
+  port: number
+  data: string
+}
+
+// ── Renderer-side datagram staging ─────────────────────────────────────────
+//
+// The host already rate-limits, but the renderer is still the last line of
+// defence: decoding and fanning out must be deferred out of the event
+// callback so a burst costs a bounded push, not a synchronous decode loop on
+// the UI thread. Datagrams queue raw (drop-oldest — the newest announce
+// wins, stale ones are worthless) and drain in small batches per macrotask.
+// Who owns it: the LanBridge service. Capacity: DATAGRAM_QUEUE_MAX entries
+// of wire strings. Overflow: oldest dropped + counted. Consumers: onDatagram
+// callbacks, batched. Failure: drain errors are swallowed per datagram.
+// Release: queue cleared on service dispose. Monitoring: warn log counter.
+const DATAGRAM_QUEUE_MAX = 64
+const DATAGRAM_DRAIN_BATCH = 8
+
 export class LanBridge extends Service implements LanService {
   private readonly bridge: BridgeApi
   private readonly datagramCbs = new Set<(d: LanDatagram) => void>()
   private readonly requestCbs = new Set<(req: LanRequestContext) => void>()
+  private readonly datagramQueue: DatagramWire[] = []
+  private datagramDrainTimer: ReturnType<typeof setTimeout> | undefined
+  private datagramsDropped = 0
   private unsubscribe: (() => void) | undefined
   private runningState = false
 
@@ -55,6 +79,11 @@ export class LanBridge extends Service implements LanService {
 
   async [Service.init](): Promise<Disposable> {
     return () => {
+      if (this.datagramDrainTimer) {
+        clearTimeout(this.datagramDrainTimer)
+        this.datagramDrainTimer = undefined
+      }
+      this.datagramQueue.length = 0
       this.unsubscribe?.()
       this.unsubscribe = undefined
       this.datagramCbs.clear()
@@ -82,13 +111,18 @@ export class LanBridge extends Service implements LanService {
       if (!event || typeof event !== 'object') return
       const topic = (event as { topic?: string }).topic
       if (topic === 'lan-datagram') {
-        const wire = event as { host: string; port: number; data: string }
-        const datagram: LanDatagram = {
-          host: wire.host,
-          port: wire.port,
-          data: base64ToBytes(wire.data),
+        // Stage the raw wire form — decode happens on the drain tick.
+        this.datagramQueue.push(event as DatagramWire)
+        if (this.datagramQueue.length > DATAGRAM_QUEUE_MAX) {
+          this.datagramQueue.shift()
+          this.datagramsDropped++
+          if (this.datagramsDropped === 1 || this.datagramsDropped % 500 === 0) {
+            this.ctx.logger?.warn?.(`lan: renderer datagram queue full — ${this.datagramsDropped} dropped`)
+          }
         }
-        for (const cb of this.datagramCbs) cb(datagram)
+        if (!this.datagramDrainTimer) {
+          this.datagramDrainTimer = setTimeout(() => this.drainDatagrams(), 0)
+        }
         return
       }
       if (topic === 'lan-request') {
@@ -114,6 +148,28 @@ export class LanBridge extends Service implements LanService {
         for (const cb of this.requestCbs) cb(request)
       }
     })
+  }
+
+  /** Decode and fan out a bounded batch; re-arm while the queue has work. */
+  private drainDatagrams(): void {
+    this.datagramDrainTimer = undefined
+    let budget = DATAGRAM_DRAIN_BATCH
+    while (budget-- > 0 && this.datagramQueue.length > 0) {
+      const wire = this.datagramQueue.shift()!
+      try {
+        const datagram: LanDatagram = {
+          host: wire.host,
+          port: wire.port,
+          data: base64ToBytes(wire.data),
+        }
+        for (const cb of this.datagramCbs) cb(datagram)
+      } catch (error) {
+        this.ctx.logger?.warn?.(`lan: datagram decode failed: ${String(error)}`)
+      }
+    }
+    if (this.datagramQueue.length > 0 && !this.datagramDrainTimer) {
+      this.datagramDrainTimer = setTimeout(() => this.drainDatagrams(), 0)
+    }
   }
 
   async start(opts: LanStartOptions): Promise<{ udpPort: number; httpPort: number }> {

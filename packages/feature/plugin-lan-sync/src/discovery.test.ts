@@ -32,4 +32,18 @@ describe('LeaderTable', () => {
     expect(table.remove('b')).toBe(false)
     expect(table.get('b')).toBeUndefined()
   })
+
+  it('evicts the least-recently-heard leader at the row cap', () => {
+    const table = new LeaderTable(10_000, 3)
+    table.upsert({ id: 'a', name: 'A', platform: 'linux', host: 'h', httpPort: 1 })
+    table.upsert({ id: 'b', name: 'B', platform: 'linux', host: 'h', httpPort: 1 })
+    table.upsert({ id: 'c', name: 'C', platform: 'linux', host: 'h', httpPort: 1 })
+    // A flood of random announce ids must not grow the table without bound.
+    table.upsert({ id: 'flood-a', name: 'F', platform: 'linux', host: 'h', httpPort: 1 })
+    table.upsert({ id: 'flood-b', name: 'G', platform: 'linux', host: 'h', httpPort: 1 })
+    expect(table.list()).toHaveLength(3)
+    // 'a' was heard first and never refreshed, so it is the one evicted.
+    expect(table.get('a')).toBeUndefined()
+    expect(table.get('c')).toBeDefined()
+  })
 })

@@ -9,15 +9,171 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use crate::error::lock_recover;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::oneshot;
 
 type PendingResponse = oneshot::Sender<Result<serde_json::Value, String>>;
 type PendingMap = Arc<Mutex<HashMap<u64, PendingResponse>>>;
+
+// ── Transport bounds ────────────────────────────────────────────────────────
+//
+// The sidecar pipe carries NDJSON lines that are fully buffered before they
+// are parsed: one 16 MiB LAN response body base64-encodes to ~21 MB, plus JSON
+// escaping, all on a single line. Without caps a runaway producer grows the
+// host heap without limit (see docs/architecture/memory-governance.md). Every
+// bound here answers: capacity → hard constant; overflow → drop + counter;
+// monitoring → `SidecarCounters` via `counters()`.
+
+/// Hard cap on one NDJSON line read from the sidecar's stdout.
+pub const MAX_LINE_BYTES: usize = 32 * 1024 * 1024;
+/// Hard cap on a notification payload before it may be broadcast to webviews.
+pub const MAX_NOTIFY_BYTES: usize = 4 * 1024 * 1024;
+/// Notification broadcasts per second before rate dropping kicks in.
+pub const MAX_NOTIFY_PER_SEC: u32 = 200;
+/// Cap on in-flight `call()` requests awaiting a reply.
+pub const MAX_PENDING_CALLS: usize = 256;
+/// Window (ms) for the notification rate limit.
+const NOTIFY_WINDOW_MS: u64 = 1000;
+
+/// Monotonic drop/forward counters exposed for the metrics system.
+#[derive(Debug, Default, Clone)]
+pub struct SidecarCounters {
+    /// Lines exceeding `MAX_LINE_BYTES` — content discarded up to the newline.
+    pub oversize_lines_dropped: Arc<AtomicU64>,
+    /// Notifications whose serialized payload exceeded `MAX_NOTIFY_BYTES`.
+    pub notifications_dropped_oversize: Arc<AtomicU64>,
+    /// Notifications dropped because the per-second budget was exhausted.
+    pub notifications_dropped_rate: Arc<AtomicU64>,
+}
+
+impl SidecarCounters {
+    /// Latest counters as plain numbers (for the metrics command).
+    pub fn snapshot(&self) -> serde_json::Value {
+        serde_json::json!({
+            "oversizeLinesDropped": self.oversize_lines_dropped.load(Ordering::Relaxed),
+            "notificationsDroppedOversize": self.notifications_dropped_oversize.load(Ordering::Relaxed),
+            "notificationsDroppedRate": self.notifications_dropped_rate.load(Ordering::Relaxed),
+        })
+    }
+}
+
+/// Outcome of gating one notification before it reaches the webviews.
+#[derive(Debug, PartialEq, Eq)]
+pub enum GateDecision {
+    Forward,
+    DropOversize,
+    DropRate,
+}
+
+/// Fixed-window rate gate for notification broadcasts.
+///
+/// Pure with respect to the injected clock so tests can drive it without
+/// sleeping. Who owns it: the stdout reader task. Capacity: n/a (stateless
+/// beyond one window). Overflow: the notification is dropped and counted.
+#[derive(Debug)]
+pub struct NotifyGate {
+    window_start_ms: u64,
+    seen_this_window: u32,
+}
+
+impl Default for NotifyGate {
+    fn default() -> Self {
+        Self { window_start_ms: 0, seen_this_window: 0 }
+    }
+}
+
+impl NotifyGate {
+    pub fn admit(&mut self, payload_len: usize, now_ms: u64) -> GateDecision {
+        if payload_len > MAX_NOTIFY_BYTES {
+            return GateDecision::DropOversize;
+        }
+        if now_ms.saturating_sub(self.window_start_ms) >= NOTIFY_WINDOW_MS {
+            self.window_start_ms = now_ms;
+            self.seen_this_window = 0;
+        }
+        if self.seen_this_window >= MAX_NOTIFY_PER_SEC {
+            return GateDecision::DropRate;
+        }
+        self.seen_this_window += 1;
+        GateDecision::Forward
+    }
+}
+
+fn unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// Read one `\n`-delimited line with a hard byte cap.
+///
+/// Unlike `AsyncBufReadExt::read_line`, the staging buffer never grows past
+/// `cap` bytes: an overlong line is discarded up to (and including) its
+/// newline. Returns `(got_line, over_limit, eof)`:
+/// - `(true,  false, _)` → `buf` holds a complete unter-cap line,
+/// - `(false, true,  _)` → an over-cap line was discarded (keep reading),
+/// - `(false, false, true)` → clean EOF, nothing further.
+///
+/// Ownership: caller owns `buf` (reused across calls, so the allocation is
+/// bounded by `cap`). Failure: an I/O error aborts the read.
+pub async fn read_limited_line<R: AsyncBufRead + Unpin>(
+    reader: &mut R,
+    buf: &mut Vec<u8>,
+    cap: usize,
+) -> std::io::Result<(bool, bool, bool)> {
+    buf.clear();
+    let mut over_limit = false;
+    loop {
+        // The fill_buf borrow must end before consume(), so stage the outcome.
+        enum Step { Eof, Consumed(usize, bool) }
+        let step = {
+            let available = reader.fill_buf().await?;
+            if available.is_empty() {
+                Step::Eof
+            } else if let Some(idx) = available.iter().position(|&b| b == b'\n') {
+                if !over_limit {
+                    let room = cap.saturating_sub(buf.len());
+                    if idx > room {
+                        // The newline is in sight but the line already
+                        // exceeds the cap: keep only the room we have.
+                        buf.extend_from_slice(&available[..room]);
+                        over_limit = true;
+                    } else {
+                        buf.extend_from_slice(&available[..idx]);
+                    }
+                }
+                Step::Consumed(idx + 1, true)
+            } else if !over_limit {
+                let room = cap.saturating_sub(buf.len());
+                if available.len() > room {
+                    buf.extend_from_slice(&available[..room]);
+                    over_limit = true;
+                } else {
+                    buf.extend_from_slice(available);
+                }
+                Step::Consumed(available.len(), false)
+            } else {
+                Step::Consumed(available.len(), false)
+            }
+        };
+        match step {
+            Step::Eof => {
+                return Ok((!buf.is_empty() && !over_limit, over_limit, true));
+            }
+            Step::Consumed(n, complete) => {
+                reader.consume(n);
+                if complete {
+                    return Ok((!over_limit, over_limit, false));
+                }
+            }
+        }
+    }
+}
 
 pub struct SidecarManager {
     stdin: Arc<tokio::sync::Mutex<Option<ChildStdin>>>,
@@ -29,6 +185,7 @@ pub struct SidecarManager {
     custom_data_dir: Option<PathBuf>,
     /// Entry script filename in dist-sidecar/ (default "index.mjs", cover uses "cover.mjs")
     script_name: String,
+    counters: SidecarCounters,
 }
 
 impl SidecarManager {
@@ -42,6 +199,7 @@ impl SidecarManager {
             app_handle,
             custom_data_dir: None,
             script_name: "index.mjs".to_string(),
+            counters: SidecarCounters::default(),
         }
     }
 
@@ -62,7 +220,13 @@ impl SidecarManager {
             app_handle,
             custom_data_dir: Some(data_dir),
             script_name: "index.mjs".to_string(),
+            counters: SidecarCounters::default(),
         }
+    }
+
+    /// Drop/forward counters for the metrics system.
+    pub fn counters(&self) -> &SidecarCounters {
+        &self.counters
     }
 
     /// Resolve the path to the Node.js sidecar entry script.
@@ -243,12 +407,39 @@ impl SidecarManager {
         let pending = Arc::clone(&self.pending);
         let app_handle = self.app_handle.clone();
         let is_shutting_down = Arc::clone(&self.is_shutting_down);
+        let counters = self.counters.clone();
 
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout).lines();
+            let mut reader = BufReader::with_capacity(64 * 1024, stdout);
+            let mut line_bytes: Vec<u8> = Vec::with_capacity(8 * 1024);
+            let mut gate = NotifyGate::default();
 
-            while let Ok(Some(line)) = reader.next_line().await {
-                let trimmed = line.trim();
+            loop {
+                let (got_line, over_limit, eof) =
+                    match read_limited_line(&mut reader, &mut line_bytes, MAX_LINE_BYTES).await {
+                        Ok(result) => result,
+                        Err(e) => {
+                            eprintln!("[sidecar:rust:WARN] stdout read error: {e}");
+                            break;
+                        }
+                    };
+                if over_limit {
+                    counters.oversize_lines_dropped.fetch_add(1, Ordering::Relaxed);
+                    eprintln!(
+                        "[sidecar:rust:WARN] dropped sidecar line over {} bytes",
+                        MAX_LINE_BYTES
+                    );
+                }
+                if !got_line {
+                    if eof {
+                        break;
+                    }
+                    // An over-cap line was dropped; the stream continues.
+                    continue;
+                }
+
+                let trimmed = String::from_utf8_lossy(&line_bytes);
+                let trimmed = trimmed.trim();
                 if trimmed.is_empty() {
                     continue;
                 }
@@ -283,12 +474,35 @@ impl SidecarManager {
                         if let Some(method) = val.get("method").and_then(|m| m.as_str()) {
                             let params = val.get("params").cloned().unwrap_or(serde_json::Value::Null);
 
-                            if let Some(ref handle) = app_handle {
-                                // Forward notification as a Tauri event to the Webview
-                                let _ = handle.emit(method, &params);
+                            // Gate before it can fan out to every webview: a
+                            // dropped notification is recoverable (state lives
+                            // in the sender; webviews re-pull snapshots), an
+                            // unbounded broadcast is not.
+                            let payload_len =
+                                serde_json::to_vec(&params).map(|v| v.len()).unwrap_or(0);
+                            match gate.admit(payload_len, unix_ms()) {
+                                GateDecision::DropOversize => {
+                                    counters
+                                        .notifications_dropped_oversize
+                                        .fetch_add(1, Ordering::Relaxed);
+                                    eprintln!(
+                                        "[sidecar:rust:WARN] dropped notification '{method}' over {MAX_NOTIFY_BYTES} bytes"
+                                    );
+                                }
+                                GateDecision::DropRate => {
+                                    counters.notifications_dropped_rate.fetch_add(1, Ordering::Relaxed);
+                                }
+                                GateDecision::Forward => {
+                                    if let Some(ref handle) = app_handle {
+                                        // Forward notification as a Tauri event to the Webview
+                                        let _ = handle.emit(method, &params);
+                                    }
+                                }
+                            }
 
-                                // Special host integrations
-                                if method == "system:publishNowPlaying" {
+                            // Special host integrations (cheap, always run)
+                            if method == "system:publishNowPlaying" {
+                                if let Some(ref handle) = app_handle {
                                     if let Some(tray) = handle.tray_by_id("main-tray") {
                                         let title = params
                                             .as_array()
@@ -303,7 +517,9 @@ impl SidecarManager {
                                         };
                                         let _ = tray.set_tooltip(Some(tooltip));
                                     }
-                                } else if method == "system:clearNowPlaying" {
+                                }
+                            } else if method == "system:clearNowPlaying" {
+                                if let Some(ref handle) = app_handle {
                                     if let Some(tray) = handle.tray_by_id("main-tray") {
                                         let _ = tray.set_tooltip(Some("BBeBee"));
                                     }
@@ -323,6 +539,12 @@ impl SidecarManager {
         });
 
         Ok(())
+    }
+
+    /// Current sidecar child pid, for the metrics sampler.
+    pub async fn pid(&self) -> Option<u32> {
+        let guard = self.child.lock().await;
+        guard.as_ref().and_then(|c| c.id())
     }
 
     /// Check whether the sidecar process is currently alive.
@@ -350,6 +572,13 @@ impl SidecarManager {
 
         {
             let mut map = lock_recover(&self.pending);
+            if map.len() >= MAX_PENDING_CALLS {
+                return Err(format!(
+                    "sidecar busy: {} calls already in flight (cap {})",
+                    map.len(),
+                    MAX_PENDING_CALLS
+                ));
+            }
             map.insert(req_id, tx);
         }
 
@@ -512,6 +741,115 @@ mod tests {
 
             let _ = manager.shutdown().await;
             let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    // ── notification gate ────────────────────────────────────────────────
+
+    #[test]
+    fn gate_forwards_under_rate_and_size() {
+        let mut gate = NotifyGate::default();
+        for i in 0..MAX_NOTIFY_PER_SEC {
+            assert_eq!(
+                gate.admit(1024, 1_000 + i as u64),
+                GateDecision::Forward,
+                "forward #{i} within budget"
+            );
+        }
+        assert_eq!(gate.admit(1024, 1_500), GateDecision::DropRate);
+        // A new window resets the budget.
+        assert_eq!(gate.admit(1024, 1_000 + NOTIFY_WINDOW_MS), GateDecision::Forward);
+    }
+
+    #[test]
+    fn gate_rejects_oversize_payloads() {
+        let mut gate = NotifyGate::default();
+        assert_eq!(
+            gate.admit(MAX_NOTIFY_BYTES, 1_000),
+            GateDecision::Forward,
+            "exactly at the cap is fine"
+        );
+        assert_eq!(gate.admit(MAX_NOTIFY_BYTES + 1, 1_001), GateDecision::DropOversize);
+        // Oversize rejections must not consume rate budget.
+        assert_eq!(gate.admit(1, 1_001), GateDecision::Forward);
+    }
+
+    // ── bounded line reader ──────────────────────────────────────────────
+
+    type LineResult = (bool, bool, bool, Vec<u8>);
+
+    async fn drain(reader: &mut &[u8], buf: &mut Vec<u8>, cap: usize) -> Vec<LineResult> {
+        let mut out = Vec::new();
+        loop {
+            let r = read_limited_line(reader, buf, cap).await.unwrap();
+            let eof = r.2;
+            out.push((r.0, r.1, r.2, buf.clone()));
+            if eof {
+                return out;
+            }
+        }
+    }
+
+    #[test]
+    fn reader_passes_normal_lines_through() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let mut reader: &[u8] = b"one\ntwo\nthree\n";
+            let mut buf = Vec::new();
+            let lines = drain(&mut reader, &mut buf, 64).await;
+            let got: Vec<_> = lines.iter().filter(|r| r.0).collect();
+            assert_eq!(got.len(), 3, "all three lines survive: {lines:?}");
+            assert!(lines.iter().all(|r| !r.1), "nothing flagged over-limit");
+            assert!(lines.last().unwrap().2, "stream ends with EOF");
+        });
+    }
+
+    #[test]
+    fn reader_drops_overlong_line_and_continues() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let big = vec![b'x'; 200];
+            let mut payload = big.clone();
+            payload.extend_from_slice(b"\nafter\n");
+            let mut reader: &[u8] = &payload;
+            let mut buf = Vec::new();
+            let lines = drain(&mut reader, &mut buf, 64).await;
+            // First read: oversized line discarded; second: "after" survives.
+            assert_eq!((lines[0].0, lines[0].1, lines[0].2), (false, true, false), "over-cap line dropped, stream alive");
+            assert_eq!((lines[1].0, lines[1].1, lines[1].2), (true, false, false), "next line is intact");
+            assert_eq!(lines[1].3, b"after");
+        });
+    }
+
+    #[test]
+    fn reader_handles_final_unterminated_line() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let mut reader: &[u8] = &b"no trailing newline"[..];
+            let mut buf = Vec::new();
+            let lines = drain(&mut reader, &mut buf, 64).await;
+            assert_eq!(lines.len(), 1, "partial line and EOF flag arrive together: {lines:?}");
+            assert_eq!((lines[0].0, lines[0].1, lines[0].2), (true, false, true), "partial line yielded with EOF flag");
+            assert_eq!(lines[0].3, b"no trailing newline");
+        });
+    }
+
+    #[test]
+    fn reader_bounded_across_many_oversized_lines() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            // A flood of over-cap lines must never grow the staging buffer past cap.
+            let big = vec![b'x'; 500];
+            let mut payload = Vec::new();
+            for _ in 0..50 {
+                payload.extend_from_slice(&big);
+                payload.push(b'\n');
+            }
+            payload.extend_from_slice(b"tail\n");
+            let mut reader: &[u8] = &payload;
+            let mut buf = Vec::new();
+            let cap = 64usize;
+            let lines = drain(&mut reader, &mut buf, cap).await;
+            let dropped = lines.iter().filter(|r| r.1).count();
+            assert_eq!(dropped, 50, "all 50 oversized lines dropped");
+            assert!(lines.iter().all(|r| r.3.len() <= cap), "staging buffer stayed bounded");
+            assert_eq!(lines[50].3, b"tail", "the line after the flood survives");
         });
     }
 }

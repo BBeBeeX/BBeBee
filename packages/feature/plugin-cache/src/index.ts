@@ -90,6 +90,16 @@ const ARTWORK: CacheClass = 'artwork'
 const STREAM: CacheClass = 'stream'
 
 /**
+ * Ceiling for ONE embedded cover. `maxArtworkBytes` budgets the whole class
+ * on disk; without a per-file cap a pathological 500 MB embedded image
+ * passes that check, becomes ~670 MB of base64 crossing the sidecar line —
+ * past the host's 32 MiB line cap — and then a decoded 500 MB Uint8Array in
+ * the renderer. Displayed artwork never needs more than a few MiB.
+ */
+/** Exported for tests: the per-file ceiling for one cover. */
+export const MAX_ARTWORK_SINGLE_BYTES = 8 * 1024 * 1024
+
+/**
  * How long after serving a file a `player/error` still counts as "this entry
  * is broken". A decode failure arrives in seconds; an unrelated error minutes
  * later is not about the file.
@@ -393,30 +403,51 @@ export class Cache extends Service implements CacheService {
     // so no single call outlives the desktop bridge's 30 s timeout.
     // SEQUENTIAL, not concurrent: send one chunk, wait for it to complete,
     // yield to the event loop, then send the next. Covers can be slow;
-    // playback cannot wait.
-    const CHUNK_SIZE = Math.max(1, this.config.artworkBatchChunkSize)
-    const chunks: (typeof batch)[] = []
-    for (let start = 0; start < batch.length; start += CHUNK_SIZE) {
-      chunks.push(batch.slice(start, start + CHUNK_SIZE))
-    }
-    // Strictly sequential: one chunk at a time, yield between chunks.
-    for (let i = 0; i < chunks.length; i++) {
+    // playback cannot wait. The chunk size is adaptive (see
+    // `nextArtworkChunkSize`): the batch response is ONE sidecar line and
+    // the host caps lines, so a run of huge covers must not keep
+    // re-requesting an oversized chunk it can never receive.
+    let idx = 0
+    while (idx < batch.length) {
       // Playback priority: if the player is loading, abort the remaining
       // chunks — covers will be re-requested via LazyArtwork when visible.
       // Don't delay playback for background cover work.
       const shouldContinue = await this.waitForPlaybackIdle()
       if (!shouldContinue) {
         // Resolve remaining items with undefined so their promises don't hang
-        for (let j = i; j < chunks.length; j++) {
-          for (const item of chunks[j]!) item.resolve(undefined)
-        }
+        for (const item of batch.slice(idx)) item.resolve(undefined)
         return
       }
-      await this.processArtworkChunk(codec, chunks[i]!)
+      const chunk = batch.slice(idx, idx + this.nextArtworkChunkSize())
+      idx += chunk.length
+      await this.processArtworkChunk(codec, chunk)
       // Yield to the event loop so player bridge calls can interleave.
       // Without this, back-to-back chunks starve the bridge.
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
+  }
+
+  /** Bytes of the last batch response and how many items produced them. */
+  private lastArtworkChunkBytes = 0
+  private lastArtworkChunkItems = 0
+
+  /**
+   * The next chunk's item count.
+   *
+   * A batch response crosses the bridge as one line, and the host drops
+   * lines past its cap — an over-limit response fails the whole chunk. The
+   * estimate from the last chunk's response keeps the next one inside a
+   * ~20 MiB response budget; monotone shrink converges (a single-item chunk
+   * always fits, since the per-file cap bounds one response), and failed
+   * items are re-requested by the UI, so a shrinking run still completes.
+   */
+  private nextArtworkChunkSize(): number {
+    const configured = Math.max(1, this.config.artworkBatchChunkSize)
+    if (this.lastArtworkChunkItems <= 0) return configured
+    const RESPONSE_BUDGET = 20 * 1024 * 1024
+    const perItem = this.lastArtworkChunkBytes / this.lastArtworkChunkItems
+    const fits = Math.floor(RESPONSE_BUDGET / Math.max(perItem, 1))
+    return Math.max(1, Math.min(configured, fits))
   }
 
   /**
@@ -466,6 +497,13 @@ export class Cache extends Service implements CacheService {
     if (codec.readArtworkBatch) {
       try {
         const results = await codec.readArtworkBatch(chunk.map((i) => i.audioUri))
+        const frames: unknown[] = results
+        this.lastArtworkChunkBytes = frames.reduce<number>((sum, r) => {
+          if (typeof r === 'string') return sum + r.length
+          if (r instanceof Uint8Array) return sum + r.byteLength
+          return sum
+        }, 0)
+        this.lastArtworkChunkItems = chunk.length
         for (let i = 0; i < chunk.length; i++) {
           const item = chunk[i]!
           const bytes = results[i]
@@ -515,9 +553,18 @@ export class Cache extends Service implements CacheService {
     bytes: Uint8Array | string | undefined,
   ): Promise<Uri | undefined> {
     // The cover sidecar returns base64 strings (JSON-safe); the main sidecar
-    // returns Uint8Array. Normalize to Uint8Array.
+    // returns Uint8Array. Normalize to Uint8Array — but reject an oversized
+    // base64 payload BEFORE decoding it, so the atob round-trip never
+    // materialises in the renderer.
     let data: Uint8Array | undefined
     if (typeof bytes === 'string') {
+      // base64 inflates by 4/3; compare lengths first.
+      if (bytes.length > (MAX_ARTWORK_SINGLE_BYTES * 4) / 3 + 4) {
+        this.ownCtx.logger.warn(
+          `cache: embedded artwork from ${audioUri} exceeds the single-file cap (${bytes.length} base64 chars)`,
+        )
+        return undefined
+      }
       try {
         const binary = atob(bytes)
         data = new Uint8Array(binary.length)
@@ -529,9 +576,9 @@ export class Cache extends Service implements CacheService {
       data = bytes
     }
     if (!data || data.byteLength === 0) return undefined
-    if (data.byteLength > this.config.maxArtworkBytes) {
+    if (data.byteLength > MAX_ARTWORK_SINGLE_BYTES) {
       this.ownCtx.logger.warn(
-        `cache: embedded artwork from ${audioUri} exceeds budget (${data.byteLength} bytes)`,
+        `cache: embedded artwork from ${audioUri} exceeds the single-file cap (${data.byteLength} bytes)`,
       )
       return undefined
     }
@@ -605,15 +652,15 @@ export class Cache extends Service implements CacheService {
         this.ownCtx.logger.warn(`cache: artwork ${sourceUrl} is ${type}, not an image`)
         return undefined
       }
-      // A single cover may not exceed the whole artwork budget, and reading it
-      // into memory to find out is the thing this avoids.
+      // A single cover may not exceed the per-file cap, and reading it into
+      // memory to find out is the thing this avoids.
       const declared = Number(response.headers['content-length'] ?? Number.NaN)
-      if (Number.isFinite(declared) && declared > this.config.maxArtworkBytes) {
-        this.ownCtx.logger.warn(`cache: artwork ${sourceUrl} is larger than the artwork budget`)
+      if (Number.isFinite(declared) && declared > MAX_ARTWORK_SINGLE_BYTES) {
+        this.ownCtx.logger.warn(`cache: artwork ${sourceUrl} is larger than the single-file cap`)
         return undefined
       }
       const bytes = await response.bytes()
-      if (bytes.byteLength === 0 || bytes.byteLength > this.config.maxArtworkBytes) return undefined
+      if (bytes.byteLength === 0 || bytes.byteLength > MAX_ARTWORK_SINGLE_BYTES) return undefined
 
       const uri = this.ownCtx.fs.join(
         this.artworkDir,
@@ -932,25 +979,37 @@ export class Cache extends Service implements CacheService {
    * classes do not share a budget because their losses do not cost the same:
    * evicting artwork is a re-fetch and a flicker, evicting a stream is the
    * user's re-download.
+   *
+   * Artwork DOES evict now: the class carries a large budget (512 MiB by
+   * default) and a grace window for freshly touched covers, so the cover on
+   * screen is never evicted from under the UI. The old "never evict" rule
+   * predates `localArtwork()`'s exists() self-heal — that check is what
+   * actually fixed the "cover disappears" bug, and it equally turns an
+   * evicted cover into a lazy re-extraction instead of a 404. Without a
+   * budget, `Cache/artwork` grew forever (audit finding #9).
    */
   private async enforce(className: CacheClass): Promise<void> {
-    // Artwork files on disk are permanent — never evict them. Re-extracting
-    // a cover requires parsing the audio file (slow, CPU-intensive), while
-    // disk space is cheap. Only the in-memory LRU (resolvedUriCache, 1000
-    // entries) is evicted. This prevents "cover disappears" bugs from
-    // stale local_uri references.
-    if (className === ARTWORK) return
     const budget = this.budgetFor(className)
     if (budget <= 0) return
-    const rows = await this.ownCtx.db.query<{ key: string; uri: Uri; size_bytes: number }>(
-      `SELECT key, uri, size_bytes FROM cache_entries
+    const rows = await this.ownCtx.db.query<{
+      key: string
+      uri: Uri
+      size_bytes: number
+      last_access_at: number
+    }>(
+      `SELECT key, uri, size_bytes, last_access_at FROM cache_entries
         WHERE class = ? ORDER BY last_access_at ASC`,
       [className],
     )
+    // Covers touched in the last ten minutes are immune — evicting the
+    // artwork the user is looking at buys nothing and costs a flicker.
+    const graceMs = className === ARTWORK ? 10 * 60 * 1000 : 0
+    const now = Date.now()
     let total = rows.reduce((sum, row) => sum + row.size_bytes, 0)
     let removed = 0
     for (const row of rows) {
       if (total <= budget) break
+      if (graceMs > 0 && now - row.last_access_at < graceMs) continue
       await this.drop(row.key)
       total -= row.size_bytes
       removed++

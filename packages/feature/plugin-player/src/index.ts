@@ -584,7 +584,14 @@ export class Player extends Service implements PlayerService {
     const wasPlaying = isPlayingLike(this.transport.status)
     this.transport = { ...this.transport, ...patch }
     if (isPlayingLike(this.transport.status) !== wasPlaying) this.syncWakeLock()
-    this.ownCtx.emit('player/state-changed', this.transport)
+    // The ticker drives position-only patches at ~3 Hz. `player/position`
+    // already carries those fields and the interpolation hooks subscribe to
+    // it, so re-broadcasting the whole TransportState (nowPlaying meta
+    // included) for each tick made every state-changed consumer clone
+    // hundreds of bytes three times a second for zero information. Real
+    // state changes — track, status, volume, repeat, error — still emit
+    // immediately.
+    if (!isPositionOnlyPatch(patch)) this.ownCtx.emit('player/state-changed', this.transport)
   }
 
   /* ── the wake lock ─────────────────────────────────────────────────── */
@@ -2038,6 +2045,18 @@ export class Player extends Service implements PlayerService {
  */
 function isPlayingLike(status: TransportState['status']): boolean {
   return status === 'playing' || status === 'stalled'
+}
+
+/**
+ * True when a patch carries nothing but the fields `player/position` already
+ * delivers. `set()` suppresses the full `player/state-changed` broadcast for
+ * such patches — see the comment there.
+ */
+const POSITION_ONLY_FIELDS: ReadonlySet<string> = new Set(['positionMs', 'durationMs', 'bufferedMs'])
+
+function isPositionOnlyPatch(patch: Partial<TransportState>): boolean {
+  const keys = Object.keys(patch)
+  return keys.length > 0 && keys.every((key) => POSITION_ONLY_FIELDS.has(key))
 }
 
 /** Ramp a handle's own gain, where the platform gives us one to ramp. */

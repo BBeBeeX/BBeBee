@@ -61,6 +61,11 @@ pub struct TaskbarState {
 pub struct AppState {
     // Lifecycle
     pub close_to_tray: AtomicBool,
+    /// Coalescing forwarder for high-frequency Rust → webview payloads
+    /// (mini-player data, desktop-lyrics data, media-session position).
+    pub notify: crate::notify::CoalescedEmitter,
+    /// Cross-process memory sampler state (ring + tracked children).
+    pub metrics: std::sync::Arc<crate::metrics::MetricsState>,
     pub quitting: AtomicBool,
     pub locale: Mutex<String>,
 
@@ -126,6 +131,8 @@ impl Default for AppState {
         Self {
             close_to_tray: AtomicBool::new(true),
             quitting: AtomicBool::new(false),
+            notify: crate::notify::CoalescedEmitter::default(),
+            metrics: std::sync::Arc::new(crate::metrics::MetricsState::new()),
             locale: Mutex::new("en".to_string()),
 
             latest_lyric_data: Mutex::new(None),

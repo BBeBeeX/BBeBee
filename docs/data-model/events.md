@@ -42,9 +42,13 @@ declare module 'cordis' {
     'lan-sync/settings-changed'(settings: LanSyncSettings): void
 
     /* ── player ─────────────────────────────────────── emit ── */
+    /**
+     * Full transport, on real state changes only (track, status, volume,
+     * repeat, error). Position-only ticks do not re-broadcast it.
+     */
     'player/state-changed'(state: TransportState): void
     'player/track-changed'(trackUrn: string | undefined, previous?: string): void
-    /** Throttled to 1 Hz. The UI interpolates between ticks. */
+    /** Ticker cadence (~3 Hz). The UI interpolates between ticks. */
     'player/position'(positionMs: number, durationMs: number): void
     'player/error'(error: SourceError, trackUrn: string): void
     'player/history-changed'(): void

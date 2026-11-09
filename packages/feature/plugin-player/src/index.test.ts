@@ -399,6 +399,35 @@ describe('transport', () => {
     expect(player.state.positionMs).toBe(6000)
   })
 
+  it('suppresses the full state broadcast for position-only ticks', async () => {
+    const { player, ctx, audio } = await harness()
+    const states: Array<Record<string, unknown>> = []
+    ctx.on('player/state-changed', (state) => states.push({ ...state }) as unknown as void)
+
+    await player.playNow([urn('a')])
+    // The loading→playing transition lands when the source reports play, so
+    // let the async tail settle before snapshotting the broadcast count.
+    await delay(20)
+    const afterLoad = states.length
+    // A real state change (play) still emits.
+    expect(afterLoad).toBeGreaterThan(0)
+
+    // The ticker path: position advances, but no full-state broadcast rides
+    // along — consumers read it from `player/position`.
+    audio.advance(5000)
+    await player.refresh()
+    audio.advance(5000)
+    await player.refresh()
+    expect(player.state.positionMs).toBe(10_000)
+    // Position-only refresh emits no state-changed.
+    expect(states.length).toBe(afterLoad)
+
+    // A real change still broadcasts.
+    player.pause()
+    expect(states.length).toBe(afterLoad + 1)
+    expect(states.at(-1)?.status).toBe('paused')
+  })
+
   it('falls back to the catalogue duration when the stream reports none', async () => {
     /*
      * DASH audio is an fMP4 segment whose `moov` can carry no

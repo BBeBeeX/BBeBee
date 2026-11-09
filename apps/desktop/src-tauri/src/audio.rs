@@ -108,8 +108,13 @@ pub struct LoadResult {
 }
 
 /// Incoming engine message (tagged by `type`).
+///
+/// The engine speaks camelCase (see `LoadResult`/`FftFrame`), so the fields
+/// must be renamed too — `rename_all` alone only covers the tag values, and
+/// a mismatch here silently falls back to `#[serde(default)]`, which is how
+/// `durationMs`/`mpvAvailable` were being dropped on the floor.
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "lowercase", rename_all_fields = "camelCase")]
 enum EngineMessage {
     Ready {
         #[serde(default)]
@@ -359,40 +364,57 @@ impl AudioEngineSupervisor {
         let pcm_tap_available = self.pcm_tap_available.clone();
 
         tokio::spawn(async move {
-            let mut reader = BufReader::new(stdout);
-            let mut line = String::new();
+            let mut reader = BufReader::with_capacity(64 * 1024, stdout);
+            let mut line_bytes: Vec<u8> = Vec::with_capacity(4 * 1024);
+            let mut dropped = 0u64;
             loop {
-                line.clear();
-                match reader.read_line(&mut line).await {
-                    Ok(0) => break, // EOF
-                    Ok(_) => {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() {
-                            continue;
+                // Bounded line read: engine lines are small (FFT frames,
+                // state). A runaway engine line is discarded whole rather
+                // than allowed to balloon this buffer.
+                let (got_line, over_limit, eof) =
+                    match crate::sidecar::read_limited_line(&mut reader, &mut line_bytes, 4 * 1024 * 1024).await {
+                        Ok(result) => result,
+                        Err(e) => {
+                            eprintln!("[audio] stdout read error: {e}");
+                            break;
                         }
-                        match serde_json::from_str::<EngineMessage>(trimmed) {
-                            Ok(msg) => {
-                                Self::dispatch_message(
-                                    msg,
-                                    &state_tx,
-                                    &fft_tx,
-                                    &ready_tx,
-                                    &ended_tx,
-                                    &pending_loads,
-                                    &current_uri,
-                                    &mpv_available,
-                                    &pcm_tap_available,
-                                );
-                            }
-                            Err(_) => {
-                                eprintln!("[audio] unparseable stdout line: {trimmed}");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("[audio] stdout read error: {e}");
+                    };
+                if over_limit {
+                    dropped += 1;
+                    eprintln!("[audio] dropped oversize stdout line ({dropped} total)");
+                }
+                if !got_line {
+                    if eof {
                         break;
                     }
+                    // An over-cap line was discarded; the stream continues.
+                    continue;
+                }
+                let trimmed = String::from_utf8_lossy(&line_bytes);
+                let trimmed = trimmed.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                match serde_json::from_str::<EngineMessage>(trimmed) {
+                    Ok(msg) => {
+                        Self::dispatch_message(
+                            msg,
+                            &state_tx,
+                            &fft_tx,
+                            &ready_tx,
+                            &ended_tx,
+                            &pending_loads,
+                            &current_uri,
+                            &mpv_available,
+                            &pcm_tap_available,
+                        );
+                    }
+                    Err(_) => {
+                        eprintln!("[audio] unparseable stdout line: {trimmed}");
+                    }
+                }
+                if eof {
+                    break;
                 }
             }
         });
@@ -549,6 +571,12 @@ impl AudioEngineSupervisor {
     }
 
     /// Stop the engine gracefully.
+    /// Current engine child pid, for the metrics sampler.
+    pub async fn pid(&self) -> Option<u32> {
+        let guard = self.child.lock().await;
+        guard.as_ref().and_then(|c| c.id())
+    }
+
     pub async fn stop(&self) {
         self.is_shutting_down
             .store(true, std::sync::atomic::Ordering::SeqCst);
