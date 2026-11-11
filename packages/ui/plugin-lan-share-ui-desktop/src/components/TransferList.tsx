@@ -4,7 +4,7 @@ import { createElement as h } from 'react'
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LanShareTransfer } from '@BBeBee/protocol'
-import { EmptyState } from '@BBeBee/ui-kit-desktop'
+import { EmptyState, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const STATE_TONE: Record<LanShareTransfer['state'], string> = {
@@ -37,7 +37,7 @@ export function TransferList({
   ctx: Context
   transfers: readonly LanShareTransfer[]
 }): ReactElement {
-  void ctx
+  const { t } = useI18n(ctx)
   return h(
     'div',
     { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
@@ -47,7 +47,7 @@ export function TransferList({
       'Transfers',
     ),
     transfers.length === 0
-      ? h(EmptyState, { title: 'No transfers yet', description: 'Pick a device on the left and send some songs.' })
+      ? h(EmptyState, { title: t('share:lanShare.noTransfersYet'), description: t('share:lanShare.pickDeviceToSend') })
       : h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },

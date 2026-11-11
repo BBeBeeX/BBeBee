@@ -109,6 +109,32 @@
     "shareTrack": {
       "canTCopyMissingA": "Can't copy: missing a valid title or other metadata",
       "shareSong": "Share song"
+    },
+    "lanShare": {
+      "deviceName": "Device name",
+      "noDevicesFound": "No devices found",
+      "makeSureSameWifi": "Make sure BBeBee is running on the other device and both are on the same Wi-Fi.",
+      "searchLibraryPlaceholder": "Search your library…",
+      "noMatchesInLibrary": "No matches in your library.",
+      "typeToSearch": "Type to search the local library.",
+      "sendToPeer": "Send to {name}",
+      "sendSongOne": "Send {count} song",
+      "sendSongOther": "Send {count} songs",
+      "noTransfersYet": "No transfers yet",
+      "pickDeviceToSend": "Pick a device on the left and send some songs."
+    },
+    "lanSync": {
+      "connectByAddress": "Connect by address",
+      "deviceName": "Device name",
+      "listeningWith": "Listening with {name}",
+      "onThisNetwork": "On this network",
+      "port": "Port",
+      "ipPlaceholder": "e.g. 192.168.1.9",
+      "pause": "⏸ Pause",
+      "play": "▶ Play",
+      "listenTogether": "Listen Together",
+      "on": "On",
+      "off": "Off"
     }
   },
   "zh": {
@@ -221,6 +247,32 @@
     "shareTrack": {
       "canTCopyMissingA": "无法复制：缺少有效标题或其他元数据",
       "shareSong": "分享歌曲"
+    },
+    "lanShare": {
+      "deviceName": "设备名称",
+      "noDevicesFound": "未找到设备",
+      "makeSureSameWifi": "请确保另一台设备上已运行 BBeBee 且处于同一 Wi-Fi 网络。",
+      "searchLibraryPlaceholder": "搜索音乐库…",
+      "noMatchesInLibrary": "音乐库中无匹配结果。",
+      "typeToSearch": "输入以搜索本地音乐库。",
+      "sendToPeer": "发送至 {name}",
+      "sendSongOne": "发送 {count} 首歌曲",
+      "sendSongOther": "发送 {count} 首歌曲",
+      "noTransfersYet": "暂无传输记录",
+      "pickDeviceToSend": "在左侧选择一台设备以发送歌曲。"
+    },
+    "lanSync": {
+      "connectByAddress": "按地址连接",
+      "deviceName": "设备名称",
+      "listeningWith": "正与 {name} 一同聆听",
+      "onThisNetwork": "局域网内的设备",
+      "port": "端口",
+      "ipPlaceholder": "例如 192.168.1.9",
+      "pause": "⏸ 暂停",
+      "play": "▶ 播放",
+      "listenTogether": "一起听",
+      "on": "开启",
+      "off": "关闭"
     }
   }
 }

@@ -425,7 +425,7 @@ export function SettingsScreen({
       if (response.status < 400) {
         setProxyTestResult({ ok: true, latencyMs: Date.now() - started })
       } else {
-        setProxyTestResult({ ok: false, error: `probe answered HTTP ${response.status}` })
+        setProxyTestResult({ ok: false, error: t('settings:network.probeAnsweredHttp', { status: response.status }) })
       }
     } catch (err: unknown) {
       setProxyTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) })

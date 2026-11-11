@@ -13,7 +13,7 @@ import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { LanShareIncomingRequest } from '@BBeBee/protocol'
 import { useLanSharePeers, useLanShareSettings, useLanShareTransfers } from '@bbebee/plugin-lan-share/hooks'
-import { Button, Switch, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, Switch, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import { PeerList } from './components/PeerList.js'
 import { SendPanel } from './components/SendPanel.js'
@@ -88,6 +88,7 @@ function IncomingOffers({ ctx }: { ctx: Context }): ReactElement | null {
 }
 
 export function LanShareScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const peers = useLanSharePeers(ctx)
   const transfers = useLanShareTransfers(ctx)
   const settings = useLanShareSettings(ctx)
@@ -133,7 +134,7 @@ export function LanShareScreen({ ctx }: { ctx: Context }): ReactElement {
       ),
       h(TextField, {
         value: nameDraft ?? settings?.deviceName ?? '',
-        placeholder: 'Device name',
+        placeholder: t('share:lanShare.deviceName'),
         onChange: setNameDraft,
         disabled: !settings,
       }),
@@ -182,7 +183,7 @@ export function LanShareScreen({ ctx }: { ctx: Context }): ReactElement {
       h(
         'div',
         { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: tokens.space[3] } },
-        h(PeerList, { peers, selectedId, onSelect: setSelectedId }),
+        h(PeerList, { peers, selectedId, onSelect: setSelectedId, t }),
         selected ? h(SendPanel, { ctx, peer: selected, onSend: send }) : null,
       ),
       h(

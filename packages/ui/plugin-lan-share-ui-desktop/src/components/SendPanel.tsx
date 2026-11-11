@@ -11,7 +11,7 @@ import { createElement as h, useCallback, useEffect, useRef, useState } from 're
 import type { ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { Track } from '@BBeBee/protocol'
-import { Button, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 import type { LanSharePeer } from '@BBeBee/protocol'
 
@@ -24,6 +24,7 @@ export function SendPanel({
   peer: LanSharePeer
   onSend(peerId: string, urns: readonly string[]): Promise<void>
 }): ReactElement {
+  const { t } = useI18n(ctx)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Track[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -79,9 +80,9 @@ export function SendPanel({
     h(
       'div',
       { style: { fontSize: tokens.font.size.md, fontWeight: tokens.font.weight.medium } },
-      `Send to ${peer.name}`,
+      t('share:lanShare.sendToPeer', { name: peer.name }),
     ),
-    h(TextField, { value: query, onChange: setQuery, placeholder: 'Search your library…' }),
+    h(TextField, { value: query, onChange: setQuery, placeholder: t('share:lanShare.searchLibraryPlaceholder') }),
     selected.length > 0
       ? h(
           'div',
@@ -97,7 +98,10 @@ export function SendPanel({
               onPress: () => void sendCart(),
               variant: 'primary',
               loading: sending,
-              children: `Send ${selected.length} song${selected.length === 1 ? '' : 's'}`,
+              children:
+                selected.length === 1
+                  ? t('share:lanShare.sendSongOne', { count: selected.length })
+                  : t('share:lanShare.sendSongOther', { count: selected.length }),
             },
           ),
           h(Button, { onPress: () => setSelected([]), variant: 'ghost', disabled: sending, children: 'Clear' }),
@@ -110,7 +114,7 @@ export function SendPanel({
         ? h(
             'div',
             { style: { fontSize: tokens.font.size.sm, color: 'var(--text-secondary, #8e8e93)', padding: tokens.space[2] } },
-            query.trim() ? 'No matches in your library.' : 'Type to search the local library.',
+            query.trim() ? t('share:lanShare.noMatchesInLibrary') : t('share:lanShare.typeToSearch'),
           )
         : results.map((track) =>
             h(

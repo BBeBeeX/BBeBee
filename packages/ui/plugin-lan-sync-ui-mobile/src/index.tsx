@@ -19,7 +19,7 @@ import {
   useLanSyncSettings,
   useMirrorPosition,
 } from '@bbebee/plugin-lan-sync/hooks'
-import { Button, TextField, Text, nativePrimitives } from '@BBeBee/ui-kit-mobile'
+import { Button, TextField, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const ACCENT = '#39d353'
@@ -33,6 +33,7 @@ function formatMs(ms: number): string {
 }
 
 function MirrorPanel({ ctx, onError }: { ctx: Context; onError: (message: string | undefined) => void }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const session = useLanSyncSession(ctx)
   const position = useMirrorPosition(ctx)
@@ -57,7 +58,7 @@ function MirrorPanel({ ctx, onError }: { ctx: Context; onError: (message: string
         backgroundColor: 'rgba(57, 211, 83, 0.07)',
       },
     },
-    h(Text, { variant: 'xs', tone: 'muted' }, `Listening with ${session.leader.name}`),
+    h(Text, { variant: 'xs', tone: 'muted' }, t('share:lanSync.listeningWith', { name: session.leader.name })),
     h(Text, { variant: 'lg', style: { fontWeight: '700' } }, snapshot.track?.title ?? 'Nothing playing'),
     snapshot.track?.artist ? h(Text, { variant: 'sm', tone: 'muted' }, snapshot.track.artist) : null,
     h(
@@ -83,7 +84,7 @@ function MirrorPanel({ ctx, onError }: { ctx: Context; onError: (message: string
       h(Button, {
         onPress: () => command({ action: 'toggle' }),
         variant: 'primary',
-        children: position?.playing ? '⏸ Pause' : '▶ Play',
+        children: position?.playing ? t('share:lanSync.pause') : t('share:lanSync.play'),
       }),
       h(Button, { onPress: () => command({ action: 'next' }), variant: 'ghost', children: '⏭' }),
       h(
@@ -102,6 +103,7 @@ function MirrorPanel({ ctx, onError }: { ctx: Context; onError: (message: string
 }
 
 function LeaderRows({ ctx, onError }: { ctx: Context; onError: (message: string | undefined) => void }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const leaders = useLanSyncLeaders(ctx)
   const [hostDraft, setHostDraft] = useState('')
@@ -162,13 +164,14 @@ function LeaderRows({ ctx, onError }: { ctx: Context; onError: (message: string 
       ),
     ),
     h(Text, { variant: 'sm', style: { fontWeight: '700' } }, 'Connect by address'),
-    h(TextField, { value: hostDraft, placeholder: 'e.g. 192.168.1.9', onChange: setHostDraft }),
-    h(TextField, { value: portDraft, placeholder: 'Port', onChange: setPortDraft }),
+    h(TextField, { value: hostDraft, placeholder: t('share:lanSync.ipPlaceholder'), onChange: setHostDraft }),
+    h(TextField, { value: portDraft, placeholder: t('share:lanSync.port'), onChange: setPortDraft }),
     h(Button, { onPress: () => void connect(), variant: 'secondary', children: 'Connect' }),
   )
 }
 
 export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const native = nativePrimitives()
   const session = useLanSyncSession(ctx)
   const settings = useLanSyncSettings(ctx)
@@ -185,7 +188,7 @@ export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
         paddingBottom: 160,
       },
     },
-    h(Text, { variant: 'lg', style: { fontWeight: '700' } }, 'Listen Together'),
+    h(Text, { variant: 'lg', style: { fontWeight: '700' } }, t('share:lanSync.listenTogether')),
     error ? h(Text, { variant: 'sm', style: { color: '#ff453a' } }, error) : null,
     following ? h(MirrorPanel, { ctx, onError: setError }) : null,
     following ? null : h(LeaderRows, { ctx, onError: setError }),
@@ -197,7 +200,7 @@ export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
       h(Button, {
         onPress: () => void ctx.lanSync.updateSettings({ discovery: !(settings?.discovery ?? true) }).catch(() => undefined),
         variant: 'secondary',
-        children: settings?.discovery ? 'On' : 'Off',
+        children: settings?.discovery ? t('share:lanSync.on') : t('share:lanSync.off'),
       }),
     ),
     session && session.followers.length > 0
@@ -261,7 +264,7 @@ export async function apply(ctx: Context) {
       kind: 'settings',
       id: 'lan-sync.host',
       section: 'general',
-      title: 'Listen Together',
+      title: 'share:lanSync.listenTogether',
       order: 71,
     })
   }, 'lan-sync-ui-mobile')

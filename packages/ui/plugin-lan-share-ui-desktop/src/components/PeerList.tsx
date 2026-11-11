@@ -12,10 +12,12 @@ export function PeerList({
   peers,
   selectedId,
   onSelect,
+  t = (k) => k,
 }: {
   peers: readonly LanSharePeer[]
   selectedId: string | undefined
   onSelect(id: string): void
+  t?(key: string): string
 }): ReactElement {
   return h(
     'div',
@@ -26,7 +28,10 @@ export function PeerList({
       'Devices on this network',
     ),
     peers.length === 0
-      ? h(EmptyState, { title: 'No devices found', description: 'Make sure BBeBee is running on the other device and both are on the same Wi-Fi.' })
+      ? h(EmptyState, {
+          title: t('share:lanShare.noDevicesFound'),
+          description: t('share:lanShare.makeSureSameWifi'),
+        })
       : h(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[1] } },

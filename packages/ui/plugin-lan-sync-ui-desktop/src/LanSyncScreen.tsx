@@ -20,7 +20,7 @@ import {
   useLanSyncSettings,
   useMirrorPosition,
 } from '@bbebee/plugin-lan-sync/hooks'
-import { Button, Switch, TextField } from '@BBeBee/ui-kit-desktop'
+import { Button, Switch, TextField, useI18n } from '@BBeBee/ui-kit-desktop'
 import { tokens } from '@BBeBee/ui-tokens'
 
 const ERROR_COLOR = 'rgba(255, 105, 97, 0.9)'
@@ -36,14 +36,16 @@ function formatMs(ms: number): string {
 function LeaderList({
   leaders,
   onJoin,
+  t = (k) => k,
 }: {
   leaders: readonly SyncLeaderInfo[]
   onJoin: (id: string) => void
+  t?(key: string): string
 }): ReactElement {
   return h(
     'div',
     { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-    h('div', { style: { fontSize: tokens.font.size.sm, fontWeight: tokens.font.weight.bold } }, 'On this network'),
+    h('div', { style: { fontSize: tokens.font.size.sm, fontWeight: tokens.font.weight.bold } }, t('share:lanSync.onThisNetwork')),
     leaders.length === 0
       ? h(
           'div',
@@ -81,6 +83,7 @@ function LeaderList({
 }
 
 function ManualConnect({ ctx, onError }: { ctx: Context; onError: (message: string | undefined) => void }): ReactElement {
+  const { t } = useI18n(ctx)
   const [hostDraft, setHostDraft] = useState('')
   const [portDraft, setPortDraft] = useState('53318')
 
@@ -101,18 +104,19 @@ function ManualConnect({ ctx, onError }: { ctx: Context; onError: (message: stri
   return h(
     'div',
     { style: { display: 'flex', flexDirection: 'column', gap: tokens.space[2] } },
-    h('div', { style: { fontSize: tokens.font.size.sm, fontWeight: tokens.font.weight.bold } }, 'Connect by address'),
+    h('div', { style: { fontSize: tokens.font.size.sm, fontWeight: tokens.font.weight.bold } }, t('share:lanSync.connectByAddress')),
     h(
       'div',
       { style: { display: 'flex', gap: tokens.space[2], alignItems: 'center', flexWrap: 'wrap' } },
-      h('div', { style: { width: 180 } }, h(TextField, { value: hostDraft, placeholder: 'e.g. 192.168.1.9', onChange: setHostDraft })),
-      h('div', { style: { width: 90 } }, h(TextField, { value: portDraft, placeholder: 'Port', onChange: setPortDraft })),
+      h('div', { style: { width: 180 } }, h(TextField, { value: hostDraft, placeholder: t('share:lanSync.ipPlaceholder'), onChange: setHostDraft })),
+      h('div', { style: { width: 90 } }, h(TextField, { value: portDraft, placeholder: t('share:lanSync.port'), onChange: setPortDraft })),
       h(Button, { onPress: () => void connect(), variant: 'secondary', children: 'Connect' }),
     ),
   )
 }
 
 function MirrorPanel({ ctx, onCommand, onError }: { ctx: Context; onCommand: (cmd: SyncCommand) => void; onError: (message: string | undefined) => void }): ReactElement {
+  const { t } = useI18n(ctx)
   const session = useLanSyncSession(ctx)
   const position = useMirrorPosition(ctx)
   const snapshot = session?.snapshot
@@ -135,7 +139,7 @@ function MirrorPanel({ ctx, onCommand, onError }: { ctx: Context; onCommand: (cm
     h(
       'div',
       { style: { fontSize: tokens.font.size.xs, color: 'var(--text-secondary, #8e8e93)' } },
-      `Listening with ${session.leader.name}`,
+      t('share:lanSync.listeningWith', { name: session.leader.name }),
     ),
     h(
       'div',
@@ -170,7 +174,7 @@ function MirrorPanel({ ctx, onCommand, onError }: { ctx: Context; onCommand: (cm
         {
           onPress: () => onCommand({ action: 'toggle' }),
           variant: 'primary',
-          children: position?.playing ? '⏸ Pause' : '▶ Play',
+          children: position?.playing ? t('share:lanSync.pause') : t('share:lanSync.play'),
         },
       ),
       h(Button, { onPress: () => onCommand({ action: 'next' }), variant: 'ghost', children: '⏭' }),
@@ -248,6 +252,7 @@ function FollowerRoster({ ctx }: { ctx: Context }): ReactElement | null {
 }
 
 export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
+  const { t } = useI18n(ctx)
   const leaders = useLanSyncLeaders(ctx)
   const session = useLanSyncSession(ctx)
   const settings = useLanSyncSettings(ctx)
@@ -287,7 +292,7 @@ export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
       ),
       h(TextField, {
         value: nameDraft ?? settings?.deviceName ?? '',
-        placeholder: 'Device name',
+        placeholder: t('share:lanSync.deviceName'),
         onChange: setNameDraft,
         disabled: !settings,
       }),
@@ -332,6 +337,7 @@ export function LanSyncScreen({ ctx }: { ctx: Context }): ReactElement {
           ? null
           : h(LeaderList, {
               leaders,
+              t,
               onJoin: (id) => {
                 setError(undefined)
                 void ctx.lanSync.joinLeader(id).catch((err) => setError(String((err as Error).message ?? err)))
