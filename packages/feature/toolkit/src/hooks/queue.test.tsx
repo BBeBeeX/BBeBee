@@ -7,6 +7,7 @@ import { tick } from '@BBeBee/kernel/testing'
 import {
   formatRelativeTime,
   upcomingDropToQueueIndex,
+  useQueueScrollWindow,
   useQueueView,
 } from './queue.js'
 
@@ -138,4 +139,113 @@ describe('useQueueView', () => {
     })
     expect((ctx.player as unknown as PlayerStub).cleared).toBe(true)
   })
+
+  it('windows upcoming tracks and always includes currentItem in large queue', async () => {
+    const ctx = new Context()
+    const manyQueue: QueueItem[] = Array.from({ length: 300 }, (_, i) => ({
+      id: `item-${i}`,
+      trackUrn: `bbebee:local:track:${i}`,
+      addedAt: i * 10,
+      addedBy: 'user',
+    }))
+
+    class LargePlayerStub extends Service {
+      constructor(c: Context) {
+        super(c, 'player')
+      }
+      get queue() {
+        return manyQueue
+      }
+      // Current track is item-100, upcoming is item-101 .. item-299
+      upcoming() {
+        return manyQueue.slice(101)
+      }
+      get state(): TransportState {
+        return {
+          status: 'playing',
+          currentItemId: 'item-100',
+          trackUrn: 'bbebee:local:track:100',
+          positionMs: 0,
+          durationMs: 180000,
+          bufferedMs: 0,
+          volume: 1,
+          muted: false,
+          repeat: 'off',
+          shuffle: false,
+          playMode: 'sequence',
+        }
+      }
+      async getHistory() {
+        return []
+      }
+    }
+
+    let queriedUrns: string[] = []
+    class SourcesStub extends Service {
+      constructor(c: Context) {
+        super(c, 'sources')
+      }
+      async getTracks(urns: readonly string[]) {
+        queriedUrns = [...urns]
+        return urns.map((urn) => ({
+          urn,
+          title: `Track ${urn}`,
+          artists: [],
+        }))
+      }
+    }
+
+    await ctx.plugin(LargePlayerStub)
+    await ctx.plugin(SourcesStub)
+    await tick()
+
+    const { result } = renderHook(() => useQueueView(ctx, { windowStart: 0, windowLength: 50 }))
+    await tick()
+
+    expect(result.current.currentItem?.id).toBe('item-100')
+    // currentItem trackUrn must be queried
+    expect(queriedUrns).toContain('bbebee:local:track:100')
+    // The first slice of upcoming (item-101 onwards) must be queried, NOT queue[0..50]
+    expect(queriedUrns).toContain('bbebee:local:track:101')
+    expect(queriedUrns).not.toContain('bbebee:local:track:0')
+  })
 })
+
+describe('useQueueScrollWindow', () => {
+  it('calculates windowStart based on headerOffset, itemHeight, and blockSize', () => {
+    const { result } = renderHook(() =>
+      useQueueScrollWindow({
+        itemHeight: 60,
+        blockSize: 25,
+        headerOffset: 120,
+      }),
+    )
+
+    expect(result.current.windowStart).toBe(0)
+
+    // Scroll before header offset should stay at 0
+    act(() => {
+      result.current.onScroll(80)
+    })
+    expect(result.current.windowStart).toBe(0)
+
+    // Scroll past header offset: (120 + 20 * 60) = 1320 -> itemIndex = 20 -> block = 0
+    act(() => {
+      result.current.onScroll(1320)
+    })
+    expect(result.current.windowStart).toBe(0)
+
+    // Scroll past 25 items: (120 + 26 * 60) = 1680 -> itemIndex = 26 -> block = 25
+    act(() => {
+      result.current.onScroll(1680)
+    })
+    expect(result.current.windowStart).toBe(25)
+
+    // Scroll past 50 items: (120 + 55 * 60) = 3420 -> itemIndex = 55 -> block = 50
+    act(() => {
+      result.current.onScroll(3420)
+    })
+    expect(result.current.windowStart).toBe(50)
+  })
+})
+

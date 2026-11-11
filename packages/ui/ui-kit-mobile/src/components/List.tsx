@@ -26,6 +26,13 @@ export function List<T>(props: ListProps<T>): ReactElement {
     renderItem: ({ item, index }: { item: T; index: number }) => props.renderItem(item, index),
     onEndReached: props.onEndReached,
     onEndReachedThreshold: 0.5,
+    onScroll: props.onScroll
+      ? (e: { nativeEvent?: { contentOffset?: { y?: number } } }) => {
+          const y = e?.nativeEvent?.contentOffset?.y ?? 0
+          props.onScroll?.(y)
+        }
+      : undefined,
+    scrollEventThrottle: props.onScroll ? 16 : undefined,
     ListEmptyComponent: props.empty as ReactNode,
     contentContainerStyle: [
       { flexGrow: 1, paddingBottom: 160 },

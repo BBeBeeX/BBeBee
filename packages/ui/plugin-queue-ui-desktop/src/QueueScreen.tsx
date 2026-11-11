@@ -7,7 +7,7 @@
  * handles layout, presentation, and event wiring only (docs/08 §1).
  */
 
-import { createElement as h, useCallback, useRef, useState, type ReactElement } from 'react'
+import { createElement as h, useRef, useState, type ReactElement } from 'react'
 import type { Context } from 'cordis'
 import type { PlayRecord, QueueItem, Track } from '@BBeBee/protocol'
 import { formatDuration } from '@BBeBee/toolkit'
@@ -15,6 +15,7 @@ import {
   CONTEXT_KIND_LABEL_KEYS,
   formatRelativeTime,
   queueTrackFallback,
+  useQueueScrollWindow,
   useQueueView,
 } from '@BBeBee/toolkit/hooks'
 import { ContextMenu, EmptyState, List, tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
@@ -33,12 +34,11 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   const menu = useTrackMenu(ctx)
 
   // Track the scroll window to only fetch tracks within view and near buffer
-  const [windowStart, setWindowStart] = useState(0)
-  const onScroll = useCallback((scrollTop: number) => {
-    const itemIndex = Math.max(0, Math.floor(scrollTop / 64))
-    const block = Math.floor(itemIndex / 25) * 25
-    setWindowStart((prev) => (prev === block ? prev : block))
-  }, [])
+  const { windowStart, onScroll } = useQueueScrollWindow({
+    itemHeight: 64,
+    blockSize: 25,
+    headerOffset: 120,
+  })
 
   const {
     tab,

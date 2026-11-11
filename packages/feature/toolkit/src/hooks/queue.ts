@@ -68,6 +68,37 @@ export function upcomingDropToQueueIndex(
   return dropIndex < upcoming.length ? anchorWithoutDragged : anchorWithoutDragged + 1
 }
 
+export interface QueueScrollWindowOptions {
+  readonly itemHeight?: number
+  readonly blockSize?: number
+  readonly headerOffset?: number
+}
+
+/**
+ * Universal scroll position tracker for queue views on desktop and mobile.
+ * Converts scroll offset into block-quantized windowStart to avoid churning
+ * track hydration queries on every single pixel of scroll.
+ */
+export function useQueueScrollWindow(options: QueueScrollWindowOptions = {}) {
+  const itemHeight = options.itemHeight ?? 64
+  const blockSize = options.blockSize ?? 25
+  const headerOffset = options.headerOffset ?? 0
+
+  const [windowStart, setWindowStart] = useState(0)
+
+  const onScroll = useCallback(
+    (scrollTop: number) => {
+      const adjusted = Math.max(0, scrollTop - headerOffset)
+      const itemIndex = Math.floor(adjusted / itemHeight)
+      const block = Math.floor(itemIndex / blockSize) * blockSize
+      setWindowStart((prev) => (prev === block ? prev : block))
+    },
+    [headerOffset, itemHeight, blockSize],
+  )
+
+  return { windowStart, onScroll, setWindowStart }
+}
+
 export interface QueueViewOptions {
   readonly defaultTab?: 'queue' | 'history'
   readonly windowStart?: number
@@ -124,16 +155,27 @@ export function useQueueView(
   const currentItem = queue[currentIdx] ?? queue[0]
 
   // Queue tracks resolution: when on history tab, don't query queue tracks;
-  // if window options are provided and queue > 100, window by scroll position; otherwise resolve all.
+  // if window options are provided and upcoming > 100, window by scroll position; otherwise resolve all.
   const queueTrackUrns = useMemo(() => {
     if (tab !== 'queue') return []
-    if (options?.windowStart !== undefined && queue.length > 100) {
+    if (options?.windowStart !== undefined && upcoming.length > 100) {
       const start = Math.max(0, options.windowStart)
       const length = options.windowLength ?? 50
-      return queue.slice(start, start + length).map((item) => item.trackUrn)
+      const bufferBefore = 15
+      const actualStart = Math.max(0, start - bufferBefore)
+      const actualLength = length + bufferBefore + 20
+      const visible = upcoming.slice(actualStart, actualStart + actualLength).map((item) => item.trackUrn)
+      if (currentItem?.trackUrn && !visible.includes(currentItem.trackUrn)) {
+        visible.unshift(currentItem.trackUrn)
+      }
+      return visible
     }
-    return queue.map((item) => item.trackUrn)
-  }, [tab, queue, options?.windowStart, options?.windowLength])
+    const urns = upcoming.map((item) => item.trackUrn)
+    if (currentItem?.trackUrn && !urns.includes(currentItem.trackUrn)) {
+      urns.unshift(currentItem.trackUrn)
+    }
+    return urns
+  }, [tab, upcoming, currentItem?.trackUrn, options?.windowStart, options?.windowLength])
 
   const queueTracks = useTracksByUrn(ctx, queueTrackUrns)
 

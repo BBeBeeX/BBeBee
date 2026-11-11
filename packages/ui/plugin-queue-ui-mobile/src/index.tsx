@@ -17,6 +17,7 @@ import {
   CONTEXT_KIND_LABEL_KEYS,
   formatRelativeTime,
   queueTrackFallback,
+  useQueueScrollWindow,
   useQueueView,
 } from '@BBeBee/toolkit/hooks'
 import { ContextMenu, EmptyState, List, Text, TrackRow, c, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
@@ -49,6 +50,12 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
   )
   const native = nativePrimitives()
 
+  const { windowStart, onScroll } = useQueueScrollWindow({
+    itemHeight: tokens.size.row,
+    blockSize: 25,
+    headerOffset: 0,
+  })
+
   const {
     tab,
     setTab,
@@ -61,7 +68,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
     uniqueHistoryRecords,
     uniqueHistoryUrns,
     historyTracks,
-  } = useQueueView(ctx)
+  } = useQueueView(ctx, { windowStart })
 
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
@@ -324,6 +331,7 @@ export function QueueScreen({ ctx, onClose }: QueueScreenProps): ReactElement {
           accessibilityLabel: t('queue:index.nextUp'),
           estimatedItemSize: tokens.size.row,
           keyExtractor: (item) => item.id,
+          onScroll,
           empty: h(
             native.View as never,
             { style: { paddingVertical: tokens.space[3] } },

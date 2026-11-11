@@ -221,15 +221,18 @@ export function useTracksByUrn(ctx: Context, urns: readonly string[]): ReadonlyM
     sources
       .getTracks(missingFromGlobal)
       .then(async (tracks) => {
-        if (cancelled) return
-        const nextMap = new Map<string, Track>()
         for (const track of tracks) {
-          nextMap.set(track.urn, track)
           if (cache.size >= CONTEXT_TRACK_CACHE_MAX) {
             const oldest = cache.keys().next().value
             if (oldest) cache.delete(oldest)
           }
           cache.set(track.urn, track)
+        }
+
+        if (cancelled) return
+        const nextMap = new Map<string, Track>()
+        for (const track of tracks) {
+          nextMap.set(track.urn, track)
         }
 
         const stillMissing = missingFromGlobal.filter((urn) => !nextMap.has(urn))

@@ -296,4 +296,46 @@ describe('QueueScreen on mobile', () => {
     })
     expect(container.textContent).not.toContain('No play records yet')
   })
+
+  it('windows metadata queries and resolves tracks when playing from a large 1000-song queue', async () => {
+    const oneThousandItems: QueueItem[] = Array.from({ length: 1000 }, (_, i) => ({
+      id: `item-${i}`,
+      trackUrn: `BBeBee:local:track:${i}`,
+      addedBy: 'user',
+    }))
+    const catalogue: Record<string, Track> = {}
+    for (let i = 200; i <= 260; i++) {
+      catalogue[`BBeBee:local:track:${i}`] = {
+        urn: `BBeBee:local:track:${i}`,
+        title: `Mobile Song ${i}`,
+        artists: [{ urn: `artist:${i}`, name: `Mobile Artist ${i}`, role: 'main', ordinal: 0 }],
+      }
+    }
+
+    let requestedCount = 0
+    const { ctx } = await harness(
+      { currentItemId: 'item-200', trackUrn: 'BBeBee:local:track:200' },
+      oneThousandItems,
+      catalogue,
+    )
+
+    const sources = ctx.sources as { getTracks: (urns: readonly string[]) => Promise<Track[]> }
+    const originalGetTracks = sources.getTracks
+    sources.getTracks = async (urns: readonly string[]) => {
+      requestedCount += urns.length
+      return originalGetTracks(urns)
+    }
+
+    const { container } = render(h(QueueScreen, { ctx }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Now playing item should be resolved
+    expect(container.textContent).toContain('Mobile Song 200')
+    // Next up items should be resolved
+    expect(container.textContent).toContain('Mobile Song 201')
+    // Instead of querying all 1000 tracks, only windowed tracks (< 150) are requested
+    expect(requestedCount).toBeLessThan(150)
+  })
 })

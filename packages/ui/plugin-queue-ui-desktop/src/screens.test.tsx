@@ -509,6 +509,43 @@ describe('QueueScreen', () => {
     // For 3000 items, only the windowed slice (well under 150 tracks) is requested from sources
     expect(requestedCount).toBeLessThan(150)
   })
+
+  it('correctly resolves metadata for currentItem and upcoming tracks when playing from the middle of a 2000-song queue', async () => {
+    const twoThousandItems: QueueItem[] = Array.from({ length: 2000 }, (_, i) => ({
+      id: `item-${i}`,
+      trackUrn: `BBeBee:local:track:${i}`,
+      addedBy: 'user',
+    }))
+    const catalogue: Record<string, Track> = {}
+    for (let i = 490; i <= 550; i++) {
+      catalogue[`BBeBee:local:track:${i}`] = {
+        urn: `BBeBee:local:track:${i}`,
+        title: `Song ${i}`,
+        artists: [{ urn: `artist:${i}`, name: `Artist ${i}`, role: 'main', ordinal: 0 }],
+      }
+    }
+
+    const { ctx } = await harness(
+      { currentItemId: 'item-500', trackUrn: 'BBeBee:local:track:500' },
+      twoThousandItems,
+      catalogue,
+    )
+
+    const { container } = withListLayout(() => render(h(QueueScreen, { ctx })))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    // Now playing row should display Song 500
+    expect(container.textContent).toContain('Song 500')
+    // Next up upcoming rows should display Song 501
+    expect(container.textContent).toContain('Song 501')
+    // No visible row should show "Loading…"
+    const rows = container.querySelectorAll('[role="row"]')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of Array.from(rows)) {
+      expect(row.textContent).not.toContain('Loading…')
+    }
+  })
 })
 
 
