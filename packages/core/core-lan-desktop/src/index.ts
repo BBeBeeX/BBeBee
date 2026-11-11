@@ -6,10 +6,8 @@
  *   - `LanBridge` (renderer): the `ctx.lan` bootstrap service — thin IPC
  *     client over the desktop bridge, gate-checked here, subscriptions
  *     fanned out locally.
- *   - `createLanHost` (sidecar, via `./host`): the real sockets —
+ *   - `createLanHost` (sidecar, via `@bbebee/core-lan-desktop/host`): the real sockets —
  *     `node:dgram` and `node:http`. Imported only by the sidecar app.
  */
 
 export { LanBridge } from './bridge.js'
-export type { LanHostOptions } from './host.js'
-export { createLanHost, uriToPath } from './host.js'

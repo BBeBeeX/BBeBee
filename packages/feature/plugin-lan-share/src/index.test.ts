@@ -24,7 +24,7 @@ import { Context, Service } from 'cordis'
 import { PathsNode } from '@BBeBee/core-paths-desktop'
 import { FsNode } from '@BBeBee/core-fs-desktop'
 import { DbNode } from '@BBeBee/core-db-desktop'
-import { createLanHost } from '@bbebee/core-lan-desktop'
+import { createLanHost } from '@bbebee/core-lan-desktop/host'
 import { tempDir, tick } from '@BBeBee/kernel/testing'
 import type {
   DbService,

@@ -24,7 +24,7 @@ import {
 } from '@bbebee/core-desktop-bridge/main'
 import { CH } from '@bbebee/core-desktop-bridge/protocol'
 import { httpProxyUrl } from '@BBeBee/protocol'
-import { createLanHost } from '@bbebee/core-lan-desktop'
+import { createLanHost } from '@bbebee/core-lan-desktop/host'
 import { createAudioHost, type AudioHostApi } from './audio/index.js'
 import { listInstalledPlugins, removePluginFiles, writePluginFilesAtomic } from './installed-plugins.js'
 import { ProtocolManager } from './protocols.js'
