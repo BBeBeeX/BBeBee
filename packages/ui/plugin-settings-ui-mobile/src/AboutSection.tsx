@@ -15,13 +15,10 @@ import type { Context } from 'cordis'
 import { resolveMobileLiquidGlassSettings } from '@BBeBee/protocol'
 import { useAppSettings } from '@bbebee/plugin-settings/hooks'
 import { serviceOf } from '@BBeBee/ui-core'
-import { Button, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
-import { tokens } from '@BBeBee/ui-tokens'
+import { activePalette, Button, getScheme, Text, nativePrimitives, useI18n } from '@BBeBee/ui-kit-mobile'
+import { tokens, BBEBEE_LOGO_DARK_DATA_URL, BBEBEE_LOGO_WHITE_DATA_URL } from '@BBeBee/ui-tokens'
 import { SwitchRow } from './SchemaForm.js'
 import { renderCard, renderRow, renderSectionHeader } from './layout.js'
-
-const BBEBEE_LOGO_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH0AAACWBAMAAAABLZpXAAAAD1BMVEUQFBX///9mZ2fe396srKxD0ysfAAACh0lEQVRo3u3ZfXKrIBAA8A3mACIeAEkOIGkOoDH3P9OjOk2VL3fZee+PNzidJs34yy4LIlKQrKOF6quvvvr/wz/MHDutN3eU7wGEjZymAQaMHwGgCc/q4h+HfnInimh4uGLjQ1ABBVjfRs98ADb/HiIJrOFx9VsL4CcwpdMPvNJBAmtO0V6NjT/1fHnBXE3FQhm/LgV7aH0qeMJ3h2J1qdKlrx+9b8AYG1B53+0boBM9n/Fql3J/KAby+p9+Y7bZ9BO++0VTNv2E3yWtc9UP/Mtsh+tzIbTRRrh37u+3xfl19EaPu+V5EDPPAyxMDzPTC6aPDAWaD4cy0TdMH8wkRB8MZqpvmF4wvd8DeS/e7ylfgBO/3br3x4XoleevRO9/RPZjtgPOfe81gOrlxPR9bgAgvJcA3SvN88cxVOAPLSjxPaf+xwREke+YXhaP/8dybEBD9CPcDg2gzh9uRX3b98BMjr/GVEXz5xZ/P41cSzxc7E8BB1mQ//frFL+D4+K7qm3T2E0WxXdpt/EFBNI3mx9K/XV9vclSL9h+ipYP73V8BYf2Px/Ysvr18dsv2nec68f1/+cuOtii8Vc8f23xX8Xz/xZ/Si2AMt4Y/YmfXAEm/frI/AyWH34BUv6z0B3zK8iUn2XKHwuY8I1M+xnhZcYP577xdmSofs7Fv5x7mfPNqRdM3/ibPwyveV4By6sOCup/zTUf0//efhzZD5nwmPEv9huHJdfPPc0Bdf2b5etpEE+g5OdP7PyHfAKne8vzpPX3+QbA331+Dw/a+vV8C+rf7t8I3v5RZAuP4gVv/81Yzv6fWSj7p/7x/qr//6q++uqrr57kbYm3yv0o98va7zfuSxJf0/4Bf17uCrH7aT4AAAAASUVORK5CYII='
 
 interface StoreLike {
   get<T>(k: string): Promise<T | undefined>
@@ -109,14 +106,14 @@ export function AboutSection({
               overflow: 'hidden',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 1)',
+              backgroundColor: activePalette().bg.raised,
               borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderColor: activePalette().border.subtle,
             },
           },
           h(native.Image as never, {
-            source: { uri: BBEBEE_LOGO_DATA_URL },
-            style: { width: 38, height: 38 },
+            source: { uri: getScheme() === 'dark' ? BBEBEE_LOGO_WHITE_DATA_URL : BBEBEE_LOGO_DARK_DATA_URL },
+            style: { width: 38, height: 38, resizeMode: 'contain' },
             accessibilityLabel: t('settings:about.bBeBeeLogo'),
           }),
         ),

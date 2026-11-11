@@ -296,7 +296,7 @@ export function cssVariables(scheme: Scheme): Record<string, string> {
   out['--input-bg'] = scheme === 'light' ? '#FFFFFF' : palette.bg.raised
   out['--input-border'] = palette.border.subtle
   out['--input-focus-border'] = palette.border.strong
-  out['--logo-filter'] = scheme === 'light' ? 'brightness(0)' : 'none'
+  out['--logo-filter'] = scheme === 'light' ? 'none' : 'brightness(0) invert(1)'
   out['--shadow-dropdown'] = scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)'
   out['--shadow-dropdown-layered'] = scheme === 'light'
     ? '0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12), 0 20px 40px -4px rgba(0, 0, 0, 0.16)'
@@ -513,7 +513,7 @@ export function themeToCssVariables(
     '--input-bg': scheme === 'light' ? t.bg.primary : t.surface.s1,
     '--input-border': t.border.subtle,
     '--input-focus-border': t.border.focus,
-    '--logo-filter': scheme === 'light' ? 'brightness(0)' : 'none',
+    '--logo-filter': scheme === 'light' ? 'none' : 'brightness(0) invert(1)',
     '--shadow-dropdown': scheme === 'light' ? '0 8px 24px rgba(0, 0, 0, 0.12)' : '0 12px 32px rgba(0, 0, 0, 0.65)',
     '--shadow-dropdown-layered': scheme === 'light'
       ? '0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12), 0 20px 40px -4px rgba(0, 0, 0, 0.16)'
@@ -666,3 +666,5 @@ export function themeContrastIssues(
   }
   return issues
 }
+
+export { BBEBEE_LOGO_DARK_DATA_URL, BBEBEE_LOGO_WHITE_DATA_URL } from './logo.js'

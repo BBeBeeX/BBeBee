@@ -18,7 +18,7 @@ import type { SleepTimerMode, SleepTimerService, TrayContribution } from '@BBeBe
 import { tablerIcon, useI18n } from '@BBeBee/ui-kit-desktop'
 import { useSearchSourceSelection, useAudioSourcesStatus, isLocalSource, type SearchInterfaceKind } from '@bbebee/plugin-sources/hooks'
 import { useSleepTimer } from '@bbebee/plugin-sleep-timer/hooks'
-import logoWhiteUrl from './assets/logo-white.png'
+import logoUrl from './assets/logo.png'
 import { isMacPlatform } from './platform.js'
 import { useRegistryUnseenUpdates } from './registry-updates.js'
 
@@ -1407,7 +1407,7 @@ export function TopBar({
           },
         },
         h('img', {
-          src: logoWhiteUrl,
+          src: logoUrl,
           alt: t('app:common.top.bBeBee'),
           width: 22,
           height: 22,

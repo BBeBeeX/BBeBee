@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B0B0F"
+      "backgroundColor": "#101115"
     },
     "newArchEnabled": true,
     "platforms": ["ios", "android"],
@@ -26,7 +26,7 @@
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A1A24"
+        "backgroundColor": "#101115"
       },
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",

@@ -70,9 +70,9 @@ import {
 } from './appearance'
 import { NavDrawerOverlay, collectDrawerPages, DRAWER_EXCLUDED_ROUTES } from './nav-drawer'
 import { DEFERRED_PLUGIN_IDS } from './plugins'
-// The brand mark on the tablet rail — the existing app icon, reused rather
-// than a second asset shipped for one layout.
-import brandIcon from '../assets/icon.png'
+// The brand mark on the mobile drawer and tablet rail.
+import brandLogoDark from '../assets/logo.png'
+import brandLogoWhite from '../assets/logo-white.png'
 
 /**
  * Request runtime Android permissions for audio media reading and notifications.
@@ -371,7 +371,10 @@ function NavDrawerContents({ ctx, currentPageId, translate, onSelectPage }: {
           paddingBottom: 8,
         },
       },
-      h(Image, { source: brandIcon, style: { width: 28, height: 28, borderRadius: 6 } }),
+      h(Image, {
+        source: getScheme() === 'dark' ? brandLogoWhite : brandLogoDark,
+        style: { width: 28, height: 28, resizeMode: 'contain' },
+      }),
       h(View, { style: { flex: 1 } }),
       h(DisplayModeButton, { ctx }),
     ),
@@ -1636,7 +1639,10 @@ function Shell({ ctx }: { ctx: Context }) {
             paddingBottom: 12,
           },
         },
-        h(Image, { source: brandIcon, style: { width: 28, height: 28, borderRadius: 6 } }),
+        h(Image, {
+          source: getScheme() === 'dark' ? brandLogoWhite : brandLogoDark,
+          style: { width: 28, height: 28, resizeMode: 'contain' },
+        }),
         h(Text, { style: { color: palette.text.primary, fontSize: 18, fontWeight: '700' } }, 'B Be Bee'),
       ),
       h(
